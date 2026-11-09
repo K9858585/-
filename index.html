@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OKX 实时K线预测终端</title>
+    <!-- 引入图表库 -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        /* --- 手机端极简适配版 CSS --- */
+        body { background-color: #12161f; color: #d1d4dc; font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #sidebar { height: 80px; background-color: #1a1f2b; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 8px; }
+        .input-group { display: flex; gap: 8px; }
+        .input-group input { flex: 1; background-color: #2a2e39; border: 1px solid #363a45; color: #fff; padding: 6px; font-size: 12px; border-radius: 4px; outline: none; }
+        .input-group button { background-color: #2962ff; color: #fff; border: none; padding: 6px 10px; font-size: 12px; border-radius: 4px; }
+        .coin-list { flex: 1; display: flex; overflow-x: auto; padding: 0; }
+        .coin-item { padding: 8px 12px; min-width: 90px; border-right: 1px solid #2a2e39; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .coin-item.active { border-bottom: 3px solid #2962ff; font-weight: bold; background-color: #1e2431; color: #fff; }
+        .remove-btn { color: #f6465d; background: none; border: none; font-size: 16px; padding: 0 5px; }
+        
+        #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        #topbar { display: flex; flex-direction: column; padding: 8px; gap: 8px; background-color: #1a1f2b; border-bottom: 1px solid #2a2e39; flex-shrink: 0; }
+        .timeframes { width: 100%; display: flex; gap: 5px; overflow-x: auto; }
+        .tf-btn { background: transparent; color: #848e9c; border: none; padding: 6px 12px; border-radius: 4px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+        .tf-btn.active { color: #fff; background-color: #2a2e39; }
+        .price-info { font-size: 20px; font-weight: bold; color: #fff; padding-left: 5px; }
+        #chart-container { flex: 1; position: relative; min-height: 0; }
+
+        #signal-panel { position: absolute; top: 10px; right: 10px; background-color: rgba(26, 31, 43, 0.95); border: 1px solid #363a45; border-radius: 8px; padding: 10px 12px; z-index: 10; min-width: 170px; transform: scale(0.9); transform-origin: top right; }
+        .signal-header { font-size: 11px; color: #848e9c; margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .signal-main { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .signal-action { font-size: 20px; font-weight: 900; padding: 3px 10px; border-radius: 6px; }
+        .signal-action.long { color: #0ecb81; background-color: rgba(14, 203, 129, 0.15); border: 1px solid #0ecb81; }
+        .signal-action.short { color: #f6465d; background-color: rgba(246, 70, 93, 0.15); border: 1px solid #f6465d; }
+        .signal-action.neutral { color: #fcd535; background-color: rgba(252, 213, 53, 0.15); border: 1px solid #fcd535; }
+        .confidence-wrapper { flex: 1; }
+        .confidence-label { font-size: 11px; color: #848e9c; display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .confidence-bar-bg { height: 5px; background-color: #2a2e39; border-radius: 3px; overflow: hidden; }
+        .confidence-bar-fill { height: 100%; width: 0%; transition: width 0.3s; }
+        .indicators-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; color: #b2b5be; margin-top: 8px; padding-top: 8px; border-top: 1px solid #2a2e39; }
+        .ind-item { display: flex; justify-content: space-between; }
+        .ind-val { font-weight: bold; color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <div class="input-group">
+                <input type="text" id="coinInput" placeholder="输入币种，如 BTC-USDT" onkeydown="if(event.key==='Enter') addCoin()">
+                <button onclick="addCoin()">添加</button>
+            </div>
+        </div>
+        <div class="coin-list" id="coinList"></div>
+    </div>
+
+    <div id="main">
+        <div id="topbar">
+            <div class="timeframes" id="timeframeGroup">
+                <button class="tf-btn" data-tf="1s">1秒</button>
+                <button class="tf-btn active" data-tf="1m">1分</button>
+                <button class="tf-btn" data-tf="15m">15分</button>
+                <button class="tf-btn" data-tf="1H">1小时</button>
+                <button class="tf-btn" data-tf="1D">日线</button>
+            </div>
+            <div class="price-info" id="currentPriceDisplay">加载中...</div>
+        </div>
+
+        <div id="chart-container">
+            <div id="signal-panel">
+                <div class="signal-header">
+                    <span>未来 30 分钟预测</span>
+                    <span id="signalTime" style="color:#fff;">计算中...</span>
+                </div>
+                <div class="signal-main">
+                    <div class="signal-action neutral" id="sigAction">观望</div>
+                    <div class="confidence-wrapper">
+                        <div class="confidence-label">
+                            <span>信心指数</span>
+                            <span id="sigConfidenceText" style="font-weight:bold; color:#fff;">0%</span>
+                        </div>
+                        <div class="confidence-bar-bg">
+                            <div class="confidence-bar-fill" id="sigConfidenceBar"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="indicators-grid">
+                    <div class="ind-item"><span>EMA20</span><span class="ind-val" id="indEma20">--</span></div>
+                    <div class="ind-item"><span>EMA60</span><span class="ind-val" id="indEma60">--</span></div>
+                    <div class="ind-item"><span>RSI(14)</span><span class="ind-val" id="indRsi">--</span></div>
+                    <div class="ind-item"><span>MACD</span><span class="ind-val" id="indMacd">--</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT', 'ETH-USDT'];
+        let currentCoin = coinList[0];
+        let currentTimeframe = '1m';
+        let chart, candleSeries, ema20Series, ema60Series;
+        let ws, klineBuffer = [];
+        let mockInterval = null;
+        
+        function initChart() {
+            const container = document.getElementById('chart-container');
+            chart = LightweightCharts.createChart(container, {
+                layout: { background: { type: 'solid', color: '#12161f' }, textColor: '#d1d4dc' },
+                grid: { vertLines: { color: '#2a2e39' }, horzLines: { color: '#2a2e39' } },
+                rightPriceScale: { borderColor: '#2a2e39' },
+                timeScale: { borderColor: '#2a2e39', timeVisible: true, secondsVisible: true },
+                autoSize: true
+            });
+            candleSeries = chart.addCandlestickSeries({ upColor: '#0ecb81', downColor: '#f6465d', borderUpColor: '#0ecb81', borderDownColor: '#f6465d', wickUpColor: '#0ecb81', wickDownColor: '#f6465d' });
+            ema20Series = chart.addLineSeries({ color: '#fcd535', lineWidth: 1.5 });
+            ema60Series = chart.addLineSeries({ color: '#e056fd', lineWidth: 1.5 });
+            window.addEventListener('resize', () => chart.resize(container.clientWidth, container.clientHeight));
+        }
+
+        function renderCoinList() {
+            const listEl = document.getElementById('coinList');
+            listEl.innerHTML = '';
+            coinList.forEach(coin => {
+                const div = document.createElement('div');
+                div.className = `coin-item ${coin === currentCoin ? 'active' : ''}`;
+                div.innerHTML = `<span onclick="switchCoin('${coin}')">${coin}</span><button class="remove-btn" onclick="removeCoin(event, '${coin}')">×</button>`;
+                listEl.appendChild(div);
+            });
+        }
+
+        window.addCoin = function() {
+            let val = document.getElementById('coinInput').value.trim().toUpperCase();
+            if (!val) return;
+            if (!val.includes('-')) val += '-USDT';
+            if (!coinList.includes(val)) {
+                coinList.push(val);
+                localStorage.setItem('okx_coins', JSON.stringify(coinList));
+                document.getElementById('coinInput').value = '';
+                renderCoinList();
+                switchCoin(val);
+            }
+        }
+
+        window.removeCoin = function(e, coin) {
+            e.stopPropagation();
+            if(coinList.length <= 1) return alert('至少保留一个币种');
+            coinList = coinList.filter(c => c !== coin);
+            localStorage.setItem('okx_coins', JSON.stringify(coinList));
+            if (currentCoin === coin) switchCoin(coinList[0]);
+            renderCoinList();
+        }
+
+        window.switchCoin = function(coin) {
+            currentCoin = coin;
+            renderCoinList();
+            fetchData();
+        }
+
+        document.getElementById('timeframeGroup').addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                document.querySelectorAll('.tf-btn').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                currentTimeframe = e.target.dataset.tf;
+                fetchData();
+            }
+        });
+
+        function fetchData() {
+            if (ws) { ws.close(); ws = null; }
+            if (mockInterval) { clearInterval(mockInterval); mockInterval = null; }
+            klineBuffer = [];
+            document.getElementById('currentPriceDisplay').innerText = '连接中...';
+            
+            const tfMap = {'1s':'1s','1m':'1m','15m':'15m','1H':'1H','1D':'1D'};
+            const okxTf = tfMap[currentTimeframe] || '1m';
+            const apiUrl = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${okxTf}&limit=200`;
+            
+            const fetchPromise = fetch(apiUrl).then(res => {
+                if(!res.ok) throw new Error("网络请求失败");
+                return res.json();
+            });
+
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("连接超时")), 5000));
+
+            Promise.race([fetchPromise, timeoutPromise])
+                .then(res => {
+                    if (res.code !== '0') throw new Error(res.msg || 'API 报错');
+                    const data = res.data.reverse().map(d => ({
+                        time: parseInt(d[0]) / 1000,
+                        open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4])
+                    }));
+                    startRealData(data);
+                })
+                .catch(err => {
+                    console.warn("真实数据加载失败，已切换至本地模拟数据演示。原因:", err.message);
+                    document.getElementById('currentPriceDisplay').innerText = `${currentCoin} (模拟演示)`;
+                    startMockData();
+                });
+        }
+
+        function startRealData(data) {
+            candleSeries.setData(data);
+            klineBuffer = data;
+            calculateAndRenderIndicators();
+            updatePriceLabel(data[data.length - 1].close);
+            connectWebSocket();
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket('wss://ws.okx.com:8443/ws/v5/public');
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ "op": "subscribe", "args": [{ "channel": `candle${currentTimeframe}`, "instId": currentCoin }] }));
+            };
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.data && msg.arg && msg.arg.channel.startsWith('candle')) {
+                    const k = msg.data[0];
+                    const newCandle = { time: parseInt(k[0]) / 1000, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]) };
+                    candleSeries.update(newCandle);
+                    updatePriceLabel(newCandle.close);
+                    
+                    const lastIdx = klineBuffer.length - 1;
+                    if (klineBuffer[lastIdx] && klineBuffer[lastIdx].time === newCandle.time) {
+                        klineBuffer[lastIdx] = newCandle;
+                    } else {
+                        klineBuffer.push(newCandle);
+                        if (klineBuffer.length > 150) klineBuffer.shift();
+                    }
+                    calculateAndRenderIndicators();
+                }
+            };
+            ws.onerror = () => console.log("WS 连接断开");
+        }
+
+        function startMockData() {
+            let basePrice = 60000;
+            let data = [];
+            let now = Math.floor(Date.now() / 1000);
+            
+            for(let i=150; i>0; i--) {
+                let open = basePrice + (Math.random()-0.5)*100;
+                let close = open + (Math.random()-0.5)*150;
+                let high = Math.max(open, close) + Math.random()*50;
+                let low = Math.min(open, close) - Math.random()*50;
+                basePrice = close;
+                data.push({ time: now - i*60, open, high, low, close });
+            }
+            
+            candleSeries.setData(data);
+            klineBuffer = data;
+            calculateAndRenderIndicators();
+            updatePriceLabel(data[data.length-1].close);
+
+            mockInterval = setInterval(() => {
+                let lastCandle = klineBuffer[klineBuffer.length - 1];
+                let newClose = lastCandle.close + (Math.random()-0.5)*20;
+                let newCandle = {
+                    time: Math.floor(Date.now() / 1000),
+                    open: lastCandle.close,
+                    high: Math.max(lastCandle.close, newClose),
+                    low: Math.min(lastCandle.close, newClose),
+                    close: newClose
+                };
+                
+                candleSeries.update(newCandle);
+                updatePriceLabel(newCandle.close);
+                
+                if (newCandle.time !== lastCandle.time) {
+                    klineBuffer.push(newCandle);
+                    if(klineBuffer.length > 150) klineBuffer.shift();
+                } else {
+                    klineBuffer[klineBuffer.length - 1] = newCandle;
+                }
+                calculateAndRenderIndicators();
+            }, 1000);
+        }
+
+        function updatePriceLabel(price) {
+            const el = document.getElementById('currentPriceDisplay');
+            el.innerText = `${price.toFixed(2)} USDT`;
+        }
+
+        function calculateAndRenderIndicators() {
+            if (klineBuffer.length < 60) return;
+            const closes = klineBuffer.map(d => d.close);
+            
+            const ema20 = calcEMA(closes, 20);
+            const ema60 = calcEMA(closes, 60);
+            ema20Series.setData(ema20.map((val, i) => ({ time: klineBuffer[i].time, value: val })));
+            ema60Series.setData(ema60.map((val, i) => ({ time: klineBuffer[i].time, value: val })));
+
+            const rsi = calcRSI(closes, 14);
+            const lastRsi = rsi[rsi.length - 1];
+
+            const macdResult = calcMACD(closes, 12, 26, 9);
+            const lastMacdHist = macdResult.histogram[macdResult.histogram.length - 1];
+
+            const lastClose = closes[closes.length - 1];
+            const lastEma20 = ema20[ema20.length - 1];
+            const lastEma60 = ema60[ema60.length - 1];
+
+            let signal = 'NEUTRAL', confidence = 50;
+
+            if (lastClose > lastEma20 && lastEma20 > lastEma60 && lastMacdHist > 0 && lastRsi < 70) {
+                signal = 'LONG'; confidence = 65 + Math.min(Math.floor((lastClose - lastEma20) / lastEma20 * 500), 20);
+                if (lastRsi > 50) confidence += 10;
+            } else if (lastClose < lastEma20 && lastEma20 < lastEma60 && lastMacdHist < 0 && lastRsi > 30) {
+                signal = 'SHORT'; confidence = 65 + Math.min(Math.floor((lastEma20 - lastClose) / lastEma20 * 500), 20);
+                if (lastRsi < 50) confidence += 10;
+            } else if (lastRsi < 25) { signal = 'LONG'; confidence = 80; } 
+            else if (lastRsi > 75) { signal = 'SHORT'; confidence = 80; }
+
+            renderSignalPanel(signal, Math.min(confidence, 95), lastEma20, lastEma60, lastRsi, lastMacdHist);
+        }
+
+        function renderSignalPanel(signal, confidence, ema20, ema60, rsi, macdHist) {
+            const actionEl = document.getElementById('sigAction');
+            const confText = document.getElementById('sigConfidenceText');
+            const confBar = document.getElementById('sigConfidenceBar');
+            
+            document.getElementById('signalTime').innerText = new Date().toTimeString().slice(0,5);
+            document.getElementById('indEma20').innerText = ema20.toFixed(2);
+            document.getElementById('indEma60').innerText = ema60.toFixed(2);
+            document.getElementById('indRsi').innerText = rsi.toFixed(1);
+            document.getElementById('indMacd').innerText = macdHist.toFixed(2);
+
+            if (signal === 'LONG') {
+                actionEl.className = 'signal-action long'; actionEl.innerText = '做多';
+                confBar.style.backgroundColor = '#0ecb81'; confText.style.color = '#0ecb81';
+            } else if (signal === 'SHORT') {
+                actionEl.className = 'signal-action short'; actionEl.innerText = '做空';
+                confBar.style.backgroundColor = '#f6465d'; confText.style.color = '#f6465d';
+            } else {
+                actionEl.className = 'signal-action neutral'; actionEl.innerText = '观望';
+                confBar.style.backgroundColor = '#fcd535'; confText.style.color = '#fcd535';
+            }
+            confText.innerText = `${confidence}%`;
+            confBar.style.width = `${confidence}%`;
+        }
+
+        function calcEMA(prices, period) {
+            const k = 2 / (period + 1); let ema = [prices[0]]; let prev = prices[0];
+            for (let i = 1; i < prices.length; i++) { prev = prices[i] * k + prev * (1 - k); ema.push(prev); }
+            return ema;
+        }
+        function calcRSI(prices, period) {
+            let gains = 0, losses = 0, rsi = new Array(prices.length).fill(NaN);
+            if (prices.length < period) return rsi;
+            for (let i = 1; i <= period; i++) { prices[i] > prices[i-1] ? gains += prices[i]-prices[i-1] : losses += prices[i-1]-prices[i]; }
+            let avgGain = gains/period, avgLoss = losses/period;
+            rsi[period] = 100 - (100 / (1 + avgGain/avgLoss));
+            for (let i = period+1; i < prices.length; i++) {
+                let diff = prices[i] - prices[i-1];
+                avgGain = (avgGain*(period-1) + (diff>0?diff:0))/period;
+                avgLoss = (avgLoss*(period-1) + (diff<0?-diff:0))/period;
+                rsi[i] = 100 - (100 / (1 + avgGain/avgLoss));
+            }
+            return rsi;
+        }
+        function calcMACD(prices) {
+            const ema12 = calcEMA(prices, 12), ema26 = calcEMA(prices, 26);
+            let macdLine = ema12.map((v, i) => v - ema26[i]);
+            const signalLine = calcEMA(macdLine, 9);
+            return { histogram: macdLine.map((v, i) => v - signalLine[i]) };
+        }
+
+        window.onload = () => {
+            initChart();
+            renderCoinList();
+            fetchData();
+        };
+    </script>
+</body>
+</html>
