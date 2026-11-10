@@ -50,7 +50,7 @@
         
         #analysis-panel { height: 25vh; background: var(--panel); padding: 15px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
         .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; }
-        #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; }
+        #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; }
 
         #scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .scanner-box { background: var(--panel); border-radius: 12px; width: 100%; max-width: 350px; padding: 20px; border: 1px solid #363a45; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
@@ -117,7 +117,7 @@
 
     <div id="analysis-panel">
         <div class="analysis-header">🎯 狙击手解析</div>
-        <div id="analysis-text">等待数据...</div>
+        <div id="analysis-text">正在获取数据...</div>
     </div>
 
 <script>
@@ -127,6 +127,7 @@
     let currentTf = '15m'; 
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
+    let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
 
     let isScanView = scanResults ? true : false;
     window.toggleView = function() {
@@ -157,15 +158,17 @@
         `).join('');
         
         if(scanResults) {
-            document.getElementById('card-long-coin').innerText = scanResults.long.instId.replace('-USDT-SWAP','');
-            document.getElementById('card-long-score').innerText = '信心度: ' + scanResults.long.score + '%';
-            document.getElementById('card-short-coin').innerText = scanResults.short.instId.replace('-USDT-SWAP','');
-            document.getElementById('card-short-score').innerText = '信心度: ' + scanResults.short.score + '%';
+            document.getElementById('card-long-coin').innerText = scanResults.long ? scanResults.long.instId.replace('-USDT-SWAP','') : '暂无';
+            document.getElementById('card-long-score').innerText = scanResults.long ? '信心度: ' + scanResults.long.score + '%' : '--';
+            
+            document.getElementById('card-short-coin').innerText = scanResults.short ? scanResults.short.instId.replace('-USDT-SWAP','') : '暂无';
+            document.getElementById('card-short-score').innerText = scanResults.short ? '信心度: ' + scanResults.short.score + '%' : '--';
         }
         document.getElementById('currentCoinName').innerText = currentCoin.replace('-USDT-SWAP','');
     }
 
     window.switchCoin = function(name) { 
+        if(name === '暂无') return;
         let fullName = name.includes('-SWAP') ? name : name + '-USDT-SWAP';
         if(currentCoin !== fullName) { currentCoin = fullName; renderList(); loadData(); } 
     }
@@ -180,6 +183,7 @@
         if(ws) ws.close();
         document.getElementById('status-tag').innerText = '加载中...';
         document.getElementById('status-tag').style.background = 'var(--yellow)';
+        document.getElementById('analysis-text').innerText = '正在计算多周期共振数据...';
         
         let t = setTimeout(() => { document.getElementById('status-tag').innerText = '超时 (请挂VPN)'; document.getElementById('status-tag').style.background = 'var(--down)'; }, 3000);
 
@@ -198,6 +202,7 @@
                 clearTimeout(t);
                 document.getElementById('status-tag').innerText = '❌ 失败';
                 document.getElementById('status-tag').style.background = 'var(--down)';
+                document.getElementById('analysis-text').innerText = '数据请求失败，请检查网络是否稳定，或挂上 VPN 后下拉刷新。';
             });
     }
 
@@ -225,15 +230,28 @@
         ema20 = calcEMA(closes, 20);
         ema50 = calcEMA(closes, 50);
         let boll = calcBOLL(closes, 20);
-        bollUp = boll.up; bollDown = boll.dn; // 注意这里改为 dn 对应前面的 down
+        bollUp = boll.up; bollDown = boll.dn;
 
-        // 容错处理：如果画图报错，打印出来但不影响状态
-        try {
-            drawChart();
-        } catch(e) {
-            console.error("画图出错", e);
-        }
+        try { drawChart(); } catch(e) {}
+        
+        // 主图一加载好，立刻来一段基础解析
+        generateBasicAnalysis();
         checkMultiSignals();
+    }
+
+    // 恢复基础文字解析（针对当前主图）
+    function generateBasicAnalysis() {
+        if(!klineData.length) return;
+        let lastC = klineData[klineData.length-1].c;
+        let lastEma20 = ema20[ema20.length-1];
+        let lastEma50 = ema50[ema50.length-1];
+        
+        let trend = "";
+        if(lastC > lastEma20 && lastEma20 > lastEma50) trend = "15分钟级别处于极强的<b>多头上升趋势</b>，均线呈多头排列，短线适合回踩做多。";
+        else if(lastC < lastEma20 && lastEma20 < lastEma50) trend = "15分钟级别处于明显的<b>空头下跌趋势</b>，均线压制，短线适合反弹做空。";
+        else trend = "15分钟级别均线缠绕，当前处于<b>震荡洗盘</b>阶段，方向不明，建议观望等待突破。";
+
+        document.getElementById('analysis-text').innerHTML = `📊 <b>盘面概览：</b>${trend}<br><br><span style="color:var(--sub)">正在聚合 30分/1小时/4小时 信号...</span>`;
     }
 
     function drawChart() {
@@ -244,16 +262,12 @@
         const w = canvas.clientWidth, h = canvas.clientHeight;
         ctx.clearRect(0, 0, w, h);
 
-        // 过滤掉 NaN 的空值，防止 Math.max 报错崩溃
         let validHighs = klineData.map(d => d.h).concat(bollUp.filter(v => !isNaN(v)));
         let validLows = klineData.map(d => d.l).concat(bollDown.filter(v => !isNaN(v)));
-        
-        let max = Math.max(...validHighs);
-        let min = Math.min(...validLows);
+        let max = Math.max(...validHighs), min = Math.min(...validLows);
         if(isNaN(max) || isNaN(min)) return;
         
-        let range = max - min || 1;
-        let cw = w / klineData.length;
+        let range = max - min || 1; let cw = w / klineData.length;
 
         klineData.forEach((d, i) => {
             let x = i * cw;
@@ -278,9 +292,10 @@
         drawL(ema20, '#fcd535'); drawL(ema50, '#e056fd');
     }
 
-    // 使用 setTimeout 控制请求顺序，防止瞬间触发欧易API限频
     function checkMultiSignals() {
-        let periods = [['30m','sig-30m'], ['1h','sig-1h'], ['4h','sig-4h'], ['1d','sig-1d']];
+        let periods = [['30m','sig-30m', '30m'], ['1h','sig-1h', '1h'], ['4h','sig-4h', '4h'], ['1d','sig-1d', '1d']];
+        let finishedCount = 0;
+
         periods.forEach((p, index) => {
             setTimeout(() => {
                 fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p[0]}&limit=100`)
@@ -293,14 +308,36 @@
                             if(closes[closes.length-1] > e20[e20.length-1]) score += 20; else score -= 20;
                             if(macd[macd.length-1] > 0) score += 20; else score -= 20;
                             
+                            currentSignals[p[2]] = score; // 记录分数
                             let el = document.getElementById(p[1]);
                             if(score >= 65) { el.innerText = '做多'; el.className = 'period-signal sig-long'; }
                             else if(score <= 35) { el.innerText = '做空'; el.className = 'period-signal sig-short'; }
                             else { el.innerText = '观望'; el.className = 'period-signal sig-neutral'; }
                         }
-                    }).catch(()=>{});
-            }, index * 300); // 间隔 300ms 发送请求
+                        finishedCount++;
+                        if(finishedCount === 4) generateFullAnalysis(); // 4个周期全好，生成终极解析
+                    }).catch(()=>{ finishedCount++; });
+            }, index * 250);
         });
+    }
+
+    // 综合解析
+    function generateFullAnalysis() {
+        let s30 = currentSignals['30m'], s1h = currentSignals['1h'], s4h = currentSignals['4h'], s1d = currentSignals['1d'];
+        let text = "";
+
+        if(s30 >= 65 && s1h >= 65 && s4h >= 65) {
+            text = `🔥 <b>全周期多头共振！</b> 30分、1小时、4小时信号全部指向做多。趋势极其强劲，短线回调即是买入机会，未来1小时看涨概率极高。`;
+        } else if(s30 <= 35 && s1h <= 35 && s4h <= 35) {
+            text = `⚠️ <b>全周期空头共振！</b> 30分、1小时、4小时信号全部指向做空。上方阻力极重，反弹无力，未来1小时极大概率继续下探。`;
+        } else if(s30 >= 65 && s4h <= 35) {
+            text = `⚡ <b>短线反弹（逆大势）</b> 30分钟级别出现做多信号，但4小时级别依然是空头压制。这属于超跌反弹，建议快进快出，切勿恋战。`;
+        } else if(s30 <= 35 && s4h >= 65) {
+            text = `📉 <b>短线回调（多头洗盘）</b> 30分钟级别出现做空信号，但4小时大趋势依然看涨。这大概率是主力的诱空洗盘，可在更低位置埋伏多单。`;
+        } else {
+            text = `⚖️ <b>多周期分歧</b> 各级别指标方向不一致，市场处于焦灼震荡状态。此时进场极易被来回扫损，建议空仓观望，等待明确方向。`;
+        }
+        document.getElementById('analysis-text').innerHTML = text;
     }
 
     window.runScanner = async function() {
@@ -315,8 +352,8 @@
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             let top100 = usdt.slice(0, 100); 
 
-            let bestLong = null, bestShort = null;
-            let maxLongScore = 50, minShortScore = 50;
+            let longCandidates = [];
+            let shortCandidates = [];
 
             for (let i = 0; i < top100.length; i++) {
                 let instId = top100[i].instId;
@@ -329,23 +366,33 @@
                         let fmt = kData.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
                         let score = sniperScore(fmt);
                         
+                        // 不再只取一个，把满足条件的都收集起来
                         if(score !== null) {
-                            if(score > maxLongScore) { maxLongScore = score; bestLong = { instId, score }; }
-                            if(score < minShortScore) { minShortScore = score; bestShort = { instId, score }; }
+                            if(score > 50) longCandidates.push({ instId, score });
+                            if(score < 50) shortCandidates.push({ instId, score });
                         }
                     }
                 } catch(e) {}
                 await new Promise(r => setTimeout(r, 80)); 
             }
 
-            if(!bestLong || !bestShort) throw new Error("当前多为震荡，未发现极高胜率标的。");
+            // 排序取第一名，如果没有，就不报错，直接给空
+            longCandidates.sort((a,b) => b.score - a.score);
+            shortCandidates.sort((a,b) => a.score - b.score);
+
+            let bestLong = longCandidates.length > 0 ? longCandidates[0] : null;
+            let bestShort = shortCandidates.length > 0 ? shortCandidates[0] : null;
+
+            if(!bestLong && !bestShort) throw new Error("当前全市场处于极端震荡，无符合狙击条件的标的。");
 
             scanResults = { long: bestLong, short: bestShort };
             localStorage.setItem('okx_sniper_results', JSON.stringify(scanResults));
             
             document.getElementById('scanner-modal').style.display = 'none';
             isScanView = true; toggleView(); renderList();
-            switchCoin(bestLong.instId); 
+            
+            if(bestLong) switchCoin(bestLong.instId); 
+            else if(bestShort) switchCoin(bestShort.instId);
 
         } catch (error) {
             status.innerText = error.message;
