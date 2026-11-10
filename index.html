@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 极速智能看盘</title>
+    <title>OKX 合约精准看盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* 顶部区域 */
         #top-bar { background: var(--panel); padding: 10px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; gap: 10px; }
         .top-controls { display: flex; gap: 8px; width: 100%; align-items: center; }
         .search-box { display: flex; flex: 1; gap: 5px; }
@@ -23,28 +22,23 @@
         .coin-tag.active { background: rgba(41, 98, 255, 0.1); border-color: var(--blue); color: var(--blue); }
         .del-btn { color: var(--sub); font-size: 16px; font-weight: bold; line-height: 1; padding: 0 2px; border-radius: 50%; margin-left: 4px;}
         
-        /* 币种图标 */
-        .coin-icon { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: bold; }
+        .coin-icon { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: bold; object-fit: cover; flex-shrink: 0; }
 
-        /* 时间周期栏 */
         #time-bar { display: flex; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid #2a2e39; gap: 5px; overflow-x: auto; scrollbar-width: none; }
         #time-bar::-webkit-scrollbar { display: none; }
         .time-btn { background: transparent; border: none; color: var(--sub); padding: 6px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; white-space: nowrap; }
         .time-btn.active { background: #2a2e39; color: #fff; }
         
-        /* 超大价格栏 */
         #price-bar { padding: 10px 15px; display: flex; align-items: center; gap: 10px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
         #price-bar::-webkit-scrollbar { display: none; }
         #currentCoinName { font-size: 20px; font-weight: 900; color: #fff; letter-spacing: 0.5px; margin-right: 5px;}
         #currentPrice { font-size: 36px; font-weight: 900; color: var(--up); font-family: monospace; letter-spacing: -1px; line-height: 1; }
         .currency { font-size: 14px; color: var(--sub); font-family: -apple-system, sans-serif; margin-left: -5px;}
         
-        /* 右侧时间与状态 */
         .right-info { display: flex; flex-direction: column; align-items: flex-end; margin-left: auto; gap: 4px; }
         #realtime-clock { font-family: monospace; font-size: 14px; color: var(--yellow); font-weight: bold; }
         #status-tag { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: #fcd535; color: #000; transition: all 0.3s; font-weight: bold;}
         
-        /* 预判面板（横排） */
         #ai-panel { background: #1a1f2b; display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #2a2e39; gap: 5px; }
         .period-row { display: flex; flex-direction: column; align-items: center; background: #22262f; padding: 6px 4px; border-radius: 6px; flex: 1; }
         .period-name { font-size: 11px; color: var(--sub); font-weight: bold; margin-bottom: 4px;}
@@ -54,14 +48,14 @@
         .sig-short { color: var(--down); background: rgba(246,70,93,0.1); }
         .sig-neutral { color: var(--yellow); background: rgba(252,213,53,0.1); }
 
-        /* K线图区域 */
-        #chart-container { flex: 1; min-height: 200px; position: relative; width: 100%; }
-        canvas { width: 100%; height: 100%; display: block; }
+        #chart-container { flex: 1; min-height: 200px; position: relative; width: 100%; display: flex; align-items: center; justify-content: center; }
+        canvas { width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0; }
         
-        /* 底部指标悬浮 */
-        #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 10px; color: var(--sub); display: flex; flex-direction: column; gap: 2px; font-family: monospace; pointer-events: none; }
+        /* 空白提示层 */
+        #empty-tip { position: absolute; color: var(--down); font-size: 14px; font-weight: bold; z-index: 5; display: none; text-align: center; padding: 20px;}
 
-        /* 底部 AI 深度解析区 */
+        #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 10px; color: var(--sub); display: flex; flex-direction: column; gap: 2px; font-family: monospace; pointer-events: none; z-index: 6;}
+
         #analysis-panel { height: 30vh; background: var(--panel); padding: 15px; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
         .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
         .analysis-header::before { content: "🤖"; }
@@ -77,7 +71,7 @@
     <div id="top-bar">
         <div class="top-controls">
             <div class="search-box">
-                <input type="text" id="coinInput" placeholder="添加币种" onkeydown="if(event.key==='Enter') addCoin()">
+                <input type="text" id="coinInput" placeholder="输入合约，如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
             <button class="toggle-btn" id="toggleBtn" onclick="toggleCoinList()">▼ 自选</button>
@@ -104,7 +98,6 @@
         </div>
     </div>
 
-    <!-- 推荐栏顺序：30m -> 1h -> 4h -> 1d -->
     <div id="ai-panel">
         <div class="period-row"><div class="period-name">30分</div><div class="period-signal sig-neutral" id="sig-30m">观望</div><div class="period-conf" id="conf-30m">50%</div></div>
         <div class="period-row"><div class="period-name">1小时</div><div class="period-signal sig-neutral" id="sig-1h">观望</div><div class="period-conf" id="conf-1h">50%</div></div>
@@ -113,6 +106,7 @@
     </div>
 
     <div id="chart-container">
+        <div id="empty-tip">❌ 该永续合约不存在或网络异常，请重新搜索</div>
         <canvas id="chartCanvas"></canvas>
         <div id="indicator-bar">
             <span>EMA20: <span id="valEma20" style="color:#fcd535;">--</span> | EMA50: <span id="valEma50" style="color:#e056fd;">--</span> | EMA100: <span id="valEma100" style="color:#2962ff;">--</span></span>
@@ -123,7 +117,7 @@
 
     <div id="analysis-panel">
         <div class="analysis-header">AI 深度盘面解析</div>
-        <div id="analysis-text">正在极速演算中...</div>
+        <div id="analysis-text">等待数据加载...</div>
     </div>
 
 <script>
@@ -136,26 +130,38 @@
         return str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
     }
 
-    // 生成彩色首字母图标
     function getCoinIconHtml(coinName) {
-        const symbol = coinName.split('-')[0];
+        // 对于合约，提取去掉 -USDT-SWAP 后的名字
+        const symbol = coinName.replace('-USDT-SWAP', '').toUpperCase();
+        const lowerSymbol = symbol.toLowerCase();
+        
         let hash = 0;
         for (let i = 0; i < symbol.length; i++) hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
         const color = `hsl(${Math.abs(hash) % 360}, 70%, 50%)`;
-        return `<span class="coin-icon" style="background: ${color}">${symbol.charAt(0)}</span>`;
+        
+        const src1 = `https://essamamdani.github.io/open-crypto-icons/icons/colored/${lowerSymbol}.svg`;
+        const src2 = `https://meta.viewblock.io/${symbol}/logo`;
+        
+        return `<img src="${src1}" class="coin-icon" 
+                 onerror="if(this.src.indexOf('viewblock')===-1){this.src='${src2}';}else{this.style.display='none';this.nextElementSibling.style.display='inline-flex';}" 
+                 alt="${symbol}">
+                <span class="coin-icon" style="background: ${color}; display: none;">${symbol.charAt(0)}</span>`;
     }
 
-    let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT', 'ETH-USDT', 'SOL-USDT'];
+    // 默认添加主流永续合约
+    let coinList = JSON.parse(localStorage.getItem('okx_swap_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP', 'SOL-USDT-SWAP'];
     let currentCoin = coinList[0];
     let currentTf = '15m'; 
     let klineData = [], ema20Data = [], ema50Data = [], ema100Data = [], bollUpData = [], bollDownData = [];
-    let ws = null, mockTimer = null;
-    // 调整周期 Key，统一用小写
+    let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
     let isCoinListExpanded = false; 
-    let isHighVolume = false; // 是否放量
+    let isHighVolume = false;
 
-    function updateCoinNameUI() { document.getElementById('currentCoinName').innerText = currentCoin; }
+    function updateCoinNameUI() { 
+        // 界面显示时去掉 -SWAP 后缀更简洁
+        document.getElementById('currentCoinName').innerText = currentCoin.replace('-SWAP', ''); 
+    }
 
     window.toggleCoinList = function() {
         isCoinListExpanded = !isCoinListExpanded;
@@ -170,10 +176,9 @@
         coinList.forEach(coin => {
             const div = document.createElement('div');
             div.className = `coin-tag ${coin === currentCoin ? 'active' : ''}`;
-            // 插入图标
             div.innerHTML = `
                 <div onclick="switchCoin('${coin}')" style="display:flex; align-items:center; gap:6px;">
-                    ${getCoinIconHtml(coin)} <span>${coin}</span>
+                    ${getCoinIconHtml(coin)} <span>${coin.replace('-USDT-SWAP', '')}</span>
                 </div>
                 <span class="del-btn" onclick="removeCoin(event, '${coin}')">×</span>
             `;
@@ -182,18 +187,52 @@
         updateCoinNameUI(); 
     }
 
+    // === 核心修改：添加前先验证合约是否存在 ===
     window.addCoin = function() {
         let val = document.getElementById('coinInput').value.trim().toUpperCase();
-        if(!val) return; if(!val.includes('-')) val += '-USDT'; 
-        if(!coinList.includes(val)) {
-            coinList.push(val); localStorage.setItem('okx_coins', JSON.stringify(coinList));
-            document.getElementById('coinInput').value = ''; renderCoinList(); switchCoin(val); 
-        } else { alert("该币种已在列表中！"); document.getElementById('coinInput').value = ''; }
+        if(!val) return;
+        
+        // 格式化成欧易合约格式
+        val = val.replace(/\s+/g, '');
+        if(val.includes('-USDT') && !val.includes('-SWAP')) {
+            val = val.replace('-USDT', '-USDT-SWAP');
+        } else if (!val.includes('-SWAP')) {
+            val = val + '-USDT-SWAP';
+        }
+
+        if(coinList.includes(val)) {
+            alert("该合约已在列表中！");
+            document.getElementById('coinInput').value = '';
+            return;
+        }
+
+        // 验证合约是否存在
+        document.getElementById('coinInput').value = '验证中...';
+        fetch(`https://www.okx.com/api/v5/market/candles?instId=${val}&bar=1m&limit=1`)
+            .then(res => res.json())
+            .then(res => {
+                document.getElementById('coinInput').value = '';
+                if(res.code === '0' && res.data && res.data.length > 0) {
+                    // 验证通过，添加
+                    coinList.push(val);
+                    localStorage.setItem('okx_swap_coins', JSON.stringify(coinList));
+                    renderCoinList();
+                    switchCoin(val);
+                } else {
+                    // 验证失败，弹窗警告
+                    alert(`❌ 欧易(OKX)没有找到 ${val} 这个永续合约！\n\n请检查拼写（如 BTC、PEPE），或者确认该币种是否在欧易上线了合约。`);
+                }
+            })
+            .catch(err => {
+                document.getElementById('coinInput').value = '';
+                alert(`⚠️ 网络请求失败，无法验证该合约。\n请检查你的网络/VPN是否正常。`);
+            });
     }
 
     window.removeCoin = function(e, coin) {
-        e.stopPropagation(); if(coinList.length <= 1) return alert("至少保留一个币种！");
-        coinList = coinList.filter(c => c !== coin); localStorage.setItem('okx_coins', JSON.stringify(coinList));
+        e.stopPropagation(); if(coinList.length <= 1) return alert("至少保留一个合约！");
+        coinList = coinList.filter(c => c !== coin); 
+        localStorage.setItem('okx_swap_coins', JSON.stringify(coinList));
         if(currentCoin === coin) { currentCoin = coinList[0]; renderCoinList(); initData(); } else renderCoinList();
     }
 
@@ -208,47 +247,50 @@
         initData();
     }
 
+    // === 核心修改：拉取失败不再画假图，直接显示空状态 ===
     function initData() {
-        if(ws) { ws.close(); ws = null; } if(mockTimer) { clearInterval(mockTimer); mockTimer = null; }
+        if(ws) { ws.close(); ws = null; }
         klineData = []; 
+        document.getElementById('empty-tip').style.display = 'none'; // 隐藏错误提示
         document.getElementById('status-tag').innerText = "连接中...";
         document.getElementById('status-tag').style.background = "var(--yellow)"; document.getElementById('status-tag').style.color = "#000";
 
         currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
-        document.getElementById('analysis-text').innerText = "主图数据获取中，正在极速计算多周期趋势...";
+        document.getElementById('analysis-text').innerText = "正在连接欧易合约服务器...";
 
-        const timeoutId = setTimeout(() => { if(klineData.length === 0) useMockData(); }, 2500);
         const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=100`;
 
         fetch(url).then(res => res.json()).then(res => {
-            clearTimeout(timeoutId);
-            if(res.code !== '0' || !res.data) throw new Error("API 限制");
+            if(res.code !== '0' || !res.data) {
+                // 请求失败或合约不存在
+                handleLoadError();
+                return;
+            }
+            
             klineData = res.data.reverse().map(d => ({ time: parseInt(d[0])/1000, open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]), vol: parseFloat(d[5]) }));
             processAndDraw();
-            document.getElementById('status-tag').innerText = "✅ 实时"; document.getElementById('status-tag').style.background = "var(--up)"; document.getElementById('status-tag').style.color = "#fff";
+            document.getElementById('status-tag').innerText = "✅ 实时合约"; document.getElementById('status-tag').style.background = "var(--up)"; document.getElementById('status-tag').style.color = "#fff";
             
             quickGenerateText();
             connectWebSocket(); 
             fetchMultiSignals();
-        }).catch(err => { clearTimeout(timeoutId); useMockData(); });
+        }).catch(err => { 
+            handleLoadError();
+        });
     }
 
-    function useMockData() {
-        let basePrice = currentCoin.includes('BTC') ? 65000 : (currentCoin.includes('ETH') ? 3500 : 150);
-        klineData = Array.from({length: 100}).map((_, i) => {
-            let o = basePrice + (Math.random()-0.5)*50, c = o + (Math.random()-0.5)*80;
-            return { time: Math.floor(Date.now()/1000) - (100-i)*60, open: o, high: Math.max(o,c)+10, low: Math.min(o,c)-10, close: c, vol: Math.random()*1000 };
-        });
-        processAndDraw();
-        document.getElementById('status-tag').innerText = "⚠️ 演示"; document.getElementById('status-tag').style.background = "var(--down)"; document.getElementById('status-tag').style.color = "#fff";
+    function handleLoadError() {
+        document.getElementById('status-tag').innerText = "❌ 加载失败"; 
+        document.getElementById('status-tag').style.background = "var(--down)"; 
+        document.getElementById('status-tag').style.color = "#fff";
+        document.getElementById('currentPrice').innerText = "--";
         
-        mockTimer = setInterval(() => {
-            let last = klineData[klineData.length-1]; let newC = last.close + (Math.random()-0.5)*5;
-            last.close = newC; last.high = Math.max(last.high, newC); last.low = Math.min(last.low, newC); last.vol = Math.random()*1000;
-            processAndDraw();
-        }, 1000);
-        quickGenerateText();
-        fetchMultiSignals(true);
+        const canvas = document.getElementById('chartCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // 清空图表
+
+        document.getElementById('empty-tip').style.display = 'block';
+        document.getElementById('analysis-text').innerText = "合约不存在或网络断开，无法生成解析。";
     }
 
     function connectWebSocket() {
@@ -272,7 +314,6 @@
         const closes = klineData.map(d => d.close);
         document.getElementById('currentPrice').innerText = formatNum(closes[closes.length-1]);
 
-        // 三条均线
         ema20Data = calcEMA(closes, 20);
         ema50Data = calcEMA(closes, 50);
         ema100Data = calcEMA(closes, 100);
@@ -281,7 +322,6 @@
         bollUpData = boll.up; bollDownData = boll.down;
         const macd = calcMACD(closes);
 
-        // 判断是否放量 (当前量 > 过去20根均量的 1.5倍)
         isHighVolume = false;
         if(klineData.length > 20) {
             let volData = klineData.map(d => d.vol || 0);
@@ -309,7 +349,6 @@
         ctx.clearRect(0, 0, w, h);
         if(klineData.length === 0) return;
 
-        // 极值计算包含所有均线
         let allHighs = klineData.map(d => d.high).concat(bollUpData, ema20Data, ema50Data, ema100Data);
         let allLows = klineData.map(d => d.low).concat(bollDownData, ema20Data, ema50Data, ema100Data);
         let max = Math.max(...allHighs), min = Math.min(...allLows);
@@ -335,34 +374,23 @@
             ctx.stroke(); ctx.setLineDash([]);
         };
         
-        // 画三条 EMA
-        drawLine(ema20Data, '#fcd535'); // 黄
-        drawLine(ema50Data, '#e056fd'); // 紫
-        drawLine(ema100Data, '#2962ff'); // 蓝
+        drawLine(ema20Data, '#fcd535');
+        drawLine(ema50Data, '#e056fd');
+        drawLine(ema100Data, '#2962ff');
         
-        // 画 BOLL
         drawLine(bollUpData, 'rgba(132, 142, 156, 0.5)', true); 
         drawLine(bollDownData, 'rgba(132, 142, 156, 0.5)', true);
     }
 
-    // 推荐栏顺序 30m, 1h, 4h, 1d
-    function fetchMultiSignals(isMock = false) {
+    function fetchMultiSignals() {
         const periods = ['30m', '1h', '4h', '1d'];
         periods.forEach(p => {
-            if(isMock) { calculateScore(generateMockData(65000), p); return; }
             fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p}&limit=100`)
                 .then(res => res.json())
                 .then(res => {
                     if(res.code === '0' && res.data) calculateScore(res.data.reverse().map(d => ({ open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) })), p);
                     else updateSignal(p, 50);
                 }).catch(() => updateSignal(p, 50));
-        });
-    }
-
-    function generateMockData(basePrice) { 
-        return Array.from({length: 100}).map((_, i) => {
-            let o = basePrice + (Math.random()-0.5)*50, c = o + (Math.random()-0.5)*80;
-            return { open: o, high: Math.max(o,c)+10, low: Math.min(o,c)-10, close: c };
         });
     }
 
@@ -398,7 +426,7 @@
 
     function quickGenerateText() {
         const textEl = document.getElementById('analysis-text');
-        textEl.innerHTML = `📊 <b>初步研判：</b>当前${currentCoin}主图数据已加载。正在极速核算30分钟、1小时、4小时及日线级别的多空共振情况...`;
+        textEl.innerHTML = `📊 <b>初步研判：</b>当前${currentCoin.replace('-SWAP','')}永续合约数据已加载。正在极速核算30分钟、1小时、4小时及日线级别的多空共振情况...`;
     }
 
     function generateAnalysisText() {
@@ -420,17 +448,16 @@
             trend = "全周期呈现出极强的多头共振突破形态";
             action = "操作建议：顺势而为，回踩任何短期支撑位（如EMA20）都是较好的做多入场点。";
         } else if (s30 <= 35 && s4h >= 65) {
-            trend = `当前${currentCoin}呈现出“短空长多”的格局，短线出现明显回调，但中长线看涨趋势未变`;
+            trend = `当前${currentCoin.replace('-SWAP','')}呈现出“短空长多”的格局，短线出现明显回调，但中长线看涨趋势未变`;
             action = "操作建议：这通常是主力的洗盘动作。短线可尝试轻仓做空，但更稳妥的策略是等短线回调企稳后，顺应大趋势逢低做多。";
         } else if (s30 >= 65 && s4h <= 35) {
-            trend = `当前${currentCoin}呈现出“短多长空”的格局，短线虽有反弹，但大级别依然被均线压制`;
+            trend = `当前${currentCoin.replace('-SWAP','')}呈现出“短多长空”的格局，短线虽有反弹，但大级别依然被均线压制`;
             action = "操作建议：警惕反弹诱多风险，上方阻力重重。建议以观望为主，或在关键阻力位尝试做空。";
         } else {
-            trend = `当前${currentCoin}多周期指标出现分歧，市场处于剧烈博弈的震荡市`;
+            trend = `当前${currentCoin.replace('-SWAP','')}多周期指标出现分歧，市场处于剧烈博弈的震荡市`;
             action = "操作建议：方向不明，极易被来回扫损。建议保持观望，或在布林带上下轨之间进行高抛低吸的短线操作，严格带好止损。";
         }
 
-        // 引入放量判断
         let volText = isHighVolume ? `<span class="highlight-vol">当前伴有显著放量（超过20均量1.5倍），趋势动能强劲。</span>` : "当前成交量相对温和。";
 
         let html = `📊 <b>行情研判：</b>${trend}。${volText}<br><br>`;
