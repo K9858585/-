@@ -3,26 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 实时智能看盘</title>
+    <title>OKX 智能深度看盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* 顶部搜索与币种列表 */
-        #top-bar { background: var(--panel); padding: 8px 10px; border-bottom: 1px solid #2a2e39; display: flex; gap: 10px; align-items: center; }
-        .search-box { display: flex; gap: 5px; width: 135px; flex-shrink: 0; }
-        .search-box input { width: 100%; background: #2a2e39; border: 1px solid #363a45; color: #fff; padding: 6px; border-radius: 4px; font-size: 12px; text-transform: uppercase; outline: none; }
-        .search-box button { background: var(--blue); color: #fff; border: none; padding: 6px 10px; border-radius: 4px; font-size: 14px; cursor: pointer; }
+        /* 顶部区域 */
+        #top-bar { background: var(--panel); padding: 10px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; gap: 10px; }
         
-        .coin-list { display: flex; gap: 8px; overflow-x: auto; flex: 1; scrollbar-width: none; }
-        .coin-list::-webkit-scrollbar { display: none; }
+        /* 搜索与开关按钮行 */
+        .top-controls { display: flex; gap: 8px; width: 100%; align-items: center; }
+        .search-box { display: flex; flex: 1; gap: 5px; }
+        .search-box input { flex: 1; background: #2a2e39; border: 1px solid #363a45; color: #fff; padding: 8px; border-radius: 4px; font-size: 13px; text-transform: uppercase; outline: none; }
+        .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: bold; }
+        
+        /* 开关按钮 */
+        .toggle-btn { background: #363a45; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold; transition: 0.2s; }
+        .toggle-btn:active { background: #4a4e5a; }
+        
+        /* 币种列表 (默认隐藏) */
+        .coin-list { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; padding-top: 5px; }
+        .coin-list::-webkit-scrollbar { width: 4px; }
+        .coin-list::-webkit-scrollbar-thumb { background: #363a45; border-radius: 2px; }
         
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; white-space: nowrap; border: 1px solid transparent; display: flex; align-items: center; gap: 6px; }
         .coin-tag.active { background: rgba(41, 98, 255, 0.1); border-color: var(--blue); color: var(--blue); }
         .del-btn { color: var(--sub); font-size: 16px; font-weight: bold; line-height: 1; padding: 0 2px; border-radius: 50%; transition: 0.2s; }
         .del-btn:hover, .del-btn:active { color: var(--down); background: rgba(246,70,93,0.1); }
         .coin-tag.active .del-btn { color: var(--blue); }
-        .coin-tag.active .del-btn:hover { color: var(--down); }
         
         /* 时间周期栏 */
         #time-bar { display: flex; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid #2a2e39; gap: 5px; overflow-x: auto; scrollbar-width: none; }
@@ -30,37 +38,56 @@
         .time-btn { background: transparent; border: none; color: var(--sub); padding: 6px 12px; font-size: 13px; font-weight: bold; border-radius: 4px; cursor: pointer; white-space: nowrap; }
         .time-btn.active { background: #2a2e39; color: #fff; }
         
-        /* 价格与状态栏 */
-        #price-bar { padding: 10px 15px; font-size: 20px; font-weight: bold; color: #fff; font-family: monospace; display: flex; align-items: center; gap: 10px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+        /* 超大价格栏 */
+        #price-bar { padding: 12px 15px; display: flex; align-items: baseline; gap: 10px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
         #price-bar::-webkit-scrollbar { display: none; }
-        #price-bar span { font-size: 12px; color: var(--sub); font-family: -apple-system, sans-serif;}
-        #status-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #fcd535; color: #000; transition: all 0.3s; }
+        #currentPrice { font-size: 38px; font-weight: 900; color: #fff; font-family: monospace; letter-spacing: -1px; line-height: 1; }
+        .currency { font-size: 14px; color: var(--sub); font-family: -apple-system, sans-serif; margin-left: -5px;}
+        #status-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #fcd535; color: #000; transition: all 0.3s; margin-left: 10px;}
         #realtime-clock { margin-left: auto; font-family: monospace; font-size: 14px; color: var(--yellow); font-weight: bold; }
         
-        /* K线图与AI面板 */
-        #chart-container { flex: 1; position: relative; width: 100%; min-height: 300px; }
+        /* K线图区域 */
+        #chart-container { flex: 1; min-height: 250px; position: relative; width: 100%; border-bottom: 1px solid #2a2e39; }
         canvas { width: 100%; height: 100%; display: block; }
         
-        #ai-panel { position: absolute; top: 10px; right: 10px; background: rgba(26, 31, 43, 0.95); border: 1px solid #363a45; border-radius: 8px; padding: 10px; z-index: 10; width: 195px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
-        .ai-header { font-size: 12px; color: var(--sub); text-align: center; border-bottom: 1px solid #2a2e39; padding-bottom: 5px; font-weight: bold; margin-bottom: 8px;}
+        /* 预测悬浮窗 */
+        #ai-panel { position: absolute; top: 10px; right: 10px; background: rgba(26, 31, 43, 0.95); border: 1px solid #363a45; border-radius: 8px; padding: 10px; z-index: 10; width: 185px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+        
+        /* 悬浮窗标题（加入显眼的币种名字） */
+        .ai-header { display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #2a2e39; padding-bottom: 8px; margin-bottom: 8px; }
+        #ai-coin-name { font-size: 16px; font-weight: 900; color: var(--yellow); text-shadow: 0 0 10px rgba(252,213,53,0.4); letter-spacing: 1px; }
+        .ai-subtitle { font-size: 11px; color: var(--sub); margin-top: 2px; }
+        
         .period-row { display: flex; justify-content: space-between; align-items: center; background: #22262f; padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; }
         .period-name { font-size: 12px; color: #d1d4dc; font-weight: bold; width: 40px; }
         .period-signal { font-size: 13px; font-weight: bold; padding: 2px 6px; border-radius: 4px; width: 40px; text-align: center; }
         .period-conf { font-size: 11px; color: var(--sub); width: 30px; text-align: right; }
-        
         .sig-long { color: var(--up); background: rgba(14,203,129,0.1); }
         .sig-short { color: var(--down); background: rgba(246,70,93,0.1); }
         .sig-neutral { color: var(--yellow); background: rgba(252,213,53,0.1); }
         
-        #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--sub); display: flex; flex-direction: column; gap: 3px; font-family: monospace; }
+        /* 底部指标悬浮 */
+        #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--sub); display: flex; flex-direction: column; gap: 3px; font-family: monospace; pointer-events: none; }
+
+        /* 底部 AI 深度解析区 */
+        #analysis-panel { height: 32vh; background: var(--panel); padding: 15px; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+        .analysis-header { font-size: 15px; font-weight: bold; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .analysis-header::before { content: "🤖"; }
+        #analysis-text { font-size: 14px; line-height: 1.6; color: #b2b5be; text-align: justify; }
+        .highlight-up { color: var(--up); font-weight: bold; }
+        .highlight-down { color: var(--down); font-weight: bold; }
+        .highlight-neutral { color: var(--yellow); font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="top-bar">
-        <div class="search-box">
-            <input type="text" id="coinInput" placeholder="添加币种" onkeydown="if(event.key==='Enter') addCoin()">
-            <button onclick="addCoin()">+</button>
+        <div class="top-controls">
+            <div class="search-box">
+                <input type="text" id="coinInput" placeholder="添加币种" onkeydown="if(event.key==='Enter') addCoin()">
+                <button onclick="addCoin()">+</button>
+            </div>
+            <button class="toggle-btn" id="toggleBtn" onclick="toggleCoinList()">▼ 自选</button>
         </div>
         <div class="coin-list" id="coinList"></div>
     </div>
@@ -76,16 +103,20 @@
     </div>
 
     <div id="price-bar">
-        <span id="currentPrice">--</span><span>USDT</span>
+        <span id="currentPrice">--</span><span class="currency">USDT</span>
         <span id="status-tag">加载中...</span>
         <span id="realtime-clock">--:--:--</span>
     </div>
 
     <div id="chart-container">
         <canvas id="chartCanvas"></canvas>
-
         <div id="ai-panel">
-            <div class="ai-header">多周期未来走势预判</div>
+            <!-- 显眼的币种标题 -->
+            <div class="ai-header">
+                <div id="ai-coin-name">--</div>
+                <div class="ai-subtitle">多周期未来走势预判</div>
+            </div>
+            
             <div class="period-row"><div class="period-name">15分</div><div class="period-signal sig-neutral" id="sig-15m">观望</div><div class="period-conf" id="conf-15m">50%</div></div>
             <div class="period-row"><div class="period-name">30分</div><div class="period-signal sig-neutral" id="sig-30m">观望</div><div class="period-conf" id="conf-30m">50%</div></div>
             <div class="period-row"><div class="period-name">1小时</div><div class="period-signal sig-neutral" id="sig-1h">观望</div><div class="period-conf" id="conf-1h">50%</div></div>
@@ -99,40 +130,47 @@
         </div>
     </div>
 
+    <div id="analysis-panel">
+        <div class="analysis-header">AI 深度盘面解析</div>
+        <div id="analysis-text">正在拉取行情数据并生成多周期研报，请稍候...</div>
+    </div>
+
 <script>
-    // ==========================================
-    // 0. 实时时钟与数字格式化
-    // ==========================================
-    function updateClock() {
-        const now = new Date();
-        document.getElementById('realtime-clock').innerText = now.toLocaleTimeString('zh-CN', { hour12: false });
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
+    function updateClock() { document.getElementById('realtime-clock').innerText = new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
+    setInterval(updateClock, 1000); updateClock();
 
-    // 核心格式化函数：保留最多10位精度，但自动去掉末尾无用的 0
     function formatNum(num) {
-        if(num === undefined || num === null || isNaN(num)) return "--";
-        let str = num.toFixed(10);
-        str = str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''); // 去除末尾所有0
-        return str;
+        if(!num || isNaN(num)) return "--";
+        let str = num.toFixed(8);
+        return str.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
     }
 
-    // ==========================================
-    // 1. 全局状态与配置
-    // ==========================================
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT', 'ETH-USDT', 'SOL-USDT'];
     let currentCoin = coinList[0];
     let currentTf = '15m'; 
-    
-    let klineData = [];
-    let ema20Data = [], bollUpData = [], bollDownData = [];
-    let ws = null; // WebSocket 实例
-    let mockTimer = null; // 模拟数据定时器
+    let klineData = [], ema20Data = [], bollUpData = [], bollDownData = [];
+    let ws = null, mockTimer = null;
+    let currentSignals = { '15m': 50, '30m': 50, '1h': 50, '1d': 50 };
+    let isCoinListExpanded = false; 
 
-    // ==========================================
-    // 2. UI 交互逻辑
-    // ==========================================
+    // === 核心更新：切换或渲染时，同步更新悬浮窗的币种大字 ===
+    function updateCoinNameUI() {
+        document.getElementById('ai-coin-name').innerText = currentCoin;
+    }
+
+    window.toggleCoinList = function() {
+        isCoinListExpanded = !isCoinListExpanded;
+        const listEl = document.getElementById('coinList');
+        const btnEl = document.getElementById('toggleBtn');
+        if (isCoinListExpanded) {
+            listEl.style.display = 'flex';
+            btnEl.innerText = '▲ 收起';
+        } else {
+            listEl.style.display = 'none';
+            btnEl.innerText = '▼ 自选';
+        }
+    }
+
     function renderCoinList() {
         const listEl = document.getElementById('coinList');
         listEl.innerHTML = '';
@@ -150,6 +188,7 @@
             div.appendChild(delBtn);
             listEl.appendChild(div);
         });
+        updateCoinNameUI(); // 渲染列表时更新大字
     }
 
     window.addCoin = function() {
@@ -162,6 +201,7 @@
             document.getElementById('coinInput').value = '';
             renderCoinList();
             switchCoin(val); 
+            if(!isCoinListExpanded) toggleCoinList(); 
         } else {
             alert("该币种已在列表中！");
             document.getElementById('coinInput').value = '';
@@ -180,138 +220,79 @@
         }
     }
 
-    function switchCoin(coin) {
-        if(currentCoin === coin) return;
-        currentCoin = coin;
-        renderCoinList();
-        initData();
+    function switchCoin(coin) { 
+        if(currentCoin === coin) return; 
+        currentCoin = coin; 
+        renderCoinList(); 
+        initData(); 
+        if(isCoinListExpanded) toggleCoinList();
     }
-
+    
     function switchTimeframe(tf) {
-        if(currentTf === tf) return;
-        currentTf = tf;
+        if(currentTf === tf) return; currentTf = tf;
         document.querySelectorAll('.time-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tf === tf));
         initData();
     }
 
-    // ==========================================
-    // 3. 核心数据与实时引擎
-    // ==========================================
-    function generateMockData(basePrice) {
-        let data = []; let base = basePrice;
-        for(let i=0; i<120; i++) {
-            let o = base + (Math.random()-0.5)*50;
-            let c = o + (Math.random()-0.5)*80 + 5;
-            data.push({ time: Math.floor(Date.now()/1000) - (120-i)*60, open: o, high: Math.max(o,c)+Math.random()*30, low: Math.min(o,c)-Math.random()*30, close: c });
-            base = c;
-        }
-        return data;
-    }
-
     function initData() {
-        if(ws) { ws.close(); ws = null; }
-        if(mockTimer) { clearInterval(mockTimer); mockTimer = null; }
-        klineData = [];
-        document.getElementById('status-tag').innerText = "连接中...";
-        document.getElementById('status-tag').style.background = "var(--yellow)";
-        document.getElementById('status-tag').style.color = "#000";
+        if(ws) { ws.close(); ws = null; } if(mockTimer) { clearInterval(mockTimer); mockTimer = null; }
+        klineData = []; document.getElementById('status-tag').innerText = "连接中...";
+        document.getElementById('status-tag').style.background = "var(--yellow)"; document.getElementById('status-tag').style.color = "#000";
 
-        const timeoutId = setTimeout(() => {
-            if(klineData.length === 0) useMockData();
-        }, 2500);
+        const timeoutId = setTimeout(() => { if(klineData.length === 0) useMockData(); }, 2500);
+        const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=100`;
 
-        const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=150`;
-
-        fetch(url)
-            .then(res => res.json())
-            .then(res => {
-                clearTimeout(timeoutId);
-                if(res.code !== '0' || !res.data) throw new Error("API 限制");
-                
-                klineData = res.data.reverse().map(d => ({
-                    time: parseInt(d[0]) / 1000,
-                    open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4])
-                }));
-                
-                processAndDraw();
-                document.getElementById('status-tag').innerText = "✅ 实时行情";
-                document.getElementById('status-tag').style.background = "var(--up)";
-                document.getElementById('status-tag').style.color = "#fff";
-                
-                // 连上真实数据后，启动 WebSocket
-                connectWebSocket(); 
-                fetchMultiTimeframeSignals();
-            })
-            .catch(err => {
-                clearTimeout(timeoutId);
-                useMockData();
-            });
+        fetch(url).then(res => res.json()).then(res => {
+            clearTimeout(timeoutId);
+            if(res.code !== '0' || !res.data) throw new Error("API 限制");
+            klineData = res.data.reverse().map(d => ({ time: parseInt(d[0])/1000, open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) }));
+            processAndDraw();
+            document.getElementById('status-tag').innerText = "✅ 实时"; document.getElementById('status-tag').style.background = "var(--up)"; document.getElementById('status-tag').style.color = "#fff";
+            connectWebSocket(); fetchMultiSignals();
+        }).catch(err => { clearTimeout(timeoutId); useMockData(); });
     }
 
-    // 降级方案：本地模拟数据实时跳动
     function useMockData() {
         let basePrice = currentCoin.includes('BTC') ? 65000 : (currentCoin.includes('ETH') ? 3500 : 150);
-        klineData = generateMockData(basePrice);
+        klineData = Array.from({length: 100}).map((_, i) => {
+            let o = basePrice + (Math.random()-0.5)*50, c = o + (Math.random()-0.5)*80;
+            return { time: Math.floor(Date.now()/1000) - (100-i)*60, open: o, high: Math.max(o,c)+10, low: Math.min(o,c)-10, close: c };
+        });
         processAndDraw();
-        document.getElementById('status-tag').innerText = "⚠️ 演示模式";
-        document.getElementById('status-tag').style.background = "var(--down)";
-        document.getElementById('status-tag').style.color = "#fff";
-
-        // 模拟数据每秒实时跳动
+        document.getElementById('status-tag').innerText = "⚠️ 演示"; document.getElementById('status-tag').style.background = "var(--down)"; document.getElementById('status-tag').style.color = "#fff";
+        
         mockTimer = setInterval(() => {
-            let lastCandle = klineData[klineData.length - 1];
-            let newClose = lastCandle.close + (Math.random() - 0.5) * 10;
-            lastCandle.close = newClose;
-            lastCandle.high = Math.max(lastCandle.high, newClose);
-            lastCandle.low = Math.min(lastCandle.low, newClose);
+            let last = klineData[klineData.length-1]; let newC = last.close + (Math.random()-0.5)*5;
+            last.close = newC; last.high = Math.max(last.high, newC); last.low = Math.min(last.low, newC);
             processAndDraw();
         }, 1000);
-        
-        fetchMultiTimeframeSignals(true);
+        fetchMultiSignals(true);
     }
 
-    // WebSocket 实时推送
     function connectWebSocket() {
         ws = new WebSocket('wss://ws.okx.com:8443/ws/v5/public');
-        ws.onopen = () => {
-            ws.send(JSON.stringify({ "op": "subscribe", "args": [{ "channel": `candle${currentTf}`, "instId": currentCoin }] }));
-        };
+        ws.onopen = () => ws.send(JSON.stringify({ "op": "subscribe", "args": [{ "channel": `candle${currentTf}`, "instId": currentCoin }] }));
         ws.onmessage = (event) => {
             const msg = JSON.parse(event.data);
             if(msg.data && msg.arg && msg.arg.channel.startsWith('candle')) {
                 const k = msg.data[0];
-                const newCandle = { 
-                    time: parseInt(k[0]) / 1000, open: parseFloat(k[1]), high: parseFloat(k[2]), 
-                    low: parseFloat(k[3]), close: parseFloat(k[4]) 
-                };
-                
+                const newCandle = { time: parseInt(k[0])/1000, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]) };
                 const lastIdx = klineData.length - 1;
-                // 如果时间戳相同，说明是当前 K 线的实时跳动
-                if(klineData[lastIdx] && klineData[lastIdx].time === newCandle.time) {
-                    klineData[lastIdx] = newCandle;
-                } else {
-                    klineData.push(newCandle);
-                    if(klineData.length > 150) klineData.shift();
-                }
-                
-                // 实时重绘
+                if(klineData[lastIdx] && klineData[lastIdx].time === newCandle.time) klineData[lastIdx] = newCandle;
+                else { klineData.push(newCandle); if(klineData.length > 100) klineData.shift(); }
                 processAndDraw();
             }
         };
-        ws.onerror = () => console.log("WebSocket 错误，等待降级");
     }
 
     function processAndDraw() {
         if(klineData.length === 0) return;
         const closes = klineData.map(d => d.close);
-        
-        // 使用智能去零格式化
         document.getElementById('currentPrice').innerText = formatNum(closes[closes.length-1]);
 
         ema20Data = calcEMA(closes, 20);
         const boll = calcBOLL(closes, 20);
-        bollUpData = boll.up;
-        bollDownData = boll.down;
+        bollUpData = boll.up; bollDownData = boll.down;
         const macd = calcMACD(closes);
 
         document.getElementById('valEma20').innerText = formatNum(ema20Data[ema20Data.length-1]);
@@ -326,72 +307,55 @@
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
         const rect = canvas.parentElement.getBoundingClientRect();
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        ctx.scale(dpr, dpr);
-        const w = rect.width, h = rect.height;
+        canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr); const w = rect.width, h = rect.height;
         ctx.clearRect(0, 0, w, h);
         if(klineData.length === 0) return;
 
         let allHighs = klineData.map(d => d.high).concat(bollUpData);
         let allLows = klineData.map(d => d.low).concat(bollDownData);
         let max = Math.max(...allHighs), min = Math.min(...allLows);
-        let range = max - min || 1;
-        const cw = w / klineData.length;
+        let range = max - min || 1; const cw = w / klineData.length;
 
         ctx.strokeStyle = '#2a2e39'; ctx.lineWidth = 1;
         for(let i=1; i<=4; i++) { let y = (h / 4) * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
         klineData.forEach((d, i) => {
-            const x = i * cw;
-            const yH = h - ((d.high - min) / range) * h;
-            const yL = h - ((d.low - min) / range) * h;
-            const yO = h - ((d.open - min) / range) * h;
-            const yC = h - ((d.close - min) / range) * h;
-            const color = d.close >= d.open ? '#0ecb81' : '#f6465d';
-
-            ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(x + cw/2, yH); ctx.lineTo(x + cw/2, yL); ctx.stroke();
-            ctx.fillStyle = color; const rectY = Math.min(yO, yC); const rectH = Math.max(Math.abs(yO - yC), 1.5);
+            const x = i * cw, yH = h - ((d.high - min) / range) * h, yL = h - ((d.low - min) / range) * h, yO = h - ((d.open - min) / range) * h, yC = h - ((d.close - min) / range) * h;
+            ctx.strokeStyle = d.close >= d.open ? '#0ecb81' : '#f6465d'; ctx.beginPath(); ctx.moveTo(x + cw/2, yH); ctx.lineTo(x + cw/2, yL); ctx.stroke();
+            ctx.fillStyle = d.close >= d.open ? '#0ecb81' : '#f6465d'; const rectY = Math.min(yO, yC); const rectH = Math.max(Math.abs(yO - yC), 1.5);
             ctx.fillRect(x + cw*0.15, rectY, cw * 0.7, rectH);
         });
 
         const drawLine = (data, color, dashed = false) => {
-            ctx.strokeStyle = color; ctx.lineWidth = 1.5;
-            if(dashed) ctx.setLineDash([4, 4]); else ctx.setLineDash([]);
+            ctx.strokeStyle = color; ctx.lineWidth = 1.5; if(dashed) ctx.setLineDash([4, 4]); else ctx.setLineDash([]);
             ctx.beginPath();
             data.forEach((val, i) => {
-                if(val === null || isNaN(val)) return;
-                const x = i * cw + cw/2, y = h - ((val - min) / range) * h;
+                if(val === null || isNaN(val)) return; const x = i * cw + cw/2, y = h - ((val - min) / range) * h;
                 if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
             ctx.stroke(); ctx.setLineDash([]);
         };
-        drawLine(ema20Data, '#fcd535');
-        drawLine(bollUpData, 'rgba(41, 98, 255, 0.5)', true);
-        drawLine(bollDownData, 'rgba(41, 98, 255, 0.5)', true);
+        drawLine(ema20Data, '#fcd535'); drawLine(bollUpData, 'rgba(41, 98, 255, 0.5)', true); drawLine(bollDownData, 'rgba(41, 98, 255, 0.5)', true);
     }
 
-    // ==========================================
-    // 4. 多周期预测打分
-    // ==========================================
-    function fetchMultiTimeframeSignals(isMock = false) {
+    function fetchMultiSignals(isMock = false) {
         const periods = ['15m', '30m', '1H', '1D'];
         periods.forEach(p => {
-            if(isMock) {
-                calculateScore(generateMockData(65000), p); return;
-            }
-            const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p}&limit=100`;
-            let pTimeout = setTimeout(() => updateSignal(p, 50), 2500);
-
-            fetch(url)
+            if(isMock) { calculateScore(generateMockData(65000), p); return; }
+            fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p}&limit=100`)
                 .then(res => res.json())
                 .then(res => {
-                    clearTimeout(pTimeout);
-                    if(res.code === '0' && res.data) {
-                        calculateScore(res.data.reverse().map(d => ({ open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) })), p);
-                    } else updateSignal(p, 50);
-                })
-                .catch(() => { clearTimeout(pTimeout); updateSignal(p, 50); });
+                    if(res.code === '0' && res.data) calculateScore(res.data.reverse().map(d => ({ open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) })), p);
+                    else updateSignal(p, 50);
+                }).catch(() => updateSignal(p, 50));
+        });
+    }
+
+    function generateMockData(basePrice) { 
+        return Array.from({length: 100}).map((_, i) => {
+            let o = basePrice + (Math.random()-0.5)*50, c = o + (Math.random()-0.5)*80;
+            return { open: o, high: Math.max(o,c)+10, low: Math.min(o,c)-10, close: c };
         });
     }
 
@@ -414,17 +378,53 @@
     }
 
     function updateSignal(tf, score) {
+        let key = tf.toLowerCase();
+        currentSignals[key] = score;
+
         const sigEl = document.getElementById(`sig-${tf}`), confEl = document.getElementById(`conf-${tf}`);
         if(!sigEl || !confEl) return;
         confEl.innerText = score + '%';
         if(score >= 65) { sigEl.innerText = "做多"; sigEl.className = "period-signal sig-long"; } 
         else if(score <= 35) { sigEl.innerText = "做空"; sigEl.className = "period-signal sig-short"; } 
         else { sigEl.innerText = "观望"; sigEl.className = "period-signal sig-neutral"; }
+        
+        if(tf === '1D') generateAnalysisText();
     }
 
-    // ==========================================
-    // 5. 数学公式
-    // ==========================================
+    function generateAnalysisText() {
+        const s15 = currentSignals['15m'], s30 = currentSignals['30m'], s1h = currentSignals['1h'], s1d = currentSignals['1d'];
+        const textEl = document.getElementById('analysis-text');
+        
+        let trend = ""; let action = "";
+
+        if (s1d >= 65) trend = "日线级别处于明显的多头趋势中";
+        else if (s1d <= 35) trend = "日线级别整体呈现空头压制状态";
+        else trend = "日线级别大趋势处于宽幅震荡整理阶段";
+
+        if (s15 <= 35 && s30 <= 35 && s1h <= 35) {
+            trend = "全周期（15分至1日）呈现出极度弱势的共振下跌形态";
+            action = "操作建议：空头力量强劲，切勿盲目抄底。建议以反弹逢高做空为主。";
+        } else if (s15 >= 65 && s30 >= 65 && s1h >= 65) {
+            trend = "全周期（15分至1日）呈现出极强的多头共振突破形态";
+            action = "操作建议：顺势而为，回踩任何短期支撑位（如EMA20）都是较好的做多入场点。";
+        } else if (s15 <= 35 && s1h >= 65) {
+            trend = `当前${currentCoin}呈现出“短空长多”的格局，短线出现明显回调，但中长线看涨趋势未变`;
+            action = "操作建议：这通常是主力的洗盘动作。短线可尝试轻仓做空，但更稳妥的策略是等短线回调企稳后，顺应大趋势逢低做多。";
+        } else if (s15 >= 65 && s1h <= 35) {
+            trend = `当前${currentCoin}呈现出“短多长空”的格局，短线虽有反弹，但大级别依然被均线压制`;
+            action = "操作建议：警惕反弹诱多风险，上方阻力重重。建议以观望为主，或在关键阻力位（如布林带上轨）尝试做空。";
+        } else {
+            trend = `当前${currentCoin}多周期指标出现分歧，市场处于剧烈博弈的震荡市`;
+            action = "操作建议：方向不明，极易被来回扫损。建议保持观望，或在布林带上下轨之间进行高抛低吸的短线操作，严格带好止损。";
+        }
+
+        let html = `📊 <b>行情研判：</b>${trend}。<br><br>`;
+        html += `📈 <b>具体指标：</b>15分信号得分 <span class="${s15 >= 65 ? 'highlight-up' : (s15 <= 35 ? 'highlight-down' : 'highlight-neutral')}">${s15}%</span>，1小时信号得分 <span class="${s1h >= 65 ? 'highlight-up' : (s1h <= 35 ? 'highlight-down' : 'highlight-neutral')}">${s1h}%</span>。<br><br>`;
+        html += `💡 <b>${action}</b>`;
+        
+        textEl.innerHTML = html;
+    }
+
     function calcEMA(prices, period) { const k = 2 / (period + 1); let ema = [prices[0]]; let prev = prices[0]; for (let i = 1; i < prices.length; i++) { prev = prices[i] * k + prev * (1 - k); ema.push(prev); } return ema; }
     function calcBOLL(prices, period) { let up = [], down = []; for(let i=0; i<prices.length; i++) { let sum = 0, sqSum = 0, start = Math.max(0, i - period + 1), count = i - start + 1; for(let j=start; j<=i; j++) { sum += prices[j]; sqSum += prices[j]*prices[j]; } let mean = sum / count; let variance = (sqSum / count) - (mean * mean); let stdDev = Math.sqrt(variance); up.push(mean + stdDev * 2); down.push(mean - stdDev * 2); } return { up, down }; }
     function calcMACD(prices) { const ema12 = calcEMA(prices, 12), ema26 = calcEMA(prices, 26); let macdLine = ema12.map((v, i) => v - ema26[i]); const signalLine = calcEMA(macdLine, 9); return macdLine.map((v, i) => v - signalLine[i]); }
