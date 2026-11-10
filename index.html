@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 半小时狙击雷达</title>
+    <title>OKX 狙击雷达 (极速版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -123,7 +123,7 @@
 <script>
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     let scanResults = JSON.parse(localStorage.getItem('okx_sniper_results')) || null; 
-    let currentCoin = scanResults ? scanResults.long.instId : coinList[0];
+    let currentCoin = scanResults && scanResults.long ? scanResults.long.instId : coinList[0];
     let currentTf = '15m'; 
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
@@ -159,10 +159,10 @@
         
         if(scanResults) {
             document.getElementById('card-long-coin').innerText = scanResults.long ? scanResults.long.instId.replace('-USDT-SWAP','') : '暂无';
-            document.getElementById('card-long-score').innerText = scanResults.long ? '信心度: ' + scanResults.long.score + '%' : '--';
+            document.getElementById('card-long-score').innerText = scanResults.long ? '信心: ' + scanResults.long.score + '%' : '--';
             
             document.getElementById('card-short-coin').innerText = scanResults.short ? scanResults.short.instId.replace('-USDT-SWAP','') : '暂无';
-            document.getElementById('card-short-score').innerText = scanResults.short ? '信心度: ' + scanResults.short.score + '%' : '--';
+            document.getElementById('card-short-score').innerText = scanResults.short ? '信心: ' + scanResults.short.score + '%' : '--';
         }
         document.getElementById('currentCoinName').innerText = currentCoin.replace('-USDT-SWAP','');
     }
@@ -202,7 +202,7 @@
                 clearTimeout(t);
                 document.getElementById('status-tag').innerText = '❌ 失败';
                 document.getElementById('status-tag').style.background = 'var(--down)';
-                document.getElementById('analysis-text').innerText = '数据请求失败，请检查网络是否稳定，或挂上 VPN 后下拉刷新。';
+                document.getElementById('analysis-text').innerText = '数据请求失败，请检查网络。';
             });
     }
 
@@ -234,12 +234,10 @@
 
         try { drawChart(); } catch(e) {}
         
-        // 主图一加载好，立刻来一段基础解析
         generateBasicAnalysis();
         checkMultiSignals();
     }
 
-    // 恢复基础文字解析（针对当前主图）
     function generateBasicAnalysis() {
         if(!klineData.length) return;
         let lastC = klineData[klineData.length-1].c;
@@ -251,7 +249,7 @@
         else if(lastC < lastEma20 && lastEma20 < lastEma50) trend = "15分钟级别处于明显的<b>空头下跌趋势</b>，均线压制，短线适合反弹做空。";
         else trend = "15分钟级别均线缠绕，当前处于<b>震荡洗盘</b>阶段，方向不明，建议观望等待突破。";
 
-        document.getElementById('analysis-text').innerHTML = `📊 <b>盘面概览：</b>${trend}<br><br><span style="color:var(--sub)">正在聚合 30分/1小时/4小时 信号...</span>`;
+        document.getElementById('analysis-text').innerHTML = `📊 <b>盘面概览：</b>${trend}<br><br><span style="color:var(--sub)">正在聚合多周期信号...</span>`;
     }
 
     function drawChart() {
@@ -308,20 +306,19 @@
                             if(closes[closes.length-1] > e20[e20.length-1]) score += 20; else score -= 20;
                             if(macd[macd.length-1] > 0) score += 20; else score -= 20;
                             
-                            currentSignals[p[2]] = score; // 记录分数
+                            currentSignals[p[2]] = score;
                             let el = document.getElementById(p[1]);
                             if(score >= 65) { el.innerText = '做多'; el.className = 'period-signal sig-long'; }
                             else if(score <= 35) { el.innerText = '做空'; el.className = 'period-signal sig-short'; }
                             else { el.innerText = '观望'; el.className = 'period-signal sig-neutral'; }
                         }
                         finishedCount++;
-                        if(finishedCount === 4) generateFullAnalysis(); // 4个周期全好，生成终极解析
+                        if(finishedCount === 4) generateFullAnalysis();
                     }).catch(()=>{ finishedCount++; });
             }, index * 250);
         });
     }
 
-    // 综合解析
     function generateFullAnalysis() {
         let s30 = currentSignals['30m'], s1h = currentSignals['1h'], s4h = currentSignals['4h'], s1d = currentSignals['1d'];
         let text = "";
@@ -340,6 +337,7 @@
         document.getElementById('analysis-text').innerHTML = text;
     }
 
+    // === 核心扫描引擎：抛弃严苛条件，改用相对打分 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
@@ -352,38 +350,34 @@
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             let top100 = usdt.slice(0, 100); 
 
-            let longCandidates = [];
-            let shortCandidates = [];
+            let allScores = [];
 
-            for (let i = 0; i < top100.length; i++) {
-                let instId = top100[i].instId;
-                status.innerText = `极速扫描中：${instId.replace('-USDT-SWAP','')} (${i+1}/100)`;
+            // 分批并发请求，提升速度
+            for (let i = 0; i < top100.length; i += 10) {
+                let batch = top100.slice(i, i + 10);
+                status.innerText = `极速扫描中：${i} / 100`;
                 
-                try {
-                    let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`);
-                    let kData = await kRes.json();
-                    if(kData.code === '0' && kData.data.length > 80) {
-                        let fmt = kData.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-                        let score = sniperScore(fmt);
-                        
-                        // 不再只取一个，把满足条件的都收集起来
-                        if(score !== null) {
-                            if(score > 50) longCandidates.push({ instId, score });
-                            if(score < 50) shortCandidates.push({ instId, score });
+                let promises = batch.map(async (t) => {
+                    try {
+                        let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${t.instId}&bar=15m&limit=100`);
+                        let kData = await kRes.json();
+                        if(kData.code === '0' && kData.data.length > 80) {
+                            let fmt = kData.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                            let score = relativeScore(fmt); // 相对打分
+                            allScores.push({ instId: t.instId, score: score });
                         }
-                    }
-                } catch(e) {}
-                await new Promise(r => setTimeout(r, 80)); 
+                    } catch(e) {}
+                });
+                await Promise.all(promises);
             }
 
-            // 排序取第一名，如果没有，就不报错，直接给空
-            longCandidates.sort((a,b) => b.score - a.score);
-            shortCandidates.sort((a,b) => a.score - b.score);
+            if(allScores.length === 0) throw new Error("无法获取K线数据，请检查网络。");
 
-            let bestLong = longCandidates.length > 0 ? longCandidates[0] : null;
-            let bestShort = shortCandidates.length > 0 ? shortCandidates[0] : null;
-
-            if(!bestLong && !bestShort) throw new Error("当前全市场处于极端震荡，无符合狙击条件的标的。");
+            // 排序后，直接取第一名和最后一名
+            allScores.sort((a, b) => b.score - a.score);
+            
+            let bestLong = allScores[0];
+            let bestShort = allScores[allScores.length - 1];
 
             scanResults = { long: bestLong, short: bestShort };
             localStorage.setItem('okx_sniper_results', JSON.stringify(scanResults));
@@ -392,36 +386,44 @@
             isScanView = true; toggleView(); renderList();
             
             if(bestLong) switchCoin(bestLong.instId); 
-            else if(bestShort) switchCoin(bestShort.instId);
 
         } catch (error) {
             status.innerText = error.message;
         }
     }
 
-    function sniperScore(data) {
-        if(data.length < 80) return null;
+    // 相对打分：只要满足趋势就加分，不管条件多苛刻
+    function relativeScore(data) {
+        if(data.length < 80) return 50;
         let closes = data.map(d => d.c); let vols = data.map(d => d.v);
         let price = closes[closes.length-1];
         
         let ema20 = calcEMA(closes, 20), ema50 = calcEMA(closes, 50);
         let macd = calcMACD(closes), rsi = calcRSI(closes, 14);
 
-        let lastEma20 = ema20[ema20.length-1], prevEma20 = ema20[ema20.length-2];
-        let lastEma50 = ema50[ema50.length-1], lastMacd = macd[macd.length-1], prevMacd = macd[macd.length-2];
-        let lastRsi = rsi[rsi.length-1], prevRsi = rsi[rsi.length-2];
+        let lastEma20 = ema20[ema20.length-1], lastEma50 = ema50[ema50.length-1];
+        let lastMacd = macd[macd.length-1];
+        let lastRsi = rsi[rsi.length-1];
         let lastVol = vols[vols.length-1], avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
 
         let score = 50;
-        let isUp = price > lastEma20 && lastEma20 > lastEma50 && lastEma20 > prevEma20;
-        let isDown = price < lastEma20 && lastEma20 < lastEma50 && lastEma20 < prevEma20;
-        
-        if(isUp) score += 20; else if(isDown) score -= 20; else return null; 
 
-        if(lastVol > avgVol * 1.3) { if(isUp) score += 20; else if(isDown) score -= 20; }
-        if(lastMacd > 0 && lastMacd > prevMacd) score += 20; else if(lastMacd < 0 && lastMacd < prevMacd) score -= 20;
-        if(lastRsi > 50 && prevRsi < 50) score += 40; else if(lastRsi < 50 && prevRsi > 50) score -= 40;
-        else if(lastRsi > 55 && lastRsi < 75) score += 20; else if(lastRsi < 45 && lastRsi > 25) score -= 20;
+        // 1. 均线趋势 (占30分)
+        if(price > lastEma20 && lastEma20 > lastEma50) score += 30; // 多头
+        else if(price < lastEma20 && lastEma20 < lastEma50) score -= 30; // 空头
+
+        // 2. MACD 动能 (占20分)
+        if(lastMacd > 0) score += 20; else score -= 20;
+
+        // 3. 成交量异动 (占15分)
+        if(lastVol > avgVol * 1.5) {
+            if(price > closes[closes.length-2]) score += 15; // 放量上涨
+            else score -= 15; // 放量下跌
+        }
+
+        // 4. RSI 极值 (占10分)
+        if(lastRsi < 30) score += 10;
+        else if(lastRsi > 70) score -= 10;
 
         return Math.max(0, Math.min(100, score));
     }
