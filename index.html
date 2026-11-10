@@ -15,9 +15,8 @@
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
         .scan-btn { background: linear-gradient(135deg, #ff8a00, #e52e71); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(229,46,113,0.4);}
         
-        /* 狙击结果展示区 */
         #sniper-area { display: none; flex-direction: row; gap: 10px; padding-top: 5px; }
-        .sniper-card { flex: 1; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 2px solid transparent;}
+        .sniper-card { flex: 1; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 2px solid transparent;}
         .sniper-card.long { background: rgba(14,203,129,0.1); border-color: var(--up); }
         .sniper-card.short { background: rgba(246,70,93,0.1); border-color: var(--down); }
         .sniper-title { font-size: 12px; font-weight: bold; color: #fff; }
@@ -76,7 +75,6 @@
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
-        <!-- 最佳多空双杀卡片 -->
         <div id="sniper-area">
             <div class="sniper-card long" id="card-long" onclick="switchCoin(document.getElementById('card-long-coin').innerText)">
                 <div class="sniper-title">🟢 最佳做多狙击</div>
@@ -130,7 +128,6 @@
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
 
-    // 视图切换
     let isScanView = scanResults ? true : false;
     window.toggleView = function() {
         isScanView = !isScanView;
@@ -228,9 +225,14 @@
         ema20 = calcEMA(closes, 20);
         ema50 = calcEMA(closes, 50);
         let boll = calcBOLL(closes, 20);
-        bollUp = boll.up; bollDown = boll.down;
+        bollUp = boll.up; bollDown = boll.dn; // 注意这里改为 dn 对应前面的 down
 
-        drawChart();
+        // 容错处理：如果画图报错，打印出来但不影响状态
+        try {
+            drawChart();
+        } catch(e) {
+            console.error("画图出错", e);
+        }
         checkMultiSignals();
     }
 
@@ -242,8 +244,14 @@
         const w = canvas.clientWidth, h = canvas.clientHeight;
         ctx.clearRect(0, 0, w, h);
 
-        let max = Math.max(...klineData.map(d => d.h), ...bollUp);
-        let min = Math.min(...klineData.map(d => d.l), ...bollDown);
+        // 过滤掉 NaN 的空值，防止 Math.max 报错崩溃
+        let validHighs = klineData.map(d => d.h).concat(bollUp.filter(v => !isNaN(v)));
+        let validLows = klineData.map(d => d.l).concat(bollDown.filter(v => !isNaN(v)));
+        
+        let max = Math.max(...validHighs);
+        let min = Math.min(...validLows);
+        if(isNaN(max) || isNaN(min)) return;
+        
         let range = max - min || 1;
         let cw = w / klineData.length;
 
@@ -262,6 +270,7 @@
         const drawL = (data, color) => {
             ctx.strokeStyle = color; ctx.beginPath();
             data.forEach((val, i) => {
+                if(isNaN(val)) return;
                 let x = i * cw + cw/2; let y = h - ((val - min) / range) * h;
                 if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             }); ctx.stroke();
@@ -269,29 +278,31 @@
         drawL(ema20, '#fcd535'); drawL(ema50, '#e056fd');
     }
 
+    // 使用 setTimeout 控制请求顺序，防止瞬间触发欧易API限频
     function checkMultiSignals() {
         let periods = [['30m','sig-30m'], ['1h','sig-1h'], ['4h','sig-4h'], ['1d','sig-1d']];
-        periods.forEach(p => {
-            fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p[0]}&limit=100`)
-                .then(r=>r.json()).then(r=>{
-                    if(r.code === '0' && r.data.length > 50) {
-                        let d = r.data.reverse().map(x => ({ c:+x[4] }));
-                        let closes = d.map(x => x.c);
-                        let e20 = calcEMA(closes, 20), macd = calcMACD(closes);
-                        let score = 50;
-                        if(closes[closes.length-1] > e20[e20.length-1]) score += 20; else score -= 20;
-                        if(macd[macd.length-1] > 0) score += 20; else score -= 20;
-                        
-                        let el = document.getElementById(p[1]);
-                        if(score >= 65) { el.innerText = '做多'; el.className = 'period-signal sig-long'; }
-                        else if(score <= 35) { el.innerText = '做空'; el.className = 'period-signal sig-short'; }
-                        else { el.innerText = '观望'; el.className = 'period-signal sig-neutral'; }
-                    }
-                }).catch(()=>{});
+        periods.forEach((p, index) => {
+            setTimeout(() => {
+                fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p[0]}&limit=100`)
+                    .then(r=>r.json()).then(r=>{
+                        if(r.code === '0' && r.data.length > 50) {
+                            let d = r.data.reverse().map(x => ({ c:+x[4] }));
+                            let closes = d.map(x => x.c);
+                            let e20 = calcEMA(closes, 20), macd = calcMACD(closes);
+                            let score = 50;
+                            if(closes[closes.length-1] > e20[e20.length-1]) score += 20; else score -= 20;
+                            if(macd[macd.length-1] > 0) score += 20; else score -= 20;
+                            
+                            let el = document.getElementById(p[1]);
+                            if(score >= 65) { el.innerText = '做多'; el.className = 'period-signal sig-long'; }
+                            else if(score <= 35) { el.innerText = '做空'; el.className = 'period-signal sig-short'; }
+                            else { el.innerText = '观望'; el.className = 'period-signal sig-neutral'; }
+                        }
+                    }).catch(()=>{});
+            }, index * 300); // 间隔 300ms 发送请求
         });
     }
 
-    // 🎯 核心：雷达狙击（前100名，只取最佳1个多，1个空）
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
@@ -304,10 +315,8 @@
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             let top100 = usdt.slice(0, 100); 
 
-            let bestLong = null;
-            let bestShort = null;
-            let maxLongScore = 50;
-            let minShortScore = 50;
+            let bestLong = null, bestShort = null;
+            let maxLongScore = 50, minShortScore = 50;
 
             for (let i = 0; i < top100.length; i++) {
                 let instId = top100[i].instId;
@@ -321,86 +330,55 @@
                         let score = sniperScore(fmt);
                         
                         if(score !== null) {
-                            if(score > maxLongScore) {
-                                maxLongScore = score;
-                                bestLong = { instId, score };
-                            }
-                            if(score < minShortScore) {
-                                minShortScore = score;
-                                bestShort = { instId, score };
-                            }
+                            if(score > maxLongScore) { maxLongScore = score; bestLong = { instId, score }; }
+                            if(score < minShortScore) { minShortScore = score; bestShort = { instId, score }; }
                         }
                     }
                 } catch(e) {}
-                await new Promise(r => setTimeout(r, 50)); // 极速扫描延迟极低
+                await new Promise(r => setTimeout(r, 80)); 
             }
 
-            if(!bestLong || !bestShort) throw new Error("当前市场震荡剧烈，暂无极高胜率标的。");
+            if(!bestLong || !bestShort) throw new Error("当前多为震荡，未发现极高胜率标的。");
 
             scanResults = { long: bestLong, short: bestShort };
             localStorage.setItem('okx_sniper_results', JSON.stringify(scanResults));
             
             document.getElementById('scanner-modal').style.display = 'none';
             isScanView = true; toggleView(); renderList();
-            switchCoin(bestLong.instId); // 自动切到最佳做多
+            switchCoin(bestLong.instId); 
 
         } catch (error) {
             status.innerText = error.message;
         }
     }
 
-    // 狙击打分 (拉满技术指标)
     function sniperScore(data) {
         if(data.length < 80) return null;
-        let closes = data.map(d => d.c);
-        let vols = data.map(d => d.v);
+        let closes = data.map(d => d.c); let vols = data.map(d => d.v);
         let price = closes[closes.length-1];
         
-        let ema20 = calcEMA(closes, 20);
-        let ema50 = calcEMA(closes, 50);
-        let macd = calcMACD(closes);
-        let rsi = calcRSI(closes, 14);
+        let ema20 = calcEMA(closes, 20), ema50 = calcEMA(closes, 50);
+        let macd = calcMACD(closes), rsi = calcRSI(closes, 14);
 
-        let lastEma20 = ema20[ema20.length-1];
-        let prevEma20 = ema20[ema20.length-2];
-        let lastEma50 = ema50[ema50.length-1];
-        let lastMacd = macd[macd.length-1];
-        let prevMacd = macd[macd.length-2];
-        let lastRsi = rsi[rsi.length-1];
-        let prevRsi = rsi[rsi.length-2];
-        let lastVol = vols[vols.length-1];
-        let avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
+        let lastEma20 = ema20[ema20.length-1], prevEma20 = ema20[ema20.length-2];
+        let lastEma50 = ema50[ema50.length-1], lastMacd = macd[macd.length-1], prevMacd = macd[macd.length-2];
+        let lastRsi = rsi[rsi.length-1], prevRsi = rsi[rsi.length-2];
+        let lastVol = vols[vols.length-1], avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
 
         let score = 50;
-
-        // 1. 趋势排列与斜率 (基础)
         let isUp = price > lastEma20 && lastEma20 > lastEma50 && lastEma20 > prevEma20;
         let isDown = price < lastEma20 && lastEma20 < lastEma50 && lastEma20 < prevEma20;
         
-        if(isUp) score += 20;
-        else if(isDown) score -= 20;
-        else return null; // 没有趋势直接过滤
+        if(isUp) score += 20; else if(isDown) score -= 20; else return null; 
 
-        // 2. 放量确认 (核心：半小时内爆发必须有量)
-        if(lastVol > avgVol * 1.3) {
-            if(isUp) score += 20;
-            else if(isDown) score -= 20;
-        }
-
-        // 3. MACD 动能加速
-        if(lastMacd > 0 && lastMacd > prevMacd) score += 20;
-        else if(lastMacd < 0 && lastMacd < prevMacd) score -= 20;
-
-        // 4. RSI 临界突破 (胜率极高)
-        if(lastRsi > 50 && prevRsi < 50) score += 40;
-        else if(lastRsi < 50 && prevRsi > 50) score -= 40;
-        else if(lastRsi > 55 && lastRsi < 75) score += 20;
-        else if(lastRsi < 45 && lastRsi > 25) score -= 20;
+        if(lastVol > avgVol * 1.3) { if(isUp) score += 20; else if(isDown) score -= 20; }
+        if(lastMacd > 0 && lastMacd > prevMacd) score += 20; else if(lastMacd < 0 && lastMacd < prevMacd) score -= 20;
+        if(lastRsi > 50 && prevRsi < 50) score += 40; else if(lastRsi < 50 && prevRsi > 50) score -= 40;
+        else if(lastRsi > 55 && lastRsi < 75) score += 20; else if(lastRsi < 45 && lastRsi > 25) score -= 20;
 
         return Math.max(0, Math.min(100, score));
     }
 
-    // 数学公式
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
     function calcBOLL(prices, p) { let up=[],dn=[]; for(let i=0;i<prices.length;i++){let s=0,sq=0,st=Math.max(0,i-p+1),ct=i-st+1;for(let j=st;j<=i;j++){s+=prices[j];sq+=prices[j]*prices[j];}let m=s/ct,v=(sq/ct)-(m*m),sd=Math.sqrt(v);up.push(m+sd*2);dn.push(m-sd*2);} return {up,dn}; }
     function calcMACD(prices) { let e12=calcEMA(prices,12),e26=calcEMA(prices,26),m=e12.map((v,i)=>v-e26[i]),s=calcEMA(m,9);return m.map((v,i)=>v-s[i]); }
