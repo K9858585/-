@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 多周期智能看盘</title>
+    <title>OKX 高精度多周期看盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -41,9 +41,11 @@
         .time-btn.active { background: #2a2e39; color: #fff; }
         
         /* 价格与状态栏 */
-        #price-bar { padding: 10px 15px; font-size: 22px; font-weight: bold; color: #fff; font-family: monospace; display: flex; align-items: baseline; gap: 10px;}
+        #price-bar { padding: 10px 15px; font-size: 20px; font-weight: bold; color: #fff; font-family: monospace; display: flex; align-items: center; gap: 10px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+        #price-bar::-webkit-scrollbar { display: none; }
         #price-bar span { font-size: 12px; color: var(--sub); font-family: -apple-system, sans-serif;}
-        #status-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: auto; background: #fcd535; color: #000; transition: all 0.3s; }
+        #status-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #fcd535; color: #000; transition: all 0.3s; }
+        #realtime-clock { margin-left: auto; font-family: monospace; font-size: 14px; color: var(--yellow); font-weight: bold; }
         
         /* K线图与AI面板 */
         #chart-container { flex: 1; position: relative; width: 100%; min-height: 300px; }
@@ -66,7 +68,7 @@
         
         #indicator-bar {
             position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8);
-            padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--sub); display: flex; gap: 15px; font-family: monospace;
+            padding: 4px 8px; border-radius: 4px; font-size: 10px; color: var(--sub); display: flex; flex-direction: column; gap: 2px; font-family: monospace;
         }
     </style>
 </head>
@@ -95,6 +97,8 @@
     <div id="price-bar">
         <span id="currentPrice">--</span><span>USDT</span>
         <span id="status-tag">加载中...</span>
+        <!-- 实时时钟 -->
+        <span id="realtime-clock">--:--:--</span>
     </div>
 
     <div id="chart-container">
@@ -108,6 +112,7 @@
             <div class="period-row"><div class="period-name">1日</div><div class="period-signal sig-neutral" id="sig-1d">观望</div><div class="period-conf" id="conf-1d">50%</div></div>
         </div>
         
+        <!-- 底部指标栏调整为纵向排列，因为10位小数太长了 -->
         <div id="indicator-bar">
             <span>EMA: <span id="valEma20" style="color:#fcd535;">--</span></span>
             <span>BOLL: <span id="valBoll" style="color:#2962ff;">--</span></span>
@@ -117,9 +122,20 @@
 
 <script>
     // ==========================================
+    // 0. 实时时钟模块
+    // ==========================================
+    function updateClock() {
+        const now = new Date();
+        // 格式化为 HH:MM:SS
+        const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
+        document.getElementById('realtime-clock').innerText = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ==========================================
     // 1. 全局状态与配置
     // ==========================================
-    // 从本地存储读取，如果没有则给默认值
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT', 'ETH-USDT', 'SOL-USDT'];
     let currentCoin = coinList[0];
     let currentTf = '15m'; // 默认15分
@@ -137,17 +153,15 @@
             const div = document.createElement('div');
             div.className = `coin-tag ${coin === currentCoin ? 'active' : ''}`;
             
-            // 币种名称部分
             const nameSpan = document.createElement('span');
             nameSpan.innerText = coin;
             nameSpan.onclick = () => switchCoin(coin);
             
-            // 删除按钮部分
             const delBtn = document.createElement('span');
             delBtn.className = 'del-btn';
             delBtn.innerText = '×';
             delBtn.onclick = (e) => {
-                e.stopPropagation(); // 阻止触发切换事件
+                e.stopPropagation();
                 removeCoin(coin);
             };
 
@@ -157,12 +171,9 @@
         });
     }
 
-    // 添加币种
     window.addCoin = function() {
         let val = document.getElementById('coinInput').value.trim().toUpperCase();
         if(!val) return;
-        
-        // 自动补全后缀
         if(!val.includes('-')) val += '-USDT'; 
         
         if(!coinList.includes(val)) {
@@ -170,41 +181,35 @@
             saveCoins();
             document.getElementById('coinInput').value = '';
             renderCoinList();
-            switchCoin(val); // 添加后自动切换过去
+            switchCoin(val); 
         } else {
             alert("该币种已在列表中！");
             document.getElementById('coinInput').value = '';
         }
     }
 
-    // 删除币种
     window.removeCoin = function(coin) {
         if(coinList.length <= 1) {
             alert("至少保留一个币种哦！");
             return;
         }
-        
-        // 过滤掉要删除的币种
         coinList = coinList.filter(c => c !== coin);
         saveCoins();
         
-        // 如果删除的是当前正在看的币种，自动切换到列表第一个
         if(currentCoin === coin) {
             currentCoin = coinList[0];
             renderCoinList();
             fetchMainChartData();
             fetchMultiTimeframeSignals();
         } else {
-            renderCoinList(); // 只是刷新列表
+            renderCoinList();
         }
     }
 
-    // 保存到本地存储
     function saveCoins() {
         localStorage.setItem('okx_coins', JSON.stringify(coinList));
     }
 
-    // 切换币种
     function switchCoin(coin) {
         if(currentCoin === coin) return;
         currentCoin = coin;
@@ -213,7 +218,6 @@
         fetchMultiTimeframeSignals();
     }
 
-    // 切换周期
     function switchTimeframe(tf) {
         if(currentTf === tf) return;
         currentTf = tf;
@@ -282,7 +286,7 @@
         let basePrice = currentCoin.includes('BTC') ? 65000 : (currentCoin.includes('ETH') ? 3500 : 150);
         klineData = generateMockData(basePrice);
         processAndDraw();
-        document.getElementById('status-tag').innerText = "⚠️ 本地演示数据";
+        document.getElementById('status-tag').innerText = "⚠️ 演示数据";
         document.getElementById('status-tag').style.background = "var(--down)";
         document.getElementById('status-tag').style.color = "#fff";
     }
@@ -291,7 +295,9 @@
         if(klineData.length === 0) return;
         
         const closes = klineData.map(d => d.close);
-        document.getElementById('currentPrice').innerText = closes[closes.length-1].toFixed(2);
+        
+        // 核心修改：价格精度提升到 10 位
+        document.getElementById('currentPrice').innerText = closes[closes.length-1].toFixed(10);
 
         ema20Data = calcEMA(closes, 20);
         const boll = calcBOLL(closes, 20);
@@ -299,9 +305,10 @@
         bollDownData = boll.down;
         const macd = calcMACD(closes);
 
-        document.getElementById('valEma20').innerText = ema20Data[ema20Data.length-1].toFixed(2);
-        document.getElementById('valBoll').innerText = bollUpData[bollUpData.length-1].toFixed(2) + '/' + bollDownData[bollDownData.length-1].toFixed(2);
-        document.getElementById('valMacd').innerText = macd[macd.length-1].toFixed(2);
+        // 核心修改：指标精度提升到 10 位
+        document.getElementById('valEma20').innerText = ema20Data[ema20Data.length-1].toFixed(10);
+        document.getElementById('valBoll').innerText = bollUpData[bollUpData.length-1].toFixed(10) + ' / ' + bollDownData[bollDownData.length-1].toFixed(10);
+        document.getElementById('valMacd').innerText = macd[macd.length-1].toFixed(10);
 
         drawChart();
     }
@@ -441,7 +448,7 @@
     }
 
     // ==========================================
-    // 5. 数学公式
+    // 5. 基础数学公式
     // ==========================================
     function calcEMA(prices, period) { const k = 2 / (period + 1); let ema = [prices[0]]; let prev = prices[0]; for (let i = 1; i < prices.length; i++) { prev = prices[i] * k + prev * (1 - k); ema.push(prev); } return ema; }
     function calcBOLL(prices, period) { let up = [], down = []; for(let i=0; i<prices.length; i++) { let sum = 0, sqSum = 0, start = Math.max(0, i - period + 1), count = i - start + 1; for(let j=start; j<=i; j++) { sum += prices[j]; sqSum += prices[j]*prices[j]; } let mean = sum / count; let variance = (sqSum / count) - (mean * mean); let stdDev = Math.sqrt(variance); up.push(mean + stdDev * 2); down.push(mean - stdDev * 2); } return { up, down }; }
