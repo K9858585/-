@@ -3,34 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 智能深度看盘</title>
+    <title>OKX 极速智能看盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         /* 顶部区域 */
         #top-bar { background: var(--panel); padding: 10px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; gap: 10px; }
-        
-        /* 搜索与开关按钮行 */
         .top-controls { display: flex; gap: 8px; width: 100%; align-items: center; }
         .search-box { display: flex; flex: 1; gap: 5px; }
         .search-box input { flex: 1; background: #2a2e39; border: 1px solid #363a45; color: #fff; padding: 8px; border-radius: 4px; font-size: 13px; text-transform: uppercase; outline: none; }
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: bold; }
+        .toggle-btn { background: #363a45; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold; }
         
-        /* 开关按钮 */
-        .toggle-btn { background: #363a45; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold; transition: 0.2s; }
-        .toggle-btn:active { background: #4a4e5a; }
-        
-        /* 币种列表 (默认隐藏) */
         .coin-list { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; padding-top: 5px; }
         .coin-list::-webkit-scrollbar { width: 4px; }
         .coin-list::-webkit-scrollbar-thumb { background: #363a45; border-radius: 2px; }
-        
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; white-space: nowrap; border: 1px solid transparent; display: flex; align-items: center; gap: 6px; }
         .coin-tag.active { background: rgba(41, 98, 255, 0.1); border-color: var(--blue); color: var(--blue); }
-        .del-btn { color: var(--sub); font-size: 16px; font-weight: bold; line-height: 1; padding: 0 2px; border-radius: 50%; transition: 0.2s; }
-        .del-btn:hover, .del-btn:active { color: var(--down); background: rgba(246,70,93,0.1); }
-        .coin-tag.active .del-btn { color: var(--blue); }
+        .del-btn { color: var(--sub); font-size: 16px; font-weight: bold; line-height: 1; padding: 0 2px; border-radius: 50%; }
         
         /* 时间周期栏 */
         #time-bar { display: flex; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid #2a2e39; gap: 5px; overflow-x: auto; scrollbar-width: none; }
@@ -39,41 +30,35 @@
         .time-btn.active { background: #2a2e39; color: #fff; }
         
         /* 超大价格栏 */
-        #price-bar { padding: 12px 15px; display: flex; align-items: baseline; gap: 10px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+        #price-bar { padding: 10px 15px; display: flex; align-items: baseline; gap: 10px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
         #price-bar::-webkit-scrollbar { display: none; }
-        #currentPrice { font-size: 38px; font-weight: 900; color: #fff; font-family: monospace; letter-spacing: -1px; line-height: 1; }
+        #currentPrice { font-size: 36px; font-weight: 900; color: #fff; font-family: monospace; letter-spacing: -1px; line-height: 1; }
         .currency { font-size: 14px; color: var(--sub); font-family: -apple-system, sans-serif; margin-left: -5px;}
-        #status-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #fcd535; color: #000; transition: all 0.3s; margin-left: 10px;}
+        #status-tag { font-size: 12px; padding: 2px 6px; border-radius: 4px; background: #fcd535; color: #000; margin-left: 10px;}
         #realtime-clock { margin-left: auto; font-family: monospace; font-size: 14px; color: var(--yellow); font-weight: bold; }
         
-        /* K线图区域 */
-        #chart-container { flex: 1; min-height: 250px; position: relative; width: 100%; border-bottom: 1px solid #2a2e39; }
-        canvas { width: 100%; height: 100%; display: block; }
-        
-        /* 预测悬浮窗 */
-        #ai-panel { position: absolute; top: 10px; right: 10px; background: rgba(26, 31, 43, 0.95); border: 1px solid #363a45; border-radius: 8px; padding: 10px; z-index: 10; width: 185px; backdrop-filter: blur(10px); box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
-        
-        /* 悬浮窗标题（加入显眼的币种名字） */
-        .ai-header { display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #2a2e39; padding-bottom: 8px; margin-bottom: 8px; }
-        #ai-coin-name { font-size: 16px; font-weight: 900; color: var(--yellow); text-shadow: 0 0 10px rgba(252,213,53,0.4); letter-spacing: 1px; }
-        .ai-subtitle { font-size: 11px; color: var(--sub); margin-top: 2px; }
-        
-        .period-row { display: flex; justify-content: space-between; align-items: center; background: #22262f; padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; }
-        .period-name { font-size: 12px; color: #d1d4dc; font-weight: bold; width: 40px; }
-        .period-signal { font-size: 13px; font-weight: bold; padding: 2px 6px; border-radius: 4px; width: 40px; text-align: center; }
-        .period-conf { font-size: 11px; color: var(--sub); width: 30px; text-align: right; }
+        /* === 核心修改：预判面板移出悬浮，改为横向平铺 === */
+        #ai-panel { background: #1a1f2b; display: flex; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #2a2e39; gap: 5px; }
+        .period-row { display: flex; flex-direction: column; align-items: center; background: #22262f; padding: 6px 4px; border-radius: 6px; flex: 1; }
+        .period-name { font-size: 11px; color: var(--sub); font-weight: bold; margin-bottom: 4px;}
+        .period-signal { font-size: 14px; font-weight: bold; padding: 2px 0; border-radius: 4px; width: 100%; text-align: center; margin-bottom: 4px; }
+        .period-conf { font-size: 10px; color: #fff; background: #363a45; padding: 1px 6px; border-radius: 10px; }
         .sig-long { color: var(--up); background: rgba(14,203,129,0.1); }
         .sig-short { color: var(--down); background: rgba(246,70,93,0.1); }
         .sig-neutral { color: var(--yellow); background: rgba(252,213,53,0.1); }
+
+        /* K线图区域 */
+        #chart-container { flex: 1; min-height: 200px; position: relative; width: 100%; }
+        canvas { width: 100%; height: 100%; display: block; }
         
         /* 底部指标悬浮 */
-        #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--sub); display: flex; flex-direction: column; gap: 3px; font-family: monospace; pointer-events: none; }
+        #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 10px; color: var(--sub); display: flex; flex-direction: column; gap: 2px; font-family: monospace; pointer-events: none; }
 
         /* 底部 AI 深度解析区 */
-        #analysis-panel { height: 32vh; background: var(--panel); padding: 15px; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
-        .analysis-header { font-size: 15px; font-weight: bold; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        #analysis-panel { height: 30vh; background: var(--panel); padding: 15px; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
+        .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
         .analysis-header::before { content: "🤖"; }
-        #analysis-text { font-size: 14px; line-height: 1.6; color: #b2b5be; text-align: justify; }
+        #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; }
         .highlight-up { color: var(--up); font-weight: bold; }
         .highlight-down { color: var(--down); font-weight: bold; }
         .highlight-neutral { color: var(--yellow); font-weight: bold; }
@@ -103,26 +88,22 @@
     </div>
 
     <div id="price-bar">
+        <span id="currentCoinName" style="font-size: 16px; font-weight: bold; color: var(--sub);"></span>
         <span id="currentPrice">--</span><span class="currency">USDT</span>
         <span id="status-tag">加载中...</span>
         <span id="realtime-clock">--:--:--</span>
     </div>
 
+    <!-- 横向平铺的预测面板（不再遮挡K线） -->
+    <div id="ai-panel">
+        <div class="period-row"><div class="period-name">4小时</div><div class="period-signal sig-neutral" id="sig-4H">观望</div><div class="period-conf" id="conf-4H">50%</div></div>
+        <div class="period-row"><div class="period-name">30分</div><div class="period-signal sig-neutral" id="sig-30m">观望</div><div class="period-conf" id="conf-30m">50%</div></div>
+        <div class="period-row"><div class="period-name">1小时</div><div class="period-signal sig-neutral" id="sig-1H">观望</div><div class="period-conf" id="conf-1H">50%</div></div>
+        <div class="period-row"><div class="period-name">1日</div><div class="period-signal sig-neutral" id="sig-1D">观望</div><div class="period-conf" id="conf-1D">50%</div></div>
+    </div>
+
     <div id="chart-container">
         <canvas id="chartCanvas"></canvas>
-        <div id="ai-panel">
-            <!-- 显眼的币种标题 -->
-            <div class="ai-header">
-                <div id="ai-coin-name">--</div>
-                <div class="ai-subtitle">多周期未来走势预判</div>
-            </div>
-            
-            <div class="period-row"><div class="period-name">15分</div><div class="period-signal sig-neutral" id="sig-15m">观望</div><div class="period-conf" id="conf-15m">50%</div></div>
-            <div class="period-row"><div class="period-name">30分</div><div class="period-signal sig-neutral" id="sig-30m">观望</div><div class="period-conf" id="conf-30m">50%</div></div>
-            <div class="period-row"><div class="period-name">1小时</div><div class="period-signal sig-neutral" id="sig-1h">观望</div><div class="period-conf" id="conf-1h">50%</div></div>
-            <div class="period-row"><div class="period-name">1日</div><div class="period-signal sig-neutral" id="sig-1d">观望</div><div class="period-conf" id="conf-1d">50%</div></div>
-        </div>
-        
         <div id="indicator-bar">
             <span>EMA: <span id="valEma20" style="color:#fcd535;">--</span></span>
             <span>BOLL: <span id="valBoll" style="color:#2962ff;">--</span></span>
@@ -132,7 +113,7 @@
 
     <div id="analysis-panel">
         <div class="analysis-header">AI 深度盘面解析</div>
-        <div id="analysis-text">正在拉取行情数据并生成多周期研报，请稍候...</div>
+        <div id="analysis-text">正在极速演算中...</div>
     </div>
 
 <script>
@@ -150,25 +131,17 @@
     let currentTf = '15m'; 
     let klineData = [], ema20Data = [], bollUpData = [], bollDownData = [];
     let ws = null, mockTimer = null;
-    let currentSignals = { '15m': 50, '30m': 50, '1h': 50, '1d': 50 };
+    // 修改字典的 key，把 15m 换成 4H
+    let currentSignals = { '4H': 50, '30m': 50, '1H': 50, '1D': 50 };
     let isCoinListExpanded = false; 
 
-    // === 核心更新：切换或渲染时，同步更新悬浮窗的币种大字 ===
-    function updateCoinNameUI() {
-        document.getElementById('ai-coin-name').innerText = currentCoin;
-    }
+    function updateCoinNameUI() { document.getElementById('currentCoinName').innerText = currentCoin; }
 
     window.toggleCoinList = function() {
         isCoinListExpanded = !isCoinListExpanded;
-        const listEl = document.getElementById('coinList');
-        const btnEl = document.getElementById('toggleBtn');
-        if (isCoinListExpanded) {
-            listEl.style.display = 'flex';
-            btnEl.innerText = '▲ 收起';
-        } else {
-            listEl.style.display = 'none';
-            btnEl.innerText = '▼ 自选';
-        }
+        const listEl = document.getElementById('coinList'), btnEl = document.getElementById('toggleBtn');
+        listEl.style.display = isCoinListExpanded ? 'flex' : 'none';
+        btnEl.innerText = isCoinListExpanded ? '▲ 收起' : '▼ 自选';
     }
 
     function renderCoinList() {
@@ -177,55 +150,32 @@
         coinList.forEach(coin => {
             const div = document.createElement('div');
             div.className = `coin-tag ${coin === currentCoin ? 'active' : ''}`;
-            const nameSpan = document.createElement('span');
-            nameSpan.innerText = coin;
-            nameSpan.onclick = () => switchCoin(coin);
-            const delBtn = document.createElement('span');
-            delBtn.className = 'del-btn';
-            delBtn.innerText = '×';
-            delBtn.onclick = (e) => { e.stopPropagation(); removeCoin(coin); };
-            div.appendChild(nameSpan);
-            div.appendChild(delBtn);
+            div.innerHTML = `<span onclick="switchCoin('${coin}')">${coin}</span><span class="del-btn" onclick="removeCoin(event, '${coin}')">×</span>`;
             listEl.appendChild(div);
         });
-        updateCoinNameUI(); // 渲染列表时更新大字
+        updateCoinNameUI(); 
     }
 
     window.addCoin = function() {
         let val = document.getElementById('coinInput').value.trim().toUpperCase();
-        if(!val) return;
-        if(!val.includes('-')) val += '-USDT'; 
+        if(!val) return; if(!val.includes('-')) val += '-USDT'; 
         if(!coinList.includes(val)) {
-            coinList.push(val);
-            localStorage.setItem('okx_coins', JSON.stringify(coinList));
-            document.getElementById('coinInput').value = '';
-            renderCoinList();
-            switchCoin(val); 
-            if(!isCoinListExpanded) toggleCoinList(); 
-        } else {
-            alert("该币种已在列表中！");
-            document.getElementById('coinInput').value = '';
-        }
+            coinList.push(val); localStorage.setItem('okx_coins', JSON.stringify(coinList));
+            document.getElementById('coinInput').value = ''; renderCoinList(); switchCoin(val); 
+            // 取消自动展开/收起逻辑
+        } else { alert("该币种已在列表中！"); document.getElementById('coinInput').value = ''; }
     }
 
-    window.removeCoin = function(coin) {
-        if(coinList.length <= 1) return alert("至少保留一个币种！");
-        coinList = coinList.filter(c => c !== coin);
-        localStorage.setItem('okx_coins', JSON.stringify(coinList));
-        if(currentCoin === coin) {
-            currentCoin = coinList[0];
-            renderCoinList(); initData();
-        } else {
-            renderCoinList();
-        }
+    window.removeCoin = function(e, coin) {
+        e.stopPropagation(); if(coinList.length <= 1) return alert("至少保留一个币种！");
+        coinList = coinList.filter(c => c !== coin); localStorage.setItem('okx_coins', JSON.stringify(coinList));
+        if(currentCoin === coin) { currentCoin = coinList[0]; renderCoinList(); initData(); } else renderCoinList();
     }
 
     function switchCoin(coin) { 
         if(currentCoin === coin) return; 
-        currentCoin = coin; 
-        renderCoinList(); 
-        initData(); 
-        if(isCoinListExpanded) toggleCoinList();
+        currentCoin = coin; renderCoinList(); initData(); 
+        // 取消自动收起逻辑
     }
     
     function switchTimeframe(tf) {
@@ -234,21 +184,32 @@
         initData();
     }
 
+    // === 极速解析优化 ===
     function initData() {
         if(ws) { ws.close(); ws = null; } if(mockTimer) { clearInterval(mockTimer); mockTimer = null; }
-        klineData = []; document.getElementById('status-tag').innerText = "连接中...";
+        klineData = []; 
+        document.getElementById('status-tag').innerText = "连接中...";
         document.getElementById('status-tag').style.background = "var(--yellow)"; document.getElementById('status-tag').style.color = "#000";
+
+        currentSignals = { '4H': 50, '30m': 50, '1H': 50, '1D': 50 };
+        document.getElementById('analysis-text').innerText = "主图已加载，正在极速计算多周期趋势...";
 
         const timeoutId = setTimeout(() => { if(klineData.length === 0) useMockData(); }, 2500);
         const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=100`;
 
+        // 1. 请求主图数据
         fetch(url).then(res => res.json()).then(res => {
             clearTimeout(timeoutId);
             if(res.code !== '0' || !res.data) throw new Error("API 限制");
             klineData = res.data.reverse().map(d => ({ time: parseInt(d[0])/1000, open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) }));
             processAndDraw();
             document.getElementById('status-tag').innerText = "✅ 实时"; document.getElementById('status-tag').style.background = "var(--up)"; document.getElementById('status-tag').style.color = "#fff";
-            connectWebSocket(); fetchMultiSignals();
+            
+            // === 核心优化：主图一好，立刻用主图数据生成一段文字，不用等周期接口 ===
+            quickGenerateText();
+
+            connectWebSocket(); 
+            fetchMultiSignals();
         }).catch(err => { clearTimeout(timeoutId); useMockData(); });
     }
 
@@ -266,6 +227,7 @@
             last.close = newC; last.high = Math.max(last.high, newC); last.low = Math.min(last.low, newC);
             processAndDraw();
         }, 1000);
+        quickGenerateText();
         fetchMultiSignals(true);
     }
 
@@ -339,8 +301,9 @@
         drawLine(ema20Data, '#fcd535'); drawLine(bollUpData, 'rgba(41, 98, 255, 0.5)', true); drawLine(bollDownData, 'rgba(41, 98, 255, 0.5)', true);
     }
 
+    // === 周期修改为 4H、30m、1H、1D ===
     function fetchMultiSignals(isMock = false) {
-        const periods = ['15m', '30m', '1H', '1D'];
+        const periods = ['4H', '30m', '1H', '1D'];
         periods.forEach(p => {
             if(isMock) { calculateScore(generateMockData(65000), p); return; }
             fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p}&limit=100`)
@@ -378,7 +341,7 @@
     }
 
     function updateSignal(tf, score) {
-        let key = tf.toLowerCase();
+        let key = tf; // 直接使用 tf
         currentSignals[key] = score;
 
         const sigEl = document.getElementById(`sig-${tf}`), confEl = document.getElementById(`conf-${tf}`);
@@ -388,38 +351,47 @@
         else if(score <= 35) { sigEl.innerText = "做空"; sigEl.className = "period-signal sig-short"; } 
         else { sigEl.innerText = "观望"; sigEl.className = "period-signal sig-neutral"; }
         
-        if(tf === '1D') generateAnalysisText();
+        generateAnalysisText();
     }
 
+    // === 预生成文字（让解析秒出） ===
+    function quickGenerateText() {
+        const textEl = document.getElementById('analysis-text');
+        textEl.innerHTML = `📊 <b>初步研判：</b>当前${currentCoin}主图数据已加载。正在极速核算4小时、30分钟、1小时及日线级别的多空共振情况...`;
+    }
+
+    // === 最终文字生成（替换了 s15 为 s4H） ===
     function generateAnalysisText() {
-        const s15 = currentSignals['15m'], s30 = currentSignals['30m'], s1h = currentSignals['1h'], s1d = currentSignals['1d'];
+        const s4H = currentSignals['4H'], s30 = currentSignals['30m'], s1h = currentSignals['1H'], s1d = currentSignals['1D'];
         const textEl = document.getElementById('analysis-text');
         
+        if(s4H === 50 && s1h === 50) return; // 没数据时不覆盖
+
         let trend = ""; let action = "";
 
         if (s1d >= 65) trend = "日线级别处于明显的多头趋势中";
         else if (s1d <= 35) trend = "日线级别整体呈现空头压制状态";
         else trend = "日线级别大趋势处于宽幅震荡整理阶段";
 
-        if (s15 <= 35 && s30 <= 35 && s1h <= 35) {
-            trend = "全周期（15分至1日）呈现出极度弱势的共振下跌形态";
+        if (s4H <= 35 && s30 <= 35 && s1h <= 35) {
+            trend = "全周期呈现出极度弱势的共振下跌形态";
             action = "操作建议：空头力量强劲，切勿盲目抄底。建议以反弹逢高做空为主。";
-        } else if (s15 >= 65 && s30 >= 65 && s1h >= 65) {
-            trend = "全周期（15分至1日）呈现出极强的多头共振突破形态";
+        } else if (s4H >= 65 && s30 >= 65 && s1h >= 65) {
+            trend = "全周期呈现出极强的多头共振突破形态";
             action = "操作建议：顺势而为，回踩任何短期支撑位（如EMA20）都是较好的做多入场点。";
-        } else if (s15 <= 35 && s1h >= 65) {
-            trend = `当前${currentCoin}呈现出“短空长多”的格局，短线出现明显回调，但中长线看涨趋势未变`;
+        } else if (s4H <= 35 && s1h >= 65) {
+            trend = `当前${currentCoin}呈现出“短空长多”的格局，4小时级别出现明显回调，但中长线看涨趋势未变`;
             action = "操作建议：这通常是主力的洗盘动作。短线可尝试轻仓做空，但更稳妥的策略是等短线回调企稳后，顺应大趋势逢低做多。";
-        } else if (s15 >= 65 && s1h <= 35) {
-            trend = `当前${currentCoin}呈现出“短多长空”的格局，短线虽有反弹，但大级别依然被均线压制`;
-            action = "操作建议：警惕反弹诱多风险，上方阻力重重。建议以观望为主，或在关键阻力位（如布林带上轨）尝试做空。";
+        } else if (s4H >= 65 && s1h <= 35) {
+            trend = `当前${currentCoin}呈现出“短多长空”的格局，4小时虽有反弹，但大级别依然被均线压制`;
+            action = "操作建议：警惕反弹诱多风险，上方阻力重重。建议以观望为主，或在关键阻力位尝试做空。";
         } else {
             trend = `当前${currentCoin}多周期指标出现分歧，市场处于剧烈博弈的震荡市`;
             action = "操作建议：方向不明，极易被来回扫损。建议保持观望，或在布林带上下轨之间进行高抛低吸的短线操作，严格带好止损。";
         }
 
         let html = `📊 <b>行情研判：</b>${trend}。<br><br>`;
-        html += `📈 <b>具体指标：</b>15分信号得分 <span class="${s15 >= 65 ? 'highlight-up' : (s15 <= 35 ? 'highlight-down' : 'highlight-neutral')}">${s15}%</span>，1小时信号得分 <span class="${s1h >= 65 ? 'highlight-up' : (s1h <= 35 ? 'highlight-down' : 'highlight-neutral')}">${s1h}%</span>。<br><br>`;
+        html += `📈 <b>具体指标：</b>4小时信号得分 <span class="${s4H >= 65 ? 'highlight-up' : (s4H <= 35 ? 'highlight-down' : 'highlight-neutral')}">${s4H}%</span>，1小时信号得分 <span class="${s1h >= 65 ? 'highlight-up' : (s1h <= 35 ? 'highlight-down' : 'highlight-neutral')}">${s1h}%</span>。<br><br>`;
         html += `💡 <b>${action}</b>`;
         
         textEl.innerHTML = html;
