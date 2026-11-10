@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 狙击雷达 (极速版)</title>
+    <title>OKX 狙击雷达 (稳定版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -61,7 +61,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在扫描...</div>
+            <div class="scan-loading" id="scan-status">正在调取全市场数据...</div>
         </div>
     </div>
 
@@ -77,12 +77,12 @@
         
         <div id="sniper-area">
             <div class="sniper-card long" id="card-long" onclick="switchCoin(document.getElementById('card-long-coin').innerText)">
-                <div class="sniper-title">🟢 最佳做多狙击</div>
+                <div class="sniper-title">🟢 最佳做多</div>
                 <div class="sniper-coin" id="card-long-coin">--</div>
                 <div class="sniper-score" id="card-long-score">--</div>
             </div>
             <div class="sniper-card short" id="card-short" onclick="switchCoin(document.getElementById('card-short-coin').innerText)">
-                <div class="sniper-title">🔴 最佳做空狙击</div>
+                <div class="sniper-title">🔴 最佳做空</div>
                 <div class="sniper-coin" id="card-short-coin">--</div>
                 <div class="sniper-score" id="card-short-score">--</div>
             </div>
@@ -117,7 +117,7 @@
 
     <div id="analysis-panel">
         <div class="analysis-header">🎯 狙击手解析</div>
-        <div id="analysis-text">正在获取数据...</div>
+        <div id="analysis-text">等待数据...</div>
     </div>
 
 <script>
@@ -129,12 +129,11 @@
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
 
-    let isScanView = scanResults ? true : false;
+    // 强制显示逻辑
     window.toggleView = function() {
-        isScanView = !isScanView;
-        document.getElementById('sniper-area').style.display = isScanView ? 'flex' : 'none';
-        document.getElementById('coinList').style.display = isScanView ? 'none' : 'flex';
-        renderList();
+        let isScan = document.getElementById('sniper-area').style.display === 'flex';
+        document.getElementById('sniper-area').style.display = isScan ? 'none' : 'flex';
+        document.getElementById('coinList').style.display = isScan ? 'flex' : 'none';
     }
 
     window.addCoin = function() {
@@ -185,7 +184,7 @@
         document.getElementById('status-tag').style.background = 'var(--yellow)';
         document.getElementById('analysis-text').innerText = '正在计算多周期共振数据...';
         
-        let t = setTimeout(() => { document.getElementById('status-tag').innerText = '超时 (请挂VPN)'; document.getElementById('status-tag').style.background = 'var(--down)'; }, 3000);
+        let t = setTimeout(() => { document.getElementById('status-tag').innerText = '超时'; document.getElementById('status-tag').style.background = 'var(--down)'; }, 3000);
 
         fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=150`)
             .then(res => res.json())
@@ -202,7 +201,6 @@
                 clearTimeout(t);
                 document.getElementById('status-tag').innerText = '❌ 失败';
                 document.getElementById('status-tag').style.background = 'var(--down)';
-                document.getElementById('analysis-text').innerText = '数据请求失败，请检查网络。';
             });
     }
 
@@ -315,7 +313,7 @@
                         finishedCount++;
                         if(finishedCount === 4) generateFullAnalysis();
                     }).catch(()=>{ finishedCount++; });
-            }, index * 250);
+            }, index * 300); // 加长延迟防封
         });
     }
 
@@ -337,7 +335,7 @@
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 核心扫描引擎：抛弃严苛条件，改用相对打分 ===
+    // === 终极扫描引擎 (只扫前30名，强制排队) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
@@ -348,32 +346,32 @@
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top100 = usdt.slice(0, 100); 
+            
+            // 只扫前 30 个，防止被欧易封杀
+            let top30 = usdt.slice(0, 30); 
 
             let allScores = [];
 
-            // 分批并发请求，提升速度
-            for (let i = 0; i < top100.length; i += 10) {
-                let batch = top100.slice(i, i + 10);
-                status.innerText = `极速扫描中：${i} / 100`;
+            for (let i = 0; i < top30.length; i++) {
+                let instId = top30[i].instId;
+                status.innerText = `极速扫描：${instId.replace('-USDT-SWAP','')} (${i+1}/30)`;
                 
-                let promises = batch.map(async (t) => {
-                    try {
-                        let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${t.instId}&bar=15m&limit=100`);
-                        let kData = await kRes.json();
-                        if(kData.code === '0' && kData.data.length > 80) {
-                            let fmt = kData.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-                            let score = relativeScore(fmt); // 相对打分
-                            allScores.push({ instId: t.instId, score: score });
-                        }
-                    } catch(e) {}
-                });
-                await Promise.all(promises);
+                try {
+                    let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`);
+                    let kData = await kRes.json();
+                    if(kData.code === '0' && kData.data.length > 80) {
+                        let fmt = kData.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let score = relativeScore(fmt); 
+                        allScores.push({ instId: instId, score: score });
+                    }
+                } catch(e) {}
+                
+                // 强制加 200ms 延迟，绝对不触发限频
+                await new Promise(r => setTimeout(r, 200)); 
             }
 
-            if(allScores.length === 0) throw new Error("无法获取K线数据，请检查网络。");
+            if(allScores.length === 0) throw new Error("网络受限，无法获取K线数据。");
 
-            // 排序后，直接取第一名和最后一名
             allScores.sort((a, b) => b.score - a.score);
             
             let bestLong = allScores[0];
@@ -383,7 +381,11 @@
             localStorage.setItem('okx_sniper_results', JSON.stringify(scanResults));
             
             document.getElementById('scanner-modal').style.display = 'none';
-            isScanView = true; toggleView(); renderList();
+            
+            // 强制切换显示
+            document.getElementById('sniper-area').style.display = 'flex';
+            document.getElementById('coinList').style.display = 'none';
+            renderList();
             
             if(bestLong) switchCoin(bestLong.instId); 
 
@@ -392,39 +394,23 @@
         }
     }
 
-    // 相对打分：只要满足趋势就加分，不管条件多苛刻
     function relativeScore(data) {
         if(data.length < 80) return 50;
         let closes = data.map(d => d.c); let vols = data.map(d => d.v);
         let price = closes[closes.length-1];
-        
         let ema20 = calcEMA(closes, 20), ema50 = calcEMA(closes, 50);
         let macd = calcMACD(closes), rsi = calcRSI(closes, 14);
 
         let lastEma20 = ema20[ema20.length-1], lastEma50 = ema50[ema50.length-1];
-        let lastMacd = macd[macd.length-1];
-        let lastRsi = rsi[rsi.length-1];
+        let lastMacd = macd[macd.length-1], lastRsi = rsi[rsi.length-1];
         let lastVol = vols[vols.length-1], avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
 
         let score = 50;
-
-        // 1. 均线趋势 (占30分)
-        if(price > lastEma20 && lastEma20 > lastEma50) score += 30; // 多头
-        else if(price < lastEma20 && lastEma20 < lastEma50) score -= 30; // 空头
-
-        // 2. MACD 动能 (占20分)
+        if(price > lastEma20 && lastEma20 > lastEma50) score += 30; 
+        else if(price < lastEma20 && lastEma20 < lastEma50) score -= 30; 
         if(lastMacd > 0) score += 20; else score -= 20;
-
-        // 3. 成交量异动 (占15分)
-        if(lastVol > avgVol * 1.5) {
-            if(price > closes[closes.length-2]) score += 15; // 放量上涨
-            else score -= 15; // 放量下跌
-        }
-
-        // 4. RSI 极值 (占10分)
-        if(lastRsi < 30) score += 10;
-        else if(lastRsi > 70) score -= 10;
-
+        if(lastVol > avgVol * 1.5) { if(price > closes[closes.length-2]) score += 15; else score -= 15; }
+        if(lastRsi < 30) score += 10; else if(lastRsi > 70) score -= 10;
         return Math.max(0, Math.min(100, score));
     }
 
@@ -435,7 +421,12 @@
 
     window.onload = () => {
         renderList();
-        if(isScanView) toggleView();
+        if(scanResults) {
+            document.getElementById('sniper-area').style.display = 'flex';
+            document.getElementById('coinList').style.display = 'none';
+        } else {
+            document.getElementById('coinList').style.display = 'flex';
+        }
         loadData();
     };
 </script>
