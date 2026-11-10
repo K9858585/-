@@ -129,7 +129,6 @@
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
 
-    // 强制显示逻辑
     window.toggleView = function() {
         let isScan = document.getElementById('sniper-area').style.display === 'flex';
         document.getElementById('sniper-area').style.display = isScan ? 'none' : 'flex';
@@ -313,7 +312,7 @@
                         finishedCount++;
                         if(finishedCount === 4) generateFullAnalysis();
                     }).catch(()=>{ finishedCount++; });
-            }, index * 300); // 加长延迟防封
+            }, index * 300); 
         });
     }
 
@@ -335,7 +334,7 @@
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 终极扫描引擎 (只扫前30名，强制排队) ===
+    // === 终极扫描引擎 (前50名) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
@@ -347,14 +346,14 @@
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             
-            // 只扫前 30 个，防止被欧易封杀
-            let top30 = usdt.slice(0, 30); 
+            // 扫描池改为前 50 名
+            let top50 = usdt.slice(0, 50); 
 
             let allScores = [];
 
-            for (let i = 0; i < top30.length; i++) {
-                let instId = top30[i].instId;
-                status.innerText = `极速扫描：${instId.replace('-USDT-SWAP','')} (${i+1}/30)`;
+            for (let i = 0; i < top50.length; i++) {
+                let instId = top50[i].instId;
+                status.innerText = `极速扫描：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
                 
                 try {
                     let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`);
@@ -382,7 +381,6 @@
             
             document.getElementById('scanner-modal').style.display = 'none';
             
-            // 强制切换显示
             document.getElementById('sniper-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
