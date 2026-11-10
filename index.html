@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 全市场雷达看盘</title>
+    <title>OKX 1H 趋势狙击雷达</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -15,15 +15,24 @@
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: bold; }
         
         .scan-btn { background: linear-gradient(135deg, #ff8a00, #e52e71); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; font-weight: bold; white-space: nowrap; box-shadow: 0 0 10px rgba(229,46,113,0.4); }
-        .toggle-btn { background: #363a45; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap; font-weight: bold; }
         
-        .coin-list { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; padding-top: 5px; }
-        .coin-list::-webkit-scrollbar { width: 4px; }
-        .coin-list::-webkit-scrollbar-thumb { background: #363a45; border-radius: 2px; }
+        .display-area { display: none; flex-direction: column; gap: 8px; padding-top: 5px; }
+        .rank-row { display: flex; align-items: center; gap: 8px; }
+        .rank-label { font-size: 12px; font-weight: bold; width: 50px; text-align: right; }
+        .rank-label.long { color: var(--up); }
+        .rank-label.short { color: var(--down); }
+        .rank-items { display: flex; flex: 1; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+        .rank-items::-webkit-scrollbar { display: none; }
+        
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; white-space: nowrap; border: 1px solid transparent; display: flex; align-items: center; gap: 6px; }
         .coin-tag.active { background: rgba(41, 98, 255, 0.1); border-color: var(--blue); color: var(--blue); }
+        .coin-tag.rank-1 { background: rgba(252,213,53,0.1); border-color: var(--yellow); color: var(--yellow); }
+        .coin-tag.rank-2 { background: rgba(132,142,156,0.1); border-color: #848e9c; color: #eaecef; }
+        .coin-tag.rank-3 { background: rgba(205,127,50,0.1); border-color: #cd7f32; color: #cd7f32; }
+        
         .del-btn { color: var(--sub); font-size: 16px; font-weight: bold; line-height: 1; padding: 0 2px; border-radius: 50%; margin-left: 4px;}
-        .coin-icon { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: bold; object-fit: cover; flex-shrink: 0; }
+        .coin-icon { width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; font-weight: bold; object-fit: cover; flex-shrink: 0; }
+        #coinList { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
 
         #time-bar { display: flex; padding: 5px 10px; background: var(--panel); border-bottom: 1px solid #2a2e39; gap: 5px; overflow-x: auto; scrollbar-width: none; }
         #time-bar::-webkit-scrollbar { display: none; }
@@ -52,7 +61,6 @@
         #chart-container { flex: 1; min-height: 200px; position: relative; width: 100%; display: flex; align-items: center; justify-content: center; }
         canvas { width: 100%; height: 100%; display: block; position: absolute; top: 0; left: 0; }
         #empty-tip { position: absolute; color: var(--down); font-size: 14px; font-weight: bold; z-index: 5; display: none; text-align: center; padding: 20px;}
-
         #indicator-bar { position: absolute; bottom: 5px; left: 10px; background: rgba(18, 22, 31, 0.8); padding: 4px 8px; border-radius: 4px; font-size: 10px; color: var(--sub); display: flex; flex-direction: column; gap: 2px; font-family: monospace; pointer-events: none; z-index: 6;}
 
         #analysis-panel { height: 30vh; background: var(--panel); padding: 15px; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
@@ -71,15 +79,7 @@
         .scanner-close { background: transparent; border: none; color: var(--sub); font-size: 20px; cursor: pointer; }
         .scanner-content { padding: 15px; overflow-y: auto; flex: 1; }
         .scan-loading { text-align: center; color: var(--yellow); font-weight: bold; padding: 20px; }
-        .scan-section { margin-bottom: 15px; }
-        .scan-section h3 { font-size: 14px; margin: 0 0 10px 0; display: flex; align-items: center; gap: 5px; }
-        .scan-list { display: flex; flex-direction: column; gap: 8px; }
-        .scan-item { display: flex; justify-content: space-between; align-items: center; background: #22262f; padding: 12px 15px; border-radius: 6px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
-        .scan-item:active { border-color: var(--blue); }
-        .scan-coin { font-size: 16px; font-weight: bold; color: #fff; }
-        .scan-score { font-size: 18px; font-weight: 900; }
-        .bg-long { background: rgba(14,203,129,0.05); }
-        .bg-short { background: rgba(246,70,93,0.05); }
+        .scan-tip { font-size: 12px; color: var(--sub); text-align: center; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -87,7 +87,7 @@
     <div id="scanner-modal">
         <div class="scanner-box">
             <div class="scanner-header">
-                <div class="scanner-title">📡 全市场量化雷达</div>
+                <div class="scanner-title">📡 1H 趋势狙击雷达</div>
                 <button class="scanner-close" onclick="closeScanner()">×</button>
             </div>
             <div class="scanner-content" id="scanner-content">
@@ -103,9 +103,20 @@
                 <button onclick="addCoin()">+</button>
             </div>
             <button class="scan-btn" onclick="runScanner()">📡 雷达扫描</button>
-            <button class="toggle-btn" id="toggleBtn" onclick="toggleCoinList()">▼ 自选</button>
+            <button class="toggle-btn" id="toggleBtn" onclick="toggleDisplayArea()" style="background:#363a45; color:#fff; border:none; padding:8px 12px; border-radius:4px; font-size:12px; font-weight:bold;">▼ 自选</button>
         </div>
-        <div class="coin-list" id="coinList"></div>
+        
+        <div class="display-area" id="scanArea" style="display: none;">
+            <div class="rank-row">
+                <div class="rank-label long">做多榜</div>
+                <div class="rank-items" id="rank-longs"></div>
+            </div>
+            <div class="rank-row">
+                <div class="rank-label short">做空榜</div>
+                <div class="rank-items" id="rank-shorts"></div>
+            </div>
+        </div>
+        <div id="coinList"></div>
     </div>
 
     <div id="time-bar">
@@ -169,20 +180,38 @@
     }
 
     let coinList = JSON.parse(localStorage.getItem('okx_swap_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP', 'SOL-USDT-SWAP'];
-    let currentCoin = coinList[0];
+    let scanResults = JSON.parse(localStorage.getItem('okx_scan_results')) || null; 
+    let currentCoin = scanResults ? scanResults.longs[0].instId : coinList[0];
     let currentTf = '15m'; 
     let klineData = [], ema20Data = [], ema50Data = [], ema100Data = [], bollUpData = [], bollDownData = [];
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
-    let isCoinListExpanded = false; 
     let isHighVolume = false;
+    let displayMode = 'scan';
 
     function updateCoinNameUI() { document.getElementById('currentCoinName').innerText = currentCoin.replace('-SWAP', ''); }
-    window.toggleCoinList = function() {
-        isCoinListExpanded = !isCoinListExpanded;
-        const listEl = document.getElementById('coinList'), btnEl = document.getElementById('toggleBtn');
-        listEl.style.display = isCoinListExpanded ? 'flex' : 'none';
-        btnEl.innerText = isCoinListExpanded ? '▲ 收起' : '▼ 自选';
+
+    window.toggleDisplayArea = function() {
+        const btnEl = document.getElementById('toggleBtn');
+        const scanArea = document.getElementById('scanArea');
+        const listEl = document.getElementById('coinList');
+
+        if(displayMode === 'scan') {
+            displayMode = 'self';
+            scanArea.style.display = 'none';
+            listEl.style.display = 'flex';
+            btnEl.innerText = '▼ 自选';
+        } else {
+            if(scanResults) {
+                displayMode = 'scan';
+                listEl.style.display = 'none';
+                scanArea.style.display = 'flex';
+                btnEl.innerText = '▼ 榜单';
+            } else {
+                listEl.style.display = 'none';
+                btnEl.innerText = '▼ 收起';
+            }
+        }
     }
 
     function renderCoinList() {
@@ -200,6 +229,28 @@
             listEl.appendChild(div);
         });
         updateCoinNameUI(); 
+    }
+
+    function renderScanResults() {
+        if(!scanResults) return;
+        const longEl = document.getElementById('rank-longs');
+        const shortEl = document.getElementById('rank-shorts');
+        
+        longEl.innerHTML = scanResults.longs.map((item, idx) => `
+            <div class="coin-tag rank-${idx+1} ${item.instId === currentCoin ? 'active' : ''}" onclick="switchCoin('${item.instId}')">
+                <span style="font-size:10px; margin-right:2px;">${idx+1}</span>
+                ${getCoinIconHtml(item.instId)} <span>${item.instId.replace('-USDT-SWAP', '')}</span>
+                <span style="font-size:11px; opacity:0.8; margin-left:4px;">${item.score}%</span>
+            </div>
+        `).join('');
+        
+        shortEl.innerHTML = scanResults.shorts.map((item, idx) => `
+            <div class="coin-tag rank-${idx+1} ${item.instId === currentCoin ? 'active' : ''}" onclick="switchCoin('${item.instId}')">
+                <span style="font-size:10px; margin-right:2px;">${idx+1}</span>
+                ${getCoinIconHtml(item.instId)} <span>${item.instId.replace('-USDT-SWAP', '')}</span>
+                <span style="font-size:11px; opacity:0.8; margin-left:4px;">${item.score}%</span>
+            </div>
+        `).join('');
     }
 
     window.addCoin = function() {
@@ -232,7 +283,10 @@
 
     function switchCoin(coin) { 
         if(currentCoin === coin) return; 
-        currentCoin = coin; renderCoinList(); initData(); 
+        currentCoin = coin; 
+        renderCoinList(); 
+        renderScanResults();
+        initData(); 
     }
     
     function switchTimeframe(tf) {
@@ -251,7 +305,7 @@
         currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
         document.getElementById('analysis-text').innerText = "正在连接欧易合约服务器...";
 
-        const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=100`;
+        const url = `https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${currentTf}&limit=200`;
         fetch(url).then(res => res.json()).then(res => {
             if(res.code !== '0' || !res.data) { handleLoadError(); return; }
             
@@ -285,7 +339,7 @@
                 const newCandle = { time: parseInt(k[0])/1000, open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4]), vol: parseFloat(k[5]) };
                 const lastIdx = klineData.length - 1;
                 if(klineData[lastIdx] && klineData[lastIdx].time === newCandle.time) klineData[lastIdx] = newCandle;
-                else { klineData.push(newCandle); if(klineData.length > 100) klineData.shift(); }
+                else { klineData.push(newCandle); if(klineData.length > 200) klineData.shift(); }
                 processAndDraw();
             }
         };
@@ -410,97 +464,136 @@
 
     window.closeScanner = function() { document.getElementById('scanner-modal').style.display = 'none'; }
 
-    // === 雷达扫描核心逻辑 (前50名，取Top3) ===
+    // === 雷达扫描核心逻辑 (前100名，过滤震荡，寻找1H最佳进场) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         const contentEl = document.getElementById('scanner-content');
-        contentEl.innerHTML = `<div class="scan-loading">正在连接欧易，获取全市场合约列表...</div>`;
+        contentEl.innerHTML = `<div class="scan-loading">正在获取欧易全市场合约列表...</div>`;
 
         try {
-            // 1. 获取所有永续合约的 tickers
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             if(data.code !== '0') throw new Error("获取市场列表失败");
 
-            // 2. 过滤 USDT 本位，并按成交量排序，取前 50 个
             let usdtTickers = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdtTickers.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top50 = usdtTickers.slice(0, 50); 
+            let top100 = usdtTickers.slice(0, 100); 
 
             let results = [];
 
-            // 3. 分批请求 K 线并打分
-            for (let i = 0; i < top50.length; i++) {
-                let instId = top50[i].instId;
-                contentEl.innerHTML = `<div class="scan-loading">正在深度分析：${instId.replace('-USDT-SWAP','')} (${i+1}/${top50.length})<br><br>极速扫描中...</div>`;
+            for (let i = 0; i < top100.length; i++) {
+                let instId = top100[i].instId;
+                contentEl.innerHTML = `<div class="scan-loading">正在过滤震荡并狙击趋势：${instId.replace('-USDT-SWAP','')} (${i+1}/${top100.length})<br><br><span class="scan-tip">扫描高精度指标组合 (ADX/EMA/MACD)，请稍候...</span></div>`;
                 
                 try {
-                    let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`);
+                    // 抓取200根 15m K线数据，用于计算往后1-2小时走势
+                    let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=200`);
                     let kData = await kRes.json();
                     
-                    if(kData.code === '0' && kData.data && kData.data.length > 60) {
-                        let formatted = kData.data.reverse().map(d => ({ open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) }));
-                        let score = calcScanScore(formatted);
-                        results.push({ instId: instId, score: score });
+                    if(kData.code === '0' && kData.data && kData.data.length > 100) {
+                        let formatted = kData.data.reverse().map(d => ({ open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]), vol: parseFloat(d[5]) }));
+                        let score = trendSniperScore(formatted);
+                        if(score !== null) results.push({ instId: instId, score: score }); // 如果ADX过滤了震荡，返回null，不加入榜单
                     }
                 } catch(e) {}
-                
-                // 延迟控制，每次请求间隔 100 毫秒
-                await new Promise(r => setTimeout(r, 100));
+                await new Promise(r => setTimeout(r, 80)); // 稍微快一点
             }
 
-            // 4. 排序并展示 (取前3名)
+            if(results.length === 0) throw new Error("当前市场多为震荡，未发现极佳趋势标的。");
+
             results.sort((a, b) => b.score - a.score);
             
-            let topLongs = results.slice(0, 3); // 做多概率最大前3
-            let topShorts = [...results].reverse().slice(0, 3); // 做空概率最大前3
+            let topLongs = results.slice(0, 3);
+            let topShorts = [...results].reverse().slice(0, 3);
 
-            let html = `<div class="scan-section"><h3 style="color:var(--up)">🚀 进场做多概率 Top 3</h3><div class="scan-list">`;
-            topLongs.forEach(item => {
-                html += `<div class="scan-item bg-long" onclick="selectFromScan('${item.instId}')">
-                    <span class="scan-coin">${item.instId.replace('-USDT-SWAP','')}</span>
-                    <span class="scan-score" style="color:var(--up)">${item.score}%</span>
-                </div>`;
-            });
-            html += `</div></div>`;
+            scanResults = { longs: topLongs, shorts: topShorts };
+            localStorage.setItem('okx_scan_results', JSON.stringify(scanResults));
 
-            html += `<div class="scan-section"><h3 style="color:var(--down)">📉 进场做空概率 Top 3</h3><div class="scan-list">`;
-            topShorts.forEach(item => {
-                html += `<div class="scan-item bg-short" onclick="selectFromScan('${item.instId}')">
-                    <span class="scan-coin">${item.instId.replace('-USDT-SWAP','')}</span>
-                    <span class="scan-score" style="color:var(--down)">${item.score}%</span>
-                </div>`;
-            });
-            html += `</div></div>`;
-
-            contentEl.innerHTML = html;
+            closeScanner();
+            displayMode = 'self'; toggleDisplayArea(); 
+            renderScanResults();
 
         } catch (error) {
-            contentEl.innerHTML = `<div style="color:var(--down); text-align:center;">扫描失败，请检查网络/VPN连接是否正常。</div>`;
+            contentEl.innerHTML = `<div style="color:var(--down); text-align:center;">${error.message || '扫描失败，请检查网络/VPN'}</div>`;
         }
     }
 
-    window.selectFromScan = function(instId) {
-        closeScanner();
-        if(!coinList.includes(instId)) {
-            coinList.push(instId);
-            localStorage.setItem('okx_swap_coins', JSON.stringify(coinList));
-            renderCoinList();
-        }
-        switchCoin(instId);
-    }
+    // === 核心策略：ADX 趋势过滤 + 1H 进场点位打分 ===
+    function trendSniperScore(data) {
+        if(data.length < 100) return null;
+        const closes = data.map(d => d.close); const highs = data.map(d => d.high); const lows = data.map(d => d.low);
+        const currentPrice = closes[closes.length - 1];
+        
+        const ema20 = calcEMA(closes, 20), ema50 = calcEMA(closes, 50), ema100 = calcEMA(closes, 100);
+        const macd = calcMACD(closes);
+        const adx = calcADX(highs, lows, closes, 14);
+        
+        const lastEma20 = ema20[ema20.length-1], lastEma50 = ema50[ema50.length-1], lastEma100 = ema100[ema100.length-1];
+        const lastMacd = macd[macd.length-1];
+        const lastAdx = adx[adx.length-1];
 
-    function calcScanScore(data) {
-        const closes = data.map(d => d.close); const currentPrice = closes[closes.length - 1];
-        const ema20 = calcEMA(closes, 20), boll = calcBOLL(closes, 20), macd = calcMACD(closes), kdj = calcKDJ(data, 9, 3, 3);
+        // --- 1. 过滤震荡 (ADX < 22 判定为震荡) ---
+        if(isNaN(lastAdx) || lastAdx < 22) return null; 
+
         let score = 50;
-        const lastEma = ema20[ema20.length-1], lastMacd = macd[macd.length-1], lastJ = kdj.J[kdj.J.length-1];
-        const lastUp = boll.up[boll.up.length-1], lastDown = boll.down[boll.down.length-1];
-        if(!isNaN(lastEma) && currentPrice > lastEma) score += 20; else score -= 20;
-        if(!isNaN(lastMacd) && lastMacd > 0) score += 20; else score -= 20;
-        if(!isNaN(lastDown) && currentPrice <= lastDown) score += 15; else if(!isNaN(lastUp) && currentPrice >= lastUp) score -= 15;
-        if(!isNaN(lastJ) && lastJ < 20) score += 15; else if(!isNaN(lastJ) && lastJ > 80) score -= 15;
+        
+        // --- 2. 趋势排列判定 (主要决定方向) ---
+        let isUpTrend = false, isDownTrend = false;
+        if(currentPrice > lastEma20 && lastEma20 > lastEma50 && lastEma50 > lastEma100) isUpTrend = true;
+        if(currentPrice < lastEma20 && lastEma20 < lastEma50 && lastEma50 < lastEma100) isDownTrend = true;
+
+        // --- 3. 打分逻辑 (满分为100，分数越高越适合进场) ---
+        if(isUpTrend) {
+            score += 30; // 完美的多头排列
+            if(lastMacd > 0) score += 20; // MACD 零轴上，动能强
+            // 回踩不破判定 (价格离 EMA20 很近，最适合进场)
+            let distToEma20 = (currentPrice - lastEma20) / lastEma20;
+            if(distToEma20 > 0 && distToEma20 < 0.01) score += 20; 
+            // ADX 强度加分
+            if(lastAdx > 30) score += 15;
+        } else if(isDownTrend) {
+            score -= 30;
+            if(lastMacd < 0) score -= 20;
+            let distToEma20 = (lastEma20 - currentPrice) / lastEma20;
+            if(distToEma20 > 0 && distToEma20 < 0.01) score -= 20; 
+            if(lastAdx > 30) score -= 15;
+        } else {
+            // 虽然 ADX 高，但均线没有完美排列，属于趋势中继或反转，减分
+            score += (currentPrice > lastEma20 ? 5 : -5); 
+        }
+
         return Math.max(0, Math.min(100, score));
+    }
+
+    // --- 新增指标：ADX (平均趋向指标) ---
+    function calcADX(highs, lows, closes, period) {
+        let tr = [], plusDM = [], minusDM = [];
+        for(let i=1; i<closes.length; i++) {
+            let h = highs[i], l = lows[i], pc = closes[i-1];
+            let t = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+            tr.push(t);
+            
+            let upMove = h - highs[i-1];
+            let downMove = lows[i-1] - l;
+            let pDM = (upMove > downMove && upMove > 0) ? upMove : 0;
+            let mDM = (downMove > upMove && downMove > 0) ? downMove : 0;
+            plusDM.push(pDM); minusDM.push(mDM);
+        }
+
+        let smoothTR = calcEMA(tr, period);
+        let smoothPlusDM = calcEMA(plusDM, period);
+        let smoothMinusDM = calcEMA(minusDM, period);
+
+        let dx = [];
+        for(let i=0; i<smoothTR.length; i++) {
+            if(smoothTR[i] === 0) { dx.push(0); continue; }
+            let diPlus = 100 * (smoothPlusDM[i] / smoothTR[i]);
+            let diMinus = 100 * (smoothMinusDM[i] / smoothTR[i]);
+            let sum = diPlus + diMinus;
+            let d = sum === 0 ? 0 : 100 * Math.abs(diPlus - diMinus) / sum;
+            dx.push(d);
+        }
+        return calcEMA(dx, period);
     }
 
     function calcEMA(prices, period) { const k = 2 / (period + 1); let ema = [prices[0]]; let prev = prices[0]; for (let i = 1; i < prices.length; i++) { prev = prices[i] * k + prev * (1 - k); ema.push(prev); } return ema; }
@@ -509,7 +602,20 @@
     function calcKDJ(data, n, m1, m2) { let K = [], D = [], J = [], prevK = 50, prevD = 50; for(let i=0; i<data.length; i++) { let start = Math.max(0, i - n + 1), highest = -Infinity, lowest = Infinity; for(let j=start; j<=i; j++) { if(data[j].high > highest) highest = data[j].high; if(data[j].low < lowest) lowest = data[j].low; } let rsv = (data[i].close - lowest) / (highest - lowest) * 100; if(isNaN(rsv)) rsv = 50; let curK = (2/3) * prevK + (1/3) * rsv; let curD = (2/3) * prevD + (1/3) * curK; let curJ = 3 * curK - 2 * curD; K.push(curK); D.push(curD); J.push(curJ); prevK = curK; prevD = curD; } return { K, D, J }; }
 
     window.addEventListener('resize', drawChart);
-    window.onload = () => { renderCoinList(); initData(); };
+    
+    window.onload = () => { 
+        renderCoinList(); 
+        if(scanResults) {
+            displayMode = 'scan';
+            document.getElementById('scanArea').style.display = 'flex';
+            document.getElementById('coinList').style.display = 'none';
+            document.getElementById('toggleBtn').innerText = '▼ 榜单';
+            renderScanResults();
+        } else {
+            document.getElementById('coinList').style.display = 'flex';
+        }
+        initData(); 
+    };
 </script>
 </body>
 </html>
