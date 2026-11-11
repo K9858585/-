@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>15m 准金叉 + 全指标打分 (Top 5)</title>
+    <title>Top30 活跃币 15m 多指标共振</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在寻找 15m 准金叉并打分...</div>
+            <div class="scan-loading" id="scan-status">正在获取前30活跃币种并扫描共振指标...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 准金叉 Top 5</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 扫描前30强票</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -87,12 +87,12 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 金叉打分解析</div>
+        <div class="analysis-header">🎯 综合指标解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_cross_15m_long')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_top30_resonance')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -141,7 +141,7 @@
                 div.innerHTML = `
                     <div class="card-title">🏆 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="score-text">综合分: ${item.score}</div>
+                    <div class="score-text">共振分: ${item.score}</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -233,12 +233,12 @@
         });
     }
 
-    // === 核心引擎：15m 准金叉 + 全指标打分 ===
+    // === 核心引擎：前30名 + 纯多指标满分共振（无金叉要求） ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在全市场扫描 15m 准金叉...";
+        status.innerText = "正在获取全市场前30名活跃币种...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
@@ -246,13 +246,13 @@
             
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let targetCoins = usdt.slice(0, 100); 
+            let targetCoins = usdt.slice(0, 30); 
 
             let candidates = [];
 
             for (let i = 0; i < targetCoins.length; i++) {
                 let instId = targetCoins[i].instId;
-                status.innerText = `金叉检测：${instId.replace('-USDT-SWAP','')} (${i+1}/${targetCoins.length})`;
+                status.innerText = `深度计算 (${i+1}/30)：${instId.replace('-USDT-SWAP','')}`;
                 
                 try {
                     let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
@@ -263,65 +263,56 @@
                         
                         let price = c15M[c15M.length-1];
                         
-                        // 1. 准入门槛：2格内 EMA(5/10) 金叉
-                        let e5 = calcEMA(c15M, 5); let e10 = calcEMA(c15M, 10); 
-                        let currE5 = e5[e5.length-1], prevE5 = e5[e5.length-2], prevPrevE5 = e5[e5.length-3];
-                        let currE10 = e10[e10.length-1], prevE10 = e10[e10.length-2], prevPrevE10 = e10[e10.length-3];
+                        // --- 开始纯指标打分 ---
+                        let score = 0;
+                        
+                        // 1. 均线趋势 (20分)：站上 EMA20 且 EMA20 > EMA50
+                        let e20 = calcEMA(c15M, 20); let e50 = calcEMA(c15M, 50);
+                        let lastE20 = e20[e20.length-1], lastE50 = e50[e50.length-1];
+                        if(price > lastE20 && lastE20 > lastE50) score += 20;
 
-                        let isCrossCurrent = (prevE5 <= prevE10) && (currE5 > currE10);
-                        let isCrossPrev = (prevPrevE5 <= prevPrevE10) && (prevE5 > prevE10);
-                        let isEmaCross = isCrossCurrent || isCrossPrev;
+                        // 2. MACD 动能 (20分)
+                        let macd = calcMACD(c15M);
+                        if(macd.macd[macd.macd.length-1] > macd.signal[macd.signal.length-1]) score += 20;
 
-                        if(isEmaCross) {
-                            
-                            // 2. 全指标打分
-                            let score = 60; // 基础分
-                            
-                            // MACD
-                            let macd = calcMACD(c15M);
-                            if(macd.macd[macd.macd.length-1] > macd.signal[macd.signal.length-1]) score += 10;
+                        // 3. KDJ (15分)
+                        let kdj = calcKDJ(fmt15M, 9, 3, 3);
+                        let lastK = kdj.K[kdj.K.length-1], lastD = kdj.D[kdj.D.length-1], lastJ = kdj.J[kdj.J.length-1];
+                        if(lastK > lastD && lastJ < 100) score += 15;
 
-                            // KDJ
-                            let kdj = calcKDJ(fmt15M, 9, 3, 3);
-                            if(kdj.K[kdj.K.length-1] > kdj.D[kdj.D.length-1] && kdj.J[kdj.J.length-1] < 100) score += 10;
+                        // 4. RSI (15分)
+                        let rsi = calcRSI(c15M, 14);
+                        let lastRsi = rsi[rsi.length-1];
+                        if(lastRsi > 50 && lastRsi < 75) score += 15;
 
-                            // RSI
-                            let rsi = calcRSI(c15M, 14);
-                            let lastRsi = rsi[rsi.length-1];
-                            if(lastRsi > 50 && lastRsi < 70) score += 10;
+                        // 5. BOLL (15分)
+                        let boll = calcBOLL(c15M, 20);
+                        if(price > boll.mid[boll.mid.length-1]) score += 15;
 
-                            // BOLL
-                            let boll = calcBOLL(c15M, 20);
-                            if(price > boll.mid[boll.mid.length-1]) score += 10;
+                        // 6. VOL (15分)
+                        let vols = fmt15M.map(d => d.v);
+                        let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
+                        if(vols[vols.length-1] > avgVol * 1.2) score += 15;
 
-                            // VOL
-                            let vols = fmt15M.map(d => d.v);
-                            let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
-                            if(vols[vols.length-1] > avgVol * 1.2) score += 10;
-                            
-                            // 大趋势 (EMA20 > EMA50)
-                            let e20 = calcEMA(c15M, 20); let e50 = calcEMA(c15M, 50);
-                            if(e20[e20.length-1] > e50[e50.length-1]) score += 10;
-
-                            // 防追高：偏离 EMA10 不超过 2%
-                            if (price < currE10 * 1.02) {
-                                candidates.push({ instId: instId, score: score });
-                            }
+                        // 过滤条件：分数必须 >= 70 分（即至少满足 4-5 个指标共振）
+                        // 且防追高（价格偏离 EMA20 不超过 2%）
+                        if (score >= 70 && price < lastE20 * 1.02) {
+                            candidates.push({ instId: instId, score: score });
                         }
                     }
                 } catch(e) {}
-                await new Promise(r => setTimeout(r, 70)); 
+                await new Promise(r => setTimeout(r, 80)); 
             }
 
             if(candidates.length === 0) {
-                throw new Error("当前市场暂无'15m刚金叉'的标的。");
+                throw new Error("当前前30名中，暂无'全指标70分以上共振'的标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_cross_15m_long', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_top30_resonance', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
@@ -343,8 +334,7 @@
         let e12 = calcEMA(prices, 12); let e26 = calcEMA(prices, 26); 
         let macdLine = e12.map((v, i) => v - e26[i]); 
         let signalLine = calcEMA(macdLine, 9); 
-        let hist = macdLine.map((v, i) => (v - signalLine[i]) * 2); 
-        return { macd: macdLine, signal: signalLine, hist: hist }; 
+        return { macd: macdLine, signal: signalLine }; 
     }
 
     function calcKDJ(data, n, m1, m2) {
