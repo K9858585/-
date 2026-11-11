@@ -19,7 +19,7 @@
         .card-long { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); }
         .card-title { font-size: 10px; color: #fff; }
         .coin-long { font-size: 15px; font-weight: 900; color: var(--up); }
-        .score-text { font-size: 10px; color: var(--yellow); font-weight: bold;}
+        .score-text { font-size: 10px; color: var(--sub); font-weight: bold;}
 
         #coinList { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; border: 1px solid transparent;}
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在获取前100名并扫描回踩点...</div>
+            <div class="scan-loading" id="scan-status">正在获取前100名，扫描纯形态回踩...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 1H金叉+15m阴线</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 纯形态扫描</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -87,12 +87,12 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 回踩买点解析</div>
+        <div class="analysis-header">🎯 纯形态解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_pullback_top10')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_pullback_top10_noscore')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -141,7 +141,7 @@
                 div.innerHTML = `
                     <div class="card-title">🏆 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="score-text">回踩分: ${item.score}</div>
+                    <div class="score-text">完美回踩</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -233,19 +233,19 @@
         });
     }
 
-    // === 核心引擎：前100名 + 1H金叉 + 15m上一根阴线 ===
+    // === 核心引擎：纯形态过滤 (无打分) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在获取成交额前100名，深度计算回踩点...";
+        status.innerText = "正在获取成交额前100名，扫描纯形态回踩...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
-            // 锁定前 100 名
+            // 严格锁定前 100 名
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             let targetCoins = usdt.slice(0, 100); 
 
@@ -253,59 +253,41 @@
 
             for (let i = 0; i < targetCoins.length; i++) {
                 let instId = targetCoins[i].instId;
-                status.innerText = `深度计算 (${i+1}/100)：${instId.replace('-USDT-SWAP','')}`;
+                status.innerText = `纯形态扫描 (${i+1}/100)：${instId.replace('-USDT-SWAP','')}`;
                 
                 try {
-                    // 1. 获取 1H 数据看金叉
+                    // 获取 1H 数据
                     let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
                     await new Promise(r => setTimeout(r, 60)); 
-                    // 2. 获取 15m 数据看阴线
+                    // 获取 15m 数据
                     let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
 
                     if(k1H.code === '0' && k15M.code === '0' && k1H.data.length > 50 && k15M.data.length > 50) {
-                        // 处理 1H 数据
+                        // 处理 1H
                         let c1H = k1H.data.reverse().map(d => +d[4]);
                         let e5_1H = calcEMA(c1H, 5), e10_1H = calcEMA(c1H, 10);
                         
                         let currE5_1H = e5_1H[e5_1H.length-1], prevE5_1H = e5_1H[e5_1H.length-2], prevPrevE5_1H = e5_1H[e5_1H.length-3];
                         let currE10_1H = e10_1H[e10_1H.length-1], prevE10_1H = e10_1H[e10_1H.length-2], prevPrevE10_1H = e10_1H[e10_1H.length-3];
 
-                        // 1H 刚刚金叉（最近 3 根内发生）
+                        // 1H 最近 3 根内金叉
                         let isCross1H_Current = (prevE5_1H <= prevE10_1H) && (currE5_1H > currE10_1H);
                         let isCross1H_Prev = (prevPrevE5_1H <= prevPrevE10_1H) && (prevE5_1H > prevE10_1H);
                         let isGoldenCross1H = isCross1H_Current || isCross1H_Prev;
 
                         if(isGoldenCross1H) {
-                            // 处理 15m 数据
-                            let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-                            let c15M = fmt15M.map(d => d.c);
+                            // 处理 15m
+                            let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4] }));
                             
-                            // 取上一根（倒数第二根）15m K线
+                            // 取上一根已经收盘的 15m K线
                             let prevCandle15M = fmt15M[fmt15M.length - 2];
                             
-                            // 判断上一根是否是阴线
+                            // 只要上一根是阴线
                             let isPrevBearish = prevCandle15M.c < prevCandle15M.o;
 
                             if(isPrevBearish) {
-                                // 开始打分（既然是回踩，我们要看回踩的质量）
-                                let score = 70; // 满足大级别金叉 + 小级别阴线，基础分很高
-                                
-                                // MACD 是顺向的加分
-                                let macd1H = calcMACD(c1H);
-                                if(macd1H.macd[macd1H.macd.length-1] > macd1H.signal[macd1H.signal.length-1]) score += 10;
-
-                                // 15m RSI 没有超买，且处于回调区加分
-                                let rsi15M = calcRSI(c15M, 14);
-                                let lastRsi = rsi15M[rsi15M.length-1];
-                                if(lastRsi > 35 && lastRsi < 55) score += 10;
-
-                                // 15m 上一根阴线如果是缩量的更好
-                                let vols15M = fmt15M.map(d => d.v);
-                                let prevVol = vols15M[vols15M.length - 2];
-                                let avgVol = vols15M.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
-                                if(prevVol < avgVol) score += 10; // 缩量回调是极品
-
-                                candidates.push({ instId: instId, score: score });
+                                // 直接加入候选，不打分
+                                candidates.push({ instId: instId });
                             }
                         }
                     }
@@ -317,12 +299,11 @@
                 throw new Error("前100名中，暂无'1H刚金叉+15m阴线回踩'的标的。");
             }
 
-            candidates.sort((a, b) => b.score - a.score);
-            // 取前 10 名
+            // 因为候选池已经是按成交额从大到小排的，直接取前10个
             let top10 = candidates.slice(0, 10);
 
             scanLongs = top10;
-            localStorage.setItem('okx_pullback_top10', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_pullback_top10_noscore', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
@@ -339,26 +320,6 @@
 
     // ================= 指标计算函数区 =================
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
-    function calcMACD(prices) { 
-        let e12 = calcEMA(prices, 12); let e26 = calcEMA(prices, 26); 
-        let macdLine = e12.map((v, i) => v - e26[i]); 
-        let signalLine = calcEMA(macdLine, 9); 
-        return { macd: macdLine, signal: signalLine }; 
-    }
-    function calcRSI(prices, period) { 
-        let gains=0,losses=0,rsi=[]; 
-        for(let i=1;i<prices.length;i++){
-            let diff=prices[i]-prices[i-1]; 
-            if(diff>=0) gains+=diff; else losses-=diff; 
-            if(i===period){let ag=gains/period, al=losses/period; rsi.push(100-(100/(1+ag/al)));} 
-            else if(i>period){
-                let diff2=prices[i]-prices[i-1]; let g=diff2>0?diff2:0; let l=diff2<0?-diff2:0; 
-                let lastRsi=rsi[rsi.length-1]; 
-                rsi.push(lastRsi + (100-lastRsi)*g/period - lastRsi*l/period);
-            } else { rsi.push(50); }
-        } 
-        return rsi; 
-    }
 
     window.onload = () => {
         renderList();
