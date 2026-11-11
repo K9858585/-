@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 极限锤子线狙击</title>
+    <title>OKX 极限锤子线狙击 (前30)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -59,7 +59,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在全市场寻找完美锤子线...</div>
+            <div class="scan-loading" id="scan-status">正在前30名中寻找完美锤子线...</div>
         </div>
     </div>
 
@@ -308,28 +308,30 @@
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 核心算法：寻找完美 4H多头 + 15M 3倍下影线阳线 ===
+    // === 核心：抓取前 30 名，寻找 4H多头 + 15M锤子线 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在全市场寻找完美锤子线...";
+        status.innerText = "正在前30名中寻找完美锤子线...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top100 = usdt.slice(0, 100); 
+            
+            // 将扫描池缩减到前 30 名
+            let top30 = usdt.slice(0, 30); 
 
             let candidates = [];
 
-            for (let i = 0; i < top100.length; i++) {
-                let instId = top100[i].instId;
-                status.innerText = `扫描形态：${instId.replace('-USDT-SWAP','')} (${i+1}/100)`;
+            for (let i = 0; i < top30.length; i++) {
+                let instId = top30[i].instId;
+                status.innerText = `扫描形态：${instId.replace('-USDT-SWAP','')} (${i+1}/30)`;
                 
                 try {
                     let k4H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=4H&limit=100`).then(r=>r.json());
-                    await new Promise(r => setTimeout(r, 60)); 
+                    await new Promise(r => setTimeout(r, 80)); 
                     let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
 
                     if(k4H.code === '0' && k15M.code === '0' && k4H.data.length > 50 && k15M.data.length > 80) {
@@ -345,11 +347,10 @@
                             // 2. 判断 15M 极限锤子线 (最新一根)
                             let curr = fmt15M[fmt15M.length-1];
                             
-                            // 实体长度 (必须阳线，且实体 > 0)
                             let body = Math.abs(curr.c - curr.o);
                             if(curr.c > curr.o && body > 0) {
-                                let lowerWick = Math.min(curr.o, curr.c) - curr.l; // 下影线
-                                let upperWick = curr.h - Math.max(curr.o, curr.c); // 上影线
+                                let lowerWick = Math.min(curr.o, curr.c) - curr.l; 
+                                let upperWick = curr.h - Math.max(curr.o, curr.c); 
 
                                 // 严格条件：下影线 >= 3倍实体，且上影线极短（不能超过下影线一半）
                                 if(lowerWick >= body * 3 && upperWick < lowerWick * 0.5) {
@@ -362,9 +363,8 @@
                 await new Promise(r => setTimeout(r, 100)); 
             }
 
-            if(candidates.length === 0) throw new Error("当前全市场暂无符合'4H多头+3倍下影线锤子'的完美标的，建议空仓等待。");
+            if(candidates.length === 0) throw new Error("前30名中暂无符合'4H多头+3倍下影线锤子'的完美标的，建议空仓等待。");
 
-            // 按照形态完美度排序（全符合就是100分）
             let top3 = candidates.slice(0, 3);
 
             scanResults = top3;
