@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 1H 狙击雷达</title>
+    <title>OKX 严苛精准狙击雷达</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -49,9 +48,12 @@
         #chart-container { flex: 1; min-height: 200px; position: relative; }
         canvas { width: 100%; height: 100%; display: block; }
         
-        #analysis-panel { height: 25vh; background: var(--panel); padding: 15px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
+        #analysis-panel { height: 28vh; background: var(--panel); padding: 15px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
         .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; }
         #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; }
+        .highlight-red { color: var(--down); font-weight: bold; }
+        .highlight-green { color: var(--up); font-weight: bold; }
+        .highlight-yellow { color: var(--yellow); font-weight: bold; }
 
         #scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .scanner-box { background: var(--panel); border-radius: 12px; width: 100%; max-width: 350px; padding: 20px; border: 1px solid #363a45; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
@@ -72,18 +74,18 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🎯 雷达狙击</button>
+            <button class="scan-btn" onclick="runScanner()">🎯 严苛狙击</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
         <div id="sniper-area">
             <div class="sniper-card long" id="card-long" onclick="switchCoin(document.getElementById('card-long-coin').innerText)">
-                <div class="sniper-title">🟢 1H 最佳做多</div>
+                <div class="sniper-title">🟢 最佳做多</div>
                 <div class="sniper-coin" id="card-long-coin">--</div>
                 <div class="sniper-score" id="card-long-score">--</div>
             </div>
             <div class="sniper-card short" id="card-short" onclick="switchCoin(document.getElementById('card-short-coin').innerText)">
-                <div class="sniper-title">🔴 1H 最佳做空</div>
+                <div class="sniper-title">🔴 最佳做空</div>
                 <div class="sniper-coin" id="card-short-coin">--</div>
                 <div class="sniper-score" id="card-short-score">--</div>
             </div>
@@ -93,7 +95,6 @@
     </div>
 
     <div id="time-bar">
-        <!-- 默认选中 1H -->
         <button class="time-btn" data-tf="15m" onclick="switchTimeframe('15m')">15分</button>
         <button class="time-btn active" data-tf="1H" onclick="switchTimeframe('1H')">1小时</button>
         <button class="time-btn" data-tf="4H" onclick="switchTimeframe('4H')">4小时</button>
@@ -118,7 +119,7 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 1H 狙击手解析</div>
+        <div class="analysis-header">🎯 严苛版盘面解析</div>
         <div id="analysis-text">等待数据...</div>
     </div>
 
@@ -126,7 +127,7 @@
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     let scanResults = JSON.parse(localStorage.getItem('okx_sniper_results')) || null; 
     let currentCoin = scanResults && scanResults.long ? scanResults.long.instId : coinList[0];
-    let currentTf = '1H'; // 默认启动就是 1H
+    let currentTf = '1H'; 
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
@@ -183,7 +184,7 @@
         if(ws) ws.close();
         document.getElementById('status-tag').innerText = '加载中...';
         document.getElementById('status-tag').style.background = 'var(--yellow)';
-        document.getElementById('analysis-text').innerText = '正在计算 1H 级别多周期共振数据...';
+        document.getElementById('analysis-text').innerText = '正在计算多周期共振数据...';
         
         let t = setTimeout(() => { document.getElementById('status-tag').innerText = '超时'; document.getElementById('status-tag').style.background = 'var(--down)'; }, 3000);
 
@@ -233,22 +234,7 @@
 
         try { drawChart(); } catch(e) {}
         
-        generateBasicAnalysis();
         checkMultiSignals();
-    }
-
-    function generateBasicAnalysis() {
-        if(!klineData.length) return;
-        let lastC = klineData[klineData.length-1].c;
-        let lastEma20 = ema20[ema20.length-1];
-        let lastEma50 = ema50[ema50.length-1];
-        
-        let trend = "";
-        if(lastC > lastEma20 && lastEma20 > lastEma50) trend = "当前 <b>1小时</b> 级别处于极强的<b>多头上升趋势</b>，均线多头排列，适合回踩做多。";
-        else if(lastC < lastEma20 && lastEma20 < lastEma50) trend = "当前 <b>1小时</b> 级别处于明显的<b>空头下跌趋势</b>，均线压制，适合反弹做空。";
-        else trend = "当前 <b>1小时</b> 级别均线缠绕，处于<b>震荡洗盘</b>阶段，方向不明，建议观望等待突破。";
-
-        document.getElementById('analysis-text').innerHTML = `📊 <b>盘面概览：</b>${trend}<br><br><span style="color:var(--sub)">正在聚合多周期信号...</span>`;
     }
 
     function drawChart() {
@@ -292,52 +278,74 @@
     function checkMultiSignals() {
         let periods = [['30m','sig-30m', '30m'], ['1h','sig-1h', '1h'], ['4h','sig-4h', '4h'], ['1d','sig-1d', '1d']];
         let finishedCount = 0;
+        let results = {};
 
         periods.forEach((p, index) => {
             setTimeout(() => {
                 fetch(`https://www.okx.com/api/v5/market/candles?instId=${currentCoin}&bar=${p[0]}&limit=100`)
                     .then(r=>r.json()).then(r=>{
                         if(r.code === '0' && r.data.length > 50) {
-                            let d = r.data.reverse().map(x => ({ c:+x[4] }));
+                            let d = r.data.reverse().map(x => ({ c:+x[4], h:+x[2], l:+x[3] }));
                             let closes = d.map(x => x.c);
-                            let e20 = calcEMA(closes, 20), macd = calcMACD(closes);
+                            let e20 = calcEMA(closes, 20);
+                            let macd = calcMACD(closes);
                             let score = 50;
                             if(closes[closes.length-1] > e20[e20.length-1]) score += 20; else score -= 20;
                             if(macd[macd.length-1] > 0) score += 20; else score -= 20;
                             
+                            results[p[2]] = { score, closes, e20, macd };
                             currentSignals[p[2]] = score;
+                            
                             let el = document.getElementById(p[1]);
                             if(score >= 65) { el.innerText = '做多'; el.className = 'period-signal sig-long'; }
                             else if(score <= 35) { el.innerText = '做空'; el.className = 'period-signal sig-short'; }
                             else { el.innerText = '观望'; el.className = 'period-signal sig-neutral'; }
                         }
                         finishedCount++;
-                        if(finishedCount === 4) generateFullAnalysis();
+                        if(finishedCount === 4) generateStrictAnalysis(results);
                     }).catch(()=>{ finishedCount++; });
             }, index * 300); 
         });
     }
 
-    function generateFullAnalysis() {
-        let s30 = currentSignals['30m'], s1h = currentSignals['1h'], s4h = currentSignals['4h'], s1d = currentSignals['1d'];
+    // 严苛版解析：提示风险与止损
+    function generateStrictAnalysis(res) {
+        if(!res['1h'] || !res['1d']) return;
+        
+        let h1 = res['1h'], d1 = res['1d'];
+        let h1Price = h1.closes[h1.closes.length-1];
+        let h1Ema20 = h1.e20[h1.e20.length-1];
+        let h1Macd = h1.macd[h1.macd.length-1];
+        let d1Price = d1.closes[d1.closes.length-1];
+        let d1Ema20 = d1.e20[d1.e20.length-1];
+        
         let text = "";
 
-        // 核心偏向 1H 的解析逻辑
-        if(s1h >= 65 && s4h >= 65) {
-            text = `🔥 <b>1小时级别多头共振！</b> 1小时与4小时趋势全部向上。这属于高胜率波段做多信号，未来1-2小时大概率持续拉升，回调即是买入机会。`;
-        } else if(s1h <= 35 && s4h <= 35) {
-            text = `⚠️ <b>1小时级别空头共振！</b> 1小时与4小时趋势全部向下。上方阻力极重，未来1-2小时极大概率继续下探，顺势做空为主。`;
-        } else if(s1h >= 65 && s4h <= 35) {
-            text = `⚡ <b>1H 逆势反弹</b> 1小时级别出现强烈做多信号，但4小时大趋势依然向下。这属于超跌反弹，建议快进快出，严格带好止损。`;
-        } else if(s1h <= 35 && s4h >= 65) {
-            text = `📉 <b>1H 回调洗盘</b> 1小时级别出现做空信号，但4小时大趋势依然向上。这大概率是主力的诱空洗盘，建议观望，等更低位置埋伏多单。`;
-        } else {
-            text = `⚖️ <b>1H 多空分歧</b> 1小时级别指标方向不明，市场处于震荡状态。此时进场极易被来回扫损，建议空仓观望。`;
+        // 1. 完美的右侧做空
+        if(d1Price < d1Ema20 && h1Price < h1Ema20 && h1Macd < 0) {
+            text = `🔴 <b>严苛做空信号确立：</b><br>日线与1小时级别均处于EMA20均线下方，且MACD空头动能强劲。这是极高胜率的<b>右侧顺势空</b>。<br><br>💡 <b>策略：</b>切忌扛单，止损设在1小时前高或EMA20上方 1% 处。`;
+        } 
+        // 2. 完美的右侧做多
+        else if(d1Price > d1Ema20 && h1Price > h1Ema20 && h1Macd > 0) {
+            text = `🟢 <b>严苛做多信号确立：</b><br>日线与1小时级别均站上EMA20均线，MACD多头放量。这是极高胜率的<b>右侧顺势多</b>。<br><br>💡 <b>策略：</b>进场后止损设在1小时前低或EMA20下方 1% 处。`;
+        } 
+        // 3. 多头趋势下的回调（防做空）
+        else if(d1Price > d1Ema20 && h1Price < h1Ema20) {
+            text = `⚠️ <b>风险预警（多头回调）：</b><br>当前1小时虽然在跌，但日线大趋势依然看涨。这叫“洗盘”，<b>此时做空极易被爆</b>。耐心等待1小时企稳后做多。`;
+        } 
+        // 4. 空头趋势下的反弹（防做多）
+        else if(d1Price < d1Ema20 && h1Price > h1Ema20) {
+            text = `⚠️ <b>风险预警（空头反弹）：</b><br>当前1小时虽然在涨，但日线大趋势被死死压制。这是典型的“诱多”，<b>追高做多就是接盘</b>。建议观望。`;
+        } 
+        // 5. 震荡
+        else {
+            text = `⚖️ <b>多空拉锯震荡：</b><br>日线与1小时方向不一致，且均未站上/跌破关键均线。此时进场容易被来回扫损，<b>管住手，空仓观望。</b>`;
         }
+
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 核心扫描引擎：抓取 1H 数据 ===
+    // === 极度严苛的雷达扫描 (绝对胜率优先) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
@@ -350,66 +358,106 @@
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             let top50 = usdt.slice(0, 50); 
 
-            let allScores = [];
+            let bestLong = null, maxLongScore = 80; // 门槛极高
+            let bestShort = null, minShortScore = 20; // 门槛极低
 
             for (let i = 0; i < top50.length; i++) {
                 let instId = top50[i].instId;
-                status.innerText = `极速扫描 1H 级别：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
+                status.innerText = `深度解析 1D+1H 双周期：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
                 
                 try {
-                    // 关键修改：雷达抓取的是 1H 数据，寻找 1H 最佳趋势
-                    let kRes = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`);
-                    let kData = await kRes.json();
-                    if(kData.code === '0' && kData.data.length > 80) {
-                        let fmt = kData.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-                        let score = relativeScore(fmt); 
-                        allScores.push({ instId: instId, score: score });
+                    // 抓取 1H 数据
+                    let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
+                    await new Promise(r => setTimeout(r, 100)); // 延迟防封
+                    // 抓取 1D 数据
+                    let k1D = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1D&limit=100`).then(r=>r.json());
+
+                    if(k1H.code === '0' && k1D.code === '0' && k1H.data.length > 80 && k1D.data.length > 50) {
+                        let fmtH = k1H.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let fmtD = k1D.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        
+                        let result = strictSniperScore(fmtH, fmtD);
+                        
+                        if(result.score !== null) {
+                            if(result.score > maxLongScore) { maxLongScore = result.score; bestLong = { instId, score: result.score }; }
+                            if(result.score < minShortScore) { minShortScore = result.score; bestShort = { instId, score: result.score }; }
+                        }
                     }
                 } catch(e) {}
-                await new Promise(r => setTimeout(r, 200)); 
+                await new Promise(r => setTimeout(r, 150)); 
             }
 
-            if(allScores.length === 0) throw new Error("网络受限，无法获取数据。");
-
-            allScores.sort((a, b) => b.score - a.score);
-            
-            let bestLong = allScores[0];
-            let bestShort = allScores[allScores.length - 1];
+            if(!bestLong && !bestShort) throw new Error("当前市场极度震荡，所有币种均未达到严苛的胜率标准。建议空仓观望！");
 
             scanResults = { long: bestLong, short: bestShort };
             localStorage.setItem('okx_sniper_results', JSON.stringify(scanResults));
             
             document.getElementById('scanner-modal').style.display = 'none';
-            
             document.getElementById('sniper-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
             
             if(bestLong) switchCoin(bestLong.instId); 
+            else if(bestShort) switchCoin(bestShort.instId);
 
         } catch (error) {
             status.innerText = error.message;
         }
     }
 
-    function relativeScore(data) {
-        if(data.length < 80) return 50;
-        let closes = data.map(d => d.c); let vols = data.map(d => d.v);
-        let price = closes[closes.length-1];
-        let ema20 = calcEMA(closes, 20), ema50 = calcEMA(closes, 50);
-        let macd = calcMACD(closes), rsi = calcRSI(closes, 14);
+    // 最核心严苛打分：结合形态、双周期、防插针
+    function strictSniperScore(data1H, data1D) {
+        if(data1H.length < 80 || data1D.length < 50) return { score: null };
+        
+        let c1H = data1H.map(d => d.c), c1D = data1D.map(d => d.c);
+        let lastPrice = c1H[c1H.length-1];
+        
+        let ema20_1H = calcEMA(c1H, 20), ema20_1D = calcEMA(c1D, 20);
+        let lastEma20_1H = ema20_1H[ema20_1H.length-1], lastEma20_1D = ema20_1D[ema20_1D.length-1];
+        
+        let macd1H = calcMACD(c1H);
+        let lastMacd_1H = macd1H[macd1H.length-1];
+        
+        let rsi1H = calcRSI(c1H, 14);
+        let lastRsi = rsi1H[rsi1H.length-1];
 
-        let lastEma20 = ema20[ema20.length-1], lastEma50 = ema50[ema50.length-1];
-        let lastMacd = macd[macd.length-1], lastRsi = rsi[rsi.length-1];
-        let lastVol = vols[vols.length-1], avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
+        // 当前1H K线的形态数据
+        let curr = data1H[data1H.length-1];
+        let body = Math.abs(curr.c - curr.o);
+        let upperWick = curr.h - Math.max(curr.c, curr.o);
+        let lowerWick = Math.min(curr.c, curr.o) - curr.l;
+        let totalLength = curr.h - curr.l;
 
-        let score = 50;
-        if(price > lastEma20 && lastEma20 > lastEma50) score += 30; 
-        else if(price < lastEma20 && lastEma20 < lastEma50) score -= 30; 
-        if(lastMacd > 0) score += 20; else score -= 20;
-        if(lastVol > avgVol * 1.5) { if(price > closes[closes.length-2]) score += 15; else score -= 15; }
-        if(lastRsi < 30) score += 10; else if(lastRsi > 70) score -= 10;
-        return Math.max(0, Math.min(100, score));
+        // --- 极度严苛的做空条件 ---
+        // 1. 日线在 EMA20 之下 (大空头)
+        // 2. 1H 在 EMA20 之下 (小空头)
+        // 3. 1H MACD 在零轴之下
+        // 4. 禁止做空极度超卖 (RSI < 30 容易反弹)
+        // 5. 防插针：当前 K 线不能是极长的下影线 (如果下影线占整个K线 60% 以上，说明有托盘，取消做空)
+        if(lastPrice < lastEma20_1D && lastPrice < lastEma20_1H && lastMacd_1H < 0 && lastRsi > 30) {
+            if(lowerWick > totalLength * 0.6) return { score: null }; // 形态过滤
+            let score = 50 - 30; // 基础扣分
+            if(lastRsi < 50) score -= 10;
+            if(lastMacd_1H < macd1H[macd1H.length-2]) score -= 10; // 动能加速
+            return { score: Math.max(0, score) };
+        }
+
+        // --- 极度严苛的做多条件 ---
+        // 1. 日线在 EMA20 之上
+        // 2. 1H 在 EMA20 之上
+        // 3. 1H MACD 在零轴之上
+        // 4. 禁止做多极度超买 (RSI > 70 容易回调)
+        // 5. 防插针：不能是极长上影线
+        if(lastPrice > lastEma20_1D && lastPrice > lastEma20_1H && lastMacd_1H > 0 && lastRsi < 70) {
+            if(upperWick > totalLength * 0.6) return { score: null }; // 形态过滤
+            let score = 50 + 30;
+            if(lastRsi > 50) score += 10;
+            if(lastMacd_1H > macd1H[macd1H.length-2]) score += 10;
+            return { score: Math.min(100, score) };
+        }
+
+        // 其他情况全属于“震荡”或“逆势”，直接淘汰
+        return { score: null };
     }
 
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
