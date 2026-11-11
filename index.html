@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H+5m 严苛共振雷达 (2倍影线版)</title>
+    <title>1H MACD 交叉 + 5m 神针雷达</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -15,6 +15,7 @@
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
         .scan-btn { background: linear-gradient(135deg, #0ecb81, #00b8d4); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(14,203,129,0.4);}
         
+        /* 双向展示区 */
         #signal-area { display: none; flex-direction: column; gap: 8px; padding-top: 5px; }
         .signal-row { display: flex; flex-wrap: wrap; gap: 8px; }
         
@@ -55,7 +56,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在执行 1H+5m 严苛共振过滤...</div>
+            <div class="scan-loading" id="scan-status">正在扫描 1H MACD 交叉与 5m 神针...</div>
         </div>
     </div>
 
@@ -65,7 +66,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">📡 严苛共振</button>
+            <button class="scan-btn" onclick="runScanner()">📡 动能共振</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -79,7 +80,7 @@
 
     <div id="time-bar">
         <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找形态)</button>
-        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看趋势)</button>
+        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看MACD)</button>
     </div>
 
     <div id="price-bar">
@@ -98,8 +99,8 @@
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_resonance_long')) || null; 
-    let scanShorts = JSON.parse(localStorage.getItem('okx_resonance_short')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_macd_long')) || null; 
+    let scanShorts = JSON.parse(localStorage.getItem('okx_macd_short')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : ((scanShorts && scanShorts.length > 0) ? scanShorts[0].instId : coinList[0]);
@@ -140,7 +141,7 @@
                 let div = document.createElement('div');
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
-                div.innerHTML = `<div class="card-title">🟢 1H多头+5m绿针</div><div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>`;
+                div.innerHTML = `<div class="card-title">🟢 1H金叉+5m绿针</div><div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>`;
                 longArea.appendChild(div);
             });
         }
@@ -152,7 +153,7 @@
                 let div = document.createElement('div');
                 div.className = 'card-short';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
-                div.innerHTML = `<div class="card-title">🔴 1H空头+5m红针</div><div class="coin-short">${item.instId.replace('-USDT-SWAP','')}</div>`;
+                div.innerHTML = `<div class="card-title">🔴 1H死叉+5m红针</div><div class="coin-short">${item.instId.replace('-USDT-SWAP','')}</div>`;
                 shortArea.appendChild(div);
             });
         }
@@ -243,11 +244,11 @@
         });
     }
 
-    // === 核心：前30名，1H定趋势 + 5m找形态 (影线改为2倍) ===
+    // === 核心：前30名，1H MACD交叉 + 5m形态 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在执行 1H+5m 严格共振扫描...";
+        status.innerText = "正在扫描 1H MACD 交叉状态...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
@@ -269,23 +270,26 @@
 
                     if(k1H.code === '0' && k5M.code === '0' && k1H.data.length > 50 && k5M.data.length >= 2) {
                         let c1H = k1H.data.reverse().map(d => +d[4]);
-                        let lastPrice1H = c1H[c1H.length-1];
                         
-                        let e20 = calcEMA(c1H, 20); 
-                        let e50 = calcEMA(c1H, 50); 
-                        let e100 = calcEMA(c1H, 100); 
+                        // 计算 1H MACD
+                        let macd = calcMACD(c1H);
+                        let dif = macd.macd;
+                        let dea = macd.signal;
                         
-                        let le20 = e20[e20.length-1];
-                        let prevLe20 = e20[e20.length-2];
-                        let le50 = e50[e50.length-1];
-                        let le100 = e100[e100.length-1];
-                        
-                        let isStrictBull1H = (lastPrice1H > le20) && (le20 > le50) && (le50 > le100) && (le20 > prevLe20);
-                        let isStrictBear1H = (lastPrice1H < le20) && (le20 < le50) && (le50 < le100) && (le20 < prevLe20);
+                        let currDif = dif[dif.length-1];
+                        let currDea = dea[dea.length-1];
+                        let prevDif = dif[dif.length-2];
+                        let prevDea = dea[dea.length-2];
 
-                        if(isStrictBull1H || isStrictBear1H) {
+                        // 刚刚金叉：上一根DIF在DEA下方，最新一根穿到上方
+                        let isGoldenCross = (prevDif <= prevDea) && (currDif > currDea);
+                        // 刚刚死叉：上一根DIF在DEA上方，最新一根跌到下方
+                        let isDeathCross = (prevDif >= prevDea) && (currDif < currDea);
+
+                        if(isGoldenCross || isDeathCross) {
                             let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
                             
+                            // 上一根彻底收盘的 5m K线
                             let prevCandle = fmt5M[fmt5M.length - 2];
                             
                             let body = Math.abs(prevCandle.c - prevCandle.o);
@@ -293,12 +297,12 @@
                             let lowerWick = Math.min(prevCandle.o, prevCandle.c) - prevCandle.l; 
 
                             if(body > 0) {
-                                // 修改点：将 >= body * 3 改为了 >= body * 2
-                                if(isStrictBull1H && prevCandle.c > prevCandle.o && lowerWick >= body * 2) {
+                                // 1H刚刚金叉 + 5m绿柱下影线 >= 2倍
+                                if(isGoldenCross && prevCandle.c > prevCandle.o && lowerWick >= body * 2) {
                                     longCandidates.push({ instId: instId });
                                 }
-                                // 修改点：将 >= body * 3 改为了 >= body * 2
-                                if(isStrictBear1H && prevCandle.c < prevCandle.o && upperWick >= body * 2) {
+                                // 1H刚刚死叉 + 5m红柱上影线 >= 2倍
+                                if(isDeathCross && prevCandle.c < prevCandle.o && upperWick >= body * 2) {
                                     shortCandidates.push({ instId: instId });
                                 }
                             }
@@ -309,14 +313,14 @@
             }
 
             if(longCandidates.length === 0 && shortCandidates.length === 0) {
-                throw new Error("前30名中，暂无'完美1H趋势+5m神针'的标的。");
+                throw new Error("前30名中，暂无'1H刚交叉+5m神针'的标的。");
             }
 
             scanLongs = longCandidates.slice(0, 3);
             scanShorts = shortCandidates.slice(0, 3);
 
-            localStorage.setItem('okx_resonance_long', JSON.stringify(scanLongs));
-            localStorage.setItem('okx_resonance_short', JSON.stringify(scanShorts));
+            localStorage.setItem('okx_macd_long', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_macd_short', JSON.stringify(scanShorts));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('signal-area').style.display = 'flex';
@@ -332,6 +336,13 @@
     }
 
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
+    function calcMACD(prices) { 
+        let e12 = calcEMA(prices, 12); 
+        let e26 = calcEMA(prices, 26); 
+        let macdLine = e12.map((v, i) => v - e26[i]); 
+        let signalLine = calcEMA(macdLine, 9); 
+        return { macd: macdLine, signal: signalLine }; 
+    }
 
     window.onload = () => {
         renderList();
