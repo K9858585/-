@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H MACD 交叉 + 5m 神针 (前50版)</title>
+    <title>1H EMA交叉 + 5m 神针雷达</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -58,7 +58,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在执行 1H+5m 严格共振扫描...</div>
+            <div class="scan-loading" id="scan-status">正在扫描 1H EMA 金叉/死叉...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -69,7 +69,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">📡 动能共振</button>
+            <button class="scan-btn" onclick="runScanner()">📡 EMA交叉共振</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -82,8 +82,8 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找形态)</button>
-        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看MACD)</button>
+        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找神针)</button>
+        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看交叉)</button>
     </div>
 
     <div id="price-bar">
@@ -102,8 +102,8 @@
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_macd_long')) || null; 
-    let scanShorts = JSON.parse(localStorage.getItem('okx_macd_short')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_ema_cross_long')) || null; 
+    let scanShorts = JSON.parse(localStorage.getItem('okx_ema_cross_short')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : ((scanShorts && scanShorts.length > 0) ? scanShorts[0].instId : coinList[0]);
@@ -252,12 +252,12 @@
         });
     }
 
-    // === 核心：前50名，1H MACD交叉 + 5m形态 (影线2倍) ===
+    // === 核心：前50名，1H EMA交叉 + 5m形态 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
-        document.getElementById('modal-close-btn').style.display = 'none'; // 重置按钮
+        document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在扫描 1H MACD 交叉状态...";
+        status.innerText = "正在扫描 1H EMA 交叉状态...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
@@ -265,7 +265,7 @@
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             
-            // 扩大到前 50 名
+            // 前 50 名
             let top50 = usdt.slice(0, 50); 
 
             let longCandidates = [];
@@ -273,7 +273,7 @@
 
             for (let i = 0; i < top50.length; i++) {
                 let instId = top50[i].instId;
-                status.innerText = `共振计算：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
+                status.innerText = `交叉计算：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
                 
                 try {
                     let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
@@ -282,20 +282,24 @@
                     if(k1H.code === '0' && k5M.code === '0' && k1H.data.length > 50 && k5M.data.length >= 2) {
                         let c1H = k1H.data.reverse().map(d => +d[4]);
                         
-                        let macd = calcMACD(c1H);
-                        let dif = macd.macd;
-                        let dea = macd.signal;
+                        // 计算 1H EMA20 和 EMA50
+                        let e20 = calcEMA(c1H, 20); 
+                        let e50 = calcEMA(c1H, 50); 
                         
-                        let currDif = dif[dif.length-1];
-                        let currDea = dea[dea.length-1];
-                        let prevDif = dif[dif.length-2];
-                        let prevDea = dea[dea.length-2];
+                        let currE20 = e20[e20.length-1];
+                        let prevE20 = e20[e20.length-2];
+                        let currE50 = e50[e50.length-1];
+                        let prevE50 = e50[e50.length-2];
 
-                        let isGoldenCross = (prevDif <= prevDea) && (currDif > currDea);
-                        let isDeathCross = (prevDif >= prevDea) && (currDif < currDea);
+                        // 刚刚金叉：上一根E20<E50，最新一根E20>E50
+                        let isGoldenCross = (prevE20 <= prevE50) && (currE20 > currE50);
+                        // 刚刚死叉：上一根E20>E50，最新一根E20<E50
+                        let isDeathCross = (prevE20 >= prevE50) && (currE20 < currE50);
 
                         if(isGoldenCross || isDeathCross) {
                             let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
+                            
+                            // 上一根彻底收盘的 5m K线
                             let prevCandle = fmt5M[fmt5M.length - 2];
                             
                             let body = Math.abs(prevCandle.c - prevCandle.o);
@@ -303,9 +307,11 @@
                             let lowerWick = Math.min(prevCandle.o, prevCandle.c) - prevCandle.l; 
 
                             if(body > 0) {
+                                // 1H刚刚金叉 + 5m绿柱下影线 >= 2倍
                                 if(isGoldenCross && prevCandle.c > prevCandle.o && lowerWick >= body * 2) {
                                     longCandidates.push({ instId: instId });
                                 }
+                                // 1H刚刚死叉 + 5m红柱上影线 >= 2倍
                                 if(isDeathCross && prevCandle.c < prevCandle.o && upperWick >= body * 2) {
                                     shortCandidates.push({ instId: instId });
                                 }
@@ -317,14 +323,14 @@
             }
 
             if(longCandidates.length === 0 && shortCandidates.length === 0) {
-                throw new Error("前50名中，暂无'1H刚交叉+5m神针'的标的。");
+                throw new Error("前50名中，暂无'1H EMA交叉+5m神针'的标的。");
             }
 
             scanLongs = longCandidates.slice(0, 3);
             scanShorts = shortCandidates.slice(0, 3);
 
-            localStorage.setItem('okx_macd_long', JSON.stringify(scanLongs));
-            localStorage.setItem('okx_macd_short', JSON.stringify(scanShorts));
+            localStorage.setItem('okx_ema_cross_long', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_ema_cross_short', JSON.stringify(scanShorts));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('signal-area').style.display = 'flex';
@@ -335,20 +341,12 @@
             else if(scanShorts.length > 0) switchCoin(scanShorts[0].instId); 
 
         } catch (error) {
-            // 扫不到目标时，显示错误文字，并显示返回按钮
             status.innerText = error.message;
             document.getElementById('modal-close-btn').style.display = 'block';
         }
     }
 
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
-    function calcMACD(prices) { 
-        let e12 = calcEMA(prices, 12); 
-        let e26 = calcEMA(prices, 26); 
-        let macdLine = e12.map((v, i) => v - e26[i]); 
-        let signalLine = calcMACD(macdLine, 9); // Bug fix: 这里应该是 calcEMA(macdLine, 9)，上一版手误写错了！马上纠正
-        return { macd: macdLine, signal: signalLine }; 
-    }
 
     window.onload = () => {
         renderList();
