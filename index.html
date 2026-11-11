@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H EMA交叉 + 5m 神针雷达</title>
+    <title>1H 多指标金叉共振 (Top 5)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -15,16 +15,12 @@
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
         .scan-btn { background: linear-gradient(135deg, #0ecb81, #00b8d4); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(14,203,129,0.4);}
         
-        /* 双向展示区 */
-        #signal-area { display: none; flex-direction: column; gap: 8px; padding-top: 5px; }
-        .signal-row { display: flex; flex-wrap: wrap; gap: 8px; }
-        
+        /* Top 5 展示区 */
+        #long-area { display: none; flex-wrap: wrap; gap: 8px; padding-top: 5px; }
         .card-long { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); }
-        .card-short { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(246,70,93,0.08); border: 1px solid var(--down); }
-        
         .card-title { font-size: 10px; color: #fff; }
         .coin-long { font-size: 15px; font-weight: 900; color: var(--up); }
-        .coin-short { font-size: 15px; font-weight: 900; color: var(--down); }
+        .score-text { font-size: 9px; color: var(--yellow); }
 
         #coinList { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; border: 1px solid transparent;}
@@ -58,7 +54,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在扫描 1H EMA 金叉/死叉...</div>
+            <div class="scan-loading" id="scan-status">正在扫描 1H 多指标金叉共振...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -69,21 +65,18 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">📡 EMA交叉共振</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 金叉共振 Top 5</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
-        <div id="signal-area">
-            <div class="signal-row" id="long-area"></div>
-            <div class="signal-row" id="short-area"></div>
-        </div>
-        
+        <div id="long-area"></div>
         <div id="coinList"></div>
     </div>
 
+    <!-- 默认直接看 1H -->
     <div id="time-bar">
-        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找神针)</button>
-        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看交叉)</button>
+        <button class="time-btn active" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看指标)</button>
+        <button class="time-btn" data-tf="15m" onclick="switchTimeframe('15m')">15分 (找入场)</button>
     </div>
 
     <div id="price-bar">
@@ -97,17 +90,16 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 形态解析</div>
+        <div class="analysis-header">🎯 多指标共振解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_ema_cross_long')) || null; 
-    let scanShorts = JSON.parse(localStorage.getItem('okx_ema_cross_short')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_top5_long')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
-    let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : ((scanShorts && scanShorts.length > 0) ? scanShorts[0].instId : coinList[0]);
-    let currentTf = '5m'; 
+    let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
+    let currentTf = '1H'; // 默认看 1H
     let klineData = [];
     let ws = null;
 
@@ -117,8 +109,8 @@
     }
 
     window.toggleView = function() {
-        let isScan = document.getElementById('signal-area').style.display === 'flex';
-        document.getElementById('signal-area').style.display = isScan ? 'none' : 'flex';
+        let isScan = document.getElementById('long-area').style.display === 'flex';
+        document.getElementById('long-area').style.display = isScan ? 'none' : 'flex';
         document.getElementById('coinList').style.display = isScan ? 'flex' : 'none';
     }
 
@@ -149,20 +141,12 @@
                 let div = document.createElement('div');
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
-                div.innerHTML = `<div class="card-title">🟢 1H金叉+5m绿针</div><div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>`;
+                div.innerHTML = `
+                    <div class="card-title">🏆 Top ${index+1}</div>
+                    <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
+                    <div class="score-text">共振分: ${item.score}</div>
+                `;
                 longArea.appendChild(div);
-            });
-        }
-
-        const shortArea = document.getElementById('short-area');
-        shortArea.innerHTML = '';
-        if(scanShorts) {
-            scanShorts.forEach((item, index) => {
-                let div = document.createElement('div');
-                div.className = 'card-short';
-                div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
-                div.innerHTML = `<div class="card-title">🔴 1H死叉+5m红针</div><div class="coin-short">${item.instId.replace('-USDT-SWAP','')}</div>`;
-                shortArea.appendChild(div);
             });
         }
         
@@ -252,93 +236,90 @@
         });
     }
 
-    // === 核心：前50名，1H EMA交叉 + 5m形态 ===
+    // === 核心引擎：纯 1H 多指标共振 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在扫描 1H EMA 交叉状态...";
+        status.innerText = "正在扫描 1H 多指标金叉共振...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            
-            // 前 50 名
             let top50 = usdt.slice(0, 50); 
 
-            let longCandidates = [];
-            let shortCandidates = [];
+            let candidates = [];
 
             for (let i = 0; i < top50.length; i++) {
                 let instId = top50[i].instId;
-                status.innerText = `交叉计算：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
+                status.innerText = `共振计算：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
                 
                 try {
+                    // 只抓 1H 数据
                     let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
-                    let k5M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=5m&limit=5`).then(r=>r.json());
 
-                    if(k1H.code === '0' && k5M.code === '0' && k1H.data.length > 50 && k5M.data.length >= 2) {
-                        let c1H = k1H.data.reverse().map(d => +d[4]);
+                    if(k1H.code === '0' && k1H.data.length > 50) {
+                        let fmt1H = k1H.data.reverse().map(d => ({ c:+d[4], v:+d[5] }));
+                        let c1H = fmt1H.map(d => d.c);
                         
-                        // 计算 1H EMA20 和 EMA50
+                        // 1. 均线金叉判断
                         let e20 = calcEMA(c1H, 20); 
                         let e50 = calcEMA(c1H, 50); 
-                        
                         let currE20 = e20[e20.length-1];
                         let prevE20 = e20[e20.length-2];
                         let currE50 = e50[e50.length-1];
                         let prevE50 = e50[e50.length-2];
 
-                        // 刚刚金叉：上一根E20<E50，最新一根E20>E50
                         let isGoldenCross = (prevE20 <= prevE50) && (currE20 > currE50);
-                        // 刚刚死叉：上一根E20>E50，最新一根E20<E50
-                        let isDeathCross = (prevE20 >= prevE50) && (currE20 < currE50);
 
-                        if(isGoldenCross || isDeathCross) {
-                            let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
+                        if(isGoldenCross) {
+                            // 2. 检查其他技术指标 (开始打分)
+                            let score = 60; // 基础分 (刚金叉)
                             
-                            // 上一根彻底收盘的 5m K线
-                            let prevCandle = fmt5M[fmt5M.length - 2];
-                            
-                            let body = Math.abs(prevCandle.c - prevCandle.o);
-                            let upperWick = prevCandle.h - Math.max(prevCandle.o, prevCandle.c); 
-                            let lowerWick = Math.min(prevCandle.o, prevCandle.c) - prevCandle.l; 
+                            // 2.1 成交量放大
+                            let vols = fmt1H.map(d => d.v);
+                            let lastVol = vols[vols.length-1];
+                            let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
+                            if(lastVol > avgVol * 1.2) score += 10; // 放量金叉加分
 
-                            if(body > 0) {
-                                // 1H刚刚金叉 + 5m绿柱下影线 >= 2倍
-                                if(isGoldenCross && prevCandle.c > prevCandle.o && lowerWick >= body * 2) {
-                                    longCandidates.push({ instId: instId });
-                                }
-                                // 1H刚刚死叉 + 5m红柱上影线 >= 2倍
-                                if(isDeathCross && prevCandle.c < prevCandle.o && upperWick >= body * 2) {
-                                    shortCandidates.push({ instId: instId });
-                                }
-                            }
+                            // 2.2 MACD 多头
+                            let macd = calcMACD(c1H);
+                            let lastDif = macd.macd[macd.macd.length-1];
+                            let lastDea = macd.signal[macd.signal.length-1];
+                            if(lastDif > lastDea) score += 10; // MACD共振加分
+
+                            // 2.3 RSI 处于强势区且未超买
+                            let rsi = calcRSI(c1H, 14);
+                            let lastRsi = rsi[rsi.length-1];
+                            if(lastRsi > 50 && lastRsi < 70) score += 20; // RSI健康加分
+
+                            // 只要1H指标完美，直接入选，不再等5m形态
+                            candidates.push({ instId: instId, score: score });
                         }
                     }
                 } catch(e) {}
                 await new Promise(r => setTimeout(r, 100)); 
             }
 
-            if(longCandidates.length === 0 && shortCandidates.length === 0) {
-                throw new Error("前50名中，暂无'1H EMA交叉+5m神针'的标的。");
+            if(candidates.length === 0) {
+                throw new Error("前50名中，暂无'1H刚金叉多指标共振'的完美标的。");
             }
 
-            scanLongs = longCandidates.slice(0, 3);
-            scanShorts = shortCandidates.slice(0, 3);
+            // 按照分数排序，取前 5 名
+            candidates.sort((a, b) => b.score - a.score);
+            let top5 = candidates.slice(0, 5);
 
-            localStorage.setItem('okx_ema_cross_long', JSON.stringify(scanLongs));
-            localStorage.setItem('okx_ema_cross_short', JSON.stringify(scanShorts));
+            scanLongs = top5;
+            localStorage.setItem('okx_top5_long', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
-            document.getElementById('signal-area').style.display = 'flex';
+            document.getElementById('long-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
             
-            if(scanLongs.length > 0) switchCoin(scanLongs[0].instId); 
-            else if(scanShorts.length > 0) switchCoin(scanShorts[0].instId); 
+            if(top5.length > 0) switchCoin(top5[0].instId); 
 
         } catch (error) {
             status.innerText = error.message;
@@ -347,11 +328,31 @@
     }
 
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
+    function calcMACD(prices) { 
+        let e12 = calcEMA(prices, 12); let e26 = calcEMA(prices, 26); 
+        let macdLine = e12.map((v, i) => v - e26[i]); 
+        let signalLine = calcEMA(macdLine, 9); 
+        return { macd: macdLine, signal: signalLine }; 
+    }
+    function calcRSI(prices, period) { 
+        let gains=0,losses=0,rsi=[]; 
+        for(let i=1;i<prices.length;i++){
+            let diff=prices[i]-prices[i-1]; 
+            if(diff>=0) gains+=diff; else losses-=diff; 
+            if(i===period){let ag=gains/period, al=losses/period; rsi.push(100-(100/(1+ag/al)));} 
+            else if(i>period){
+                let diff2=prices[i]-prices[i-1]; let g=diff2>0?diff2:0; let l=diff2<0?-diff2:0; 
+                let lastRsi=rsi[rsi.length-1]; 
+                rsi.push(lastRsi + (100-lastRsi)*g/period - lastRsi*l/period);
+            } else { rsi.push(50); }
+        } 
+        return rsi; 
+    }
 
     window.onload = () => {
         renderList();
-        if((scanLongs && scanLongs.length > 0) || (scanShorts && scanShorts.length > 0)) {
-            document.getElementById('signal-area').style.display = 'flex';
+        if(scanLongs && scanLongs.length > 0) {
+            document.getElementById('long-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
         } else {
             document.getElementById('coinList').style.display = 'flex';
