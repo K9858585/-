@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H 默认EMA金叉 + 多指标打分 (Top 5)</title>
+    <title>15m CCI突破 + EMA金叉</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在扫描 1H EMA(5/10) 金叉并打分...</div>
+            <div class="scan-loading" id="scan-status">正在扫描 CCI 突破与均线共振...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 1H金叉 Top 5</button>
+            <button class="scan-btn" onclick="runScanner()">🔥 CCI极速抓妖</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -72,8 +72,8 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看指标)</button>
-        <button class="time-btn" data-tf="15m" onclick="switchTimeframe('15m')">15分 (找入场)</button>
+        <button class="time-btn active" data-tf="15m" onclick="switchTimeframe('15m')">15分钟 (抓爆发)</button>
+        <button class="time-btn" data-tf="5m" onclick="switchTimeframe('5m')">5分 (精确入场)</button>
     </div>
 
     <div id="price-bar">
@@ -87,16 +87,16 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 金叉打分解析</div>
+        <div class="analysis-header">🎯 CCI 动能解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_scored_golden_long_1h')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_cci_ema_long')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
-    let currentTf = '1H'; 
+    let currentTf = '15m'; 
     let klineData = [];
     let ws = null;
 
@@ -139,9 +139,9 @@
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="card-title">🏆 Top ${index+1}</div>
+                    <div class="card-title">🔥 妖币 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="score-text">综合分: ${item.score}</div>
+                    <div class="score-text">CCI: ${item.cci.toFixed(1)}</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -233,67 +233,58 @@
         });
     }
 
-    // === 核心引擎：1H 默认EMA金叉准入，多指标打分 ===
+    // === 核心引擎：15m CCI突破100 + EMA金叉 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在扫描 1H EMA(5/10) 金叉并打分...";
+        status.innerText = "正在全市场扫描 CCI 与 均线共振...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
+            
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top100 = usdt.slice(0, 100); 
+            let targetCoins = usdt.slice(0, 100); 
 
             let candidates = [];
 
-            for (let i = 0; i < top100.length; i++) {
-                let instId = top100[i].instId;
-                status.innerText = `交叉打分：${instId.replace('-USDT-SWAP','')} (${i+1}/100)`;
+            for (let i = 0; i < targetCoins.length; i++) {
+                let instId = targetCoins[i].instId;
+                status.innerText = `共振计算 (${i+1}/100)：${instId.replace('-USDT-SWAP','')}`;
                 
                 try {
-                    let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
+                    let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
 
-                    if(k1H.code === '0' && k1H.data.length > 50) {
-                        let fmt1H = k1H.data.reverse().map(d => ({ c:+d[4], v:+d[5] }));
-                        let c1H = fmt1H.map(d => d.c);
+                    if(k15M.code === '0' && k15M.data.length > 50) {
+                        let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let c15M = fmt15M.map(d => d.c);
                         
-                        // 1. 【准入条件】：1H 级别，EMA5 和 EMA10 在最近 2 根内金叉
-                        let e5 = calcEMA(c1H, 5); 
-                        let e10 = calcEMA(c1H, 10); 
+                        let price = c15M[c15M.length-1];
+                        
+                        // 1. 计算 EMA 金叉 (2格内)
+                        let e5 = calcEMA(c15M, 5); let e10 = calcEMA(c15M, 10); 
                         let currE5 = e5[e5.length-1], prevE5 = e5[e5.length-2], prevPrevE5 = e5[e5.length-3];
                         let currE10 = e10[e10.length-1], prevE10 = e10[e10.length-2], prevPrevE10 = e10[e10.length-3];
 
-                        let isEmaCross = (prevE5 <= prevE10 && currE5 > currE10) || 
-                                         (prevPrevE5 <= prevPrevE10 && prevE5 > prevE10);
+                        let isCrossCurrent = (prevE5 <= prevE10) && (currE5 > currE10);
+                        let isCrossPrev = (prevPrevE5 <= prevPrevE10) && (prevE5 > prevE10);
+                        let isEmaCross = isCrossCurrent || isCrossPrev;
 
-                        if(isEmaCross) {
-                            // 2. 【多指标打分】
-                            let score = 60; // 基础分（刚金叉）
+                        // 2. 计算 CCI (14) 并判断突破 +100
+                        let cci = calcCCI(fmt15M, 14);
+                        let currCci = cci[cci.length-1];
+                        let prevCci = cci[cci.length-2];
+                        
+                        // CCI 从下往上强势突破 100，或者已经在 100 上方且继续向上
+                        let isCciBreakout = (prevCci < 100 && currCci > 100) || (currCci > 100 && currCci > prevCci);
+
+                        if(isEmaCross && isCciBreakout) {
                             
-                            // 加分项 1：MACD 是多头（DIFF > DEA）
-                            let macd = calcMACD(c1H);
-                            let lastDif = macd.macd[macd.macd.length-1];
-                            let lastDea = macd.signal[macd.signal.length-1];
-                            if(lastDif > lastDea) score += 15;
-
-                            // 加分项 2：成交量放大
-                            let vols = fmt1H.map(d => d.v);
-                            let lastVol = vols[vols.length-1];
-                            let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
-                            if(lastVol > avgVol * 1.2) score += 15;
-
-                            // 加分项 3：RSI 处于健康强势区（50 - 70）
-                            let rsi = calcRSI(c1H, 14);
-                            let lastRsi = rsi[rsi.length-1];
-                            if(lastRsi > 50 && lastRsi < 70) score += 10;
-                            
-                            // 防追高过滤：当前价格不能高出 EMA10 的 2%
-                            let price = c1H[c1H.length-1];
+                            // 防追高：偏离 EMA10 不超过 2%
                             if (price < currE10 * 1.02) {
-                                candidates.push({ instId: instId, score: score });
+                                candidates.push({ instId: instId, cci: currCci });
                             }
                         }
                     }
@@ -302,14 +293,13 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("当前100个币中暂无'刚形成1H EMA(5/10)金叉'的标的。");
+                throw new Error("当前市场暂无'CCI突破+EMA刚金叉'的标的。");
             }
 
-            candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_scored_golden_long_1h', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_cci_ema_long', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
@@ -324,26 +314,46 @@
         }
     }
 
+    // ================= 指标计算函数区 =================
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
-    function calcMACD(prices) { 
-        let e12 = calcEMA(prices, 12); let e26 = calcEMA(prices, 26); 
-        let macdLine = e12.map((v, i) => v - e26[i]); 
-        let signalLine = calcEMA(macdLine, 9); 
-        return { macd: macdLine, signal: signalLine }; 
-    }
-    function calcRSI(prices, period) { 
-        let gains=0,losses=0,rsi=[]; 
-        for(let i=1;i<prices.length;i++){
-            let diff=prices[i]-prices[i-1]; 
-            if(diff>=0) gains+=diff; else losses-=diff; 
-            if(i===period){let ag=gains/period, al=losses/period; rsi.push(100-(100/(1+ag/al)));} 
-            else if(i>period){
-                let diff2=prices[i]-prices[i-1]; let g=diff2>0?diff2:0; let l=diff2<0?-diff2:0; 
-                let lastRsi=rsi[rsi.length-1]; 
-                rsi.push(lastRsi + (100-lastRsi)*g/period - lastRsi*l/period);
-            } else { rsi.push(50); }
-        } 
-        return rsi; 
+    
+    // CCI 指标计算
+    function calcCCI(data, period) {
+        let cci = [];
+        for(let i=0; i<data.length; i++) {
+            if(i < period - 1) {
+                cci.push(0); // 数据不够时填充0
+                continue;
+            }
+            
+            let sumTP = 0;
+            let tps = [];
+            
+            // 计算典型价格 (TP) = (H+L+C)/3，并求区间和
+            for(let j = i - period + 1; j <= i; j++) {
+                let tp = (data[j].h + data[j].l + data[j].c) / 3;
+                tps.push(tp);
+                sumTP += tp;
+            }
+            
+            let smaTP = sumTP / period;
+            
+            // 计算平均绝对偏差 (Mean Deviation)
+            let meanDev = 0;
+            for(let j=0; j<tps.length; j++) {
+                meanDev += Math.abs(tps[j] - smaTP);
+            }
+            meanDev = meanDev / period;
+            
+            // CCI 公式
+            let currTP = (data[i].h + data[i].l + data[i].c) / 3;
+            if(meanDev === 0) {
+                cci.push(0);
+            } else {
+                cci.push((currTP - smaTP) / (0.015 * meanDev));
+            }
+        }
+        return cci;
     }
 
     window.onload = () => {
