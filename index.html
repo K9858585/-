@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>4H+15M 严苛共振雷达 (修正版)</title>
+    <title>1H+5m 严苛共振雷达 (日内极速版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -56,7 +56,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在执行严苛共振过滤...</div>
+            <div class="scan-loading" id="scan-status">正在执行 1H+5m 严苛共振过滤...</div>
         </div>
     </div>
 
@@ -79,8 +79,8 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" style="color: #fff; background: #363a45;">15分 (找形态)</button>
-        <button class="time-btn" data-tf="4H" onclick="switchTimeframe('4H')">4小时 (看趋势)</button>
+        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找形态)</button>
+        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看趋势)</button>
     </div>
 
     <div id="price-bar">
@@ -104,7 +104,7 @@
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : ((scanShorts && scanShorts.length > 0) ? scanShorts[0].instId : coinList[0]);
-    let currentTf = '15m'; 
+    let currentTf = '5m'; // 默认展示 5 分钟图
     let klineData = [];
     let ws = null;
 
@@ -141,7 +141,7 @@
                 let div = document.createElement('div');
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
-                div.innerHTML = `<div class="card-title">🟢 4H极强多头+15M绿针</div><div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>`;
+                div.innerHTML = `<div class="card-title">🟢 1H多头+5m绿针</div><div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>`;
                 longArea.appendChild(div);
             });
         }
@@ -153,7 +153,7 @@
                 let div = document.createElement('div');
                 div.className = 'card-short';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
-                div.innerHTML = `<div class="card-title">🔴 4H极强空头+15M红针</div><div class="coin-short">${item.instId.replace('-USDT-SWAP','')}</div>`;
+                div.innerHTML = `<div class="card-title">🔴 1H空头+5m红针</div><div class="coin-short">${item.instId.replace('-USDT-SWAP','')}</div>`;
                 shortArea.appendChild(div);
             });
         }
@@ -244,11 +244,11 @@
         });
     }
 
-    // === 核心：前30名，完美均线排列 + 价格位置 + 斜率 + 15M上一根形态 ===
+    // === 核心：前30名，1H定趋势 + 5m找形态 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在执行极其严苛的共振扫描...";
+        status.innerText = "正在执行 1H+5m 严格共振扫描...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
@@ -265,47 +265,45 @@
                 status.innerText = `共振计算：${instId.replace('-USDT-SWAP','')} (${i+1}/30)`;
                 
                 try {
-                    let k4H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=4H&limit=100`).then(r=>r.json());
-                    let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=5`).then(r=>r.json());
+                    let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
+                    let k5M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=5m&limit=5`).then(r=>r.json());
 
-                    if(k4H.code === '0' && k15M.code === '0' && k4H.data.length > 50 && k15M.data.length >= 2) {
-                        // 4H 收盘价数组
-                        let c4H = k4H.data.reverse().map(d => +d[4]);
-                        let lastPrice4H = c4H[c4H.length-1];
+                    if(k1H.code === '0' && k5M.code === '0' && k1H.data.length > 50 && k5M.data.length >= 2) {
+                        let c1H = k1H.data.reverse().map(d => +d[4]);
+                        let lastPrice1H = c1H[c1H.length-1];
                         
-                        // 计算 4H 均线 (20黄, 50紫, 100蓝)
-                        let e20 = calcEMA(c4H, 20); 
-                        let e50 = calcEMA(c4H, 50); 
-                        let e100 = calcEMA(c4H, 100); 
+                        // 计算 1H 均线
+                        let e20 = calcEMA(c1H, 20); 
+                        let e50 = calcEMA(c1H, 50); 
+                        let e100 = calcEMA(c1H, 100); 
                         
                         let le20 = e20[e20.length-1];
-                        let prevLe20 = e20[e20.length-2]; // 上一根4H的黄线，用于判断斜率
+                        let prevLe20 = e20[e20.length-2];
                         let le50 = e50[e50.length-1];
                         let le100 = e100[e100.length-1];
                         
-                        // 1. 终极完美多头：价格在黄线上 + 黄>紫>蓝 + 黄线向上拐头
-                        let isStrictBull4H = (lastPrice4H > le20) && (le20 > le50) && (le50 > le100) && (le20 > prevLe20);
-                        
-                        // 2. 终极完美空头：价格在黄线下 + 黄<紫<蓝 + 黄线向下拐头
-                        let isStrictBear4H = (lastPrice4H < le20) && (le20 < le50) && (le50 < le100) && (le20 < prevLe20);
+                        // 1. 1H 完美多头：价格>黄线，黄>紫>蓝，黄线向上
+                        let isStrictBull1H = (lastPrice1H > le20) && (le20 > le50) && (le50 > le100) && (le20 > prevLe20);
+                        // 2. 1H 完美空头：价格<黄线，黄<紫<蓝，黄线向下
+                        let isStrictBear1H = (lastPrice1H < le20) && (le20 < le50) && (le50 < le100) && (le20 < prevLe20);
 
-                        if(isStrictBull4H || isStrictBear4H) {
-                            let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
+                        if(isStrictBull1H || isStrictBear1H) {
+                            let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
                             
-                            // 取上一根彻底收盘的 15M K线
-                            let prevCandle = fmt15M[fmt15M.length - 2];
+                            // 取上一根彻底收盘的 5m K线
+                            let prevCandle = fmt5M[fmt5M.length - 2];
                             
                             let body = Math.abs(prevCandle.c - prevCandle.o);
                             let upperWick = prevCandle.h - Math.max(prevCandle.o, prevCandle.c); 
                             let lowerWick = Math.min(prevCandle.o, prevCandle.c) - prevCandle.l; 
 
                             if(body > 0) {
-                                // 完美多头 + 绿柱长下影
-                                if(isStrictBull4H && prevCandle.c > prevCandle.o && lowerWick >= body * 3) {
+                                // 1H完美多头 + 5m绿柱长下影
+                                if(isStrictBull1H && prevCandle.c > prevCandle.o && lowerWick >= body * 3) {
                                     longCandidates.push({ instId: instId });
                                 }
-                                // 完美空头 + 红柱长上影
-                                if(isStrictBear4H && prevCandle.c < prevCandle.o && upperWick >= body * 3) {
+                                // 1H完美空头 + 5m红柱长上影
+                                if(isStrictBear1H && prevCandle.c < prevCandle.o && upperWick >= body * 3) {
                                     shortCandidates.push({ instId: instId });
                                 }
                             }
@@ -316,7 +314,7 @@
             }
 
             if(longCandidates.length === 0 && shortCandidates.length === 0) {
-                throw new Error("前30名中，暂无'完美4H趋势+15M神针'的标的。");
+                throw new Error("前30名中，暂无'完美1H趋势+5m神针'的标的。");
             }
 
             scanLongs = longCandidates.slice(0, 3);
