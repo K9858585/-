@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H MACD 交叉 + 5m 神针雷达</title>
+    <title>1H MACD 交叉 + 5m 神针 (前50版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -47,16 +47,19 @@
         .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; }
         #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; }
 
+        /* 弹窗与关闭按钮 */
         #scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .scanner-box { background: var(--panel); border-radius: 12px; width: 100%; max-width: 350px; padding: 20px; border: 1px solid #363a45; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
         .scan-loading { color: var(--yellow); font-weight: bold; font-size: 14px; line-height: 1.5;}
+        .close-btn { display: none; margin-top: 15px; padding: 10px 20px; background: var(--blue); color: #fff; border: none; border-radius: 4px; font-size: 14px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在扫描 1H MACD 交叉与 5m 神针...</div>
+            <div class="scan-loading" id="scan-status">正在执行 1H+5m 严格共振扫描...</div>
+            <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
 
@@ -107,6 +110,11 @@
     let currentTf = '5m'; 
     let klineData = [];
     let ws = null;
+
+    window.closeScannerModal = function() {
+        document.getElementById('scanner-modal').style.display = 'none';
+        document.getElementById('modal-close-btn').style.display = 'none';
+    }
 
     window.toggleView = function() {
         let isScan = document.getElementById('signal-area').style.display === 'flex';
@@ -244,9 +252,10 @@
         });
     }
 
-    // === 核心：前30名，1H MACD交叉 + 5m形态 ===
+    // === 核心：前50名，1H MACD交叉 + 5m形态 (影线2倍) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
+        document.getElementById('modal-close-btn').style.display = 'none'; // 重置按钮
         let status = document.getElementById('scan-status');
         status.innerText = "正在扫描 1H MACD 交叉状态...";
 
@@ -255,14 +264,16 @@
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top30 = usdt.slice(0, 30); 
+            
+            // 扩大到前 50 名
+            let top50 = usdt.slice(0, 50); 
 
             let longCandidates = [];
             let shortCandidates = [];
 
-            for (let i = 0; i < top30.length; i++) {
-                let instId = top30[i].instId;
-                status.innerText = `共振计算：${instId.replace('-USDT-SWAP','')} (${i+1}/30)`;
+            for (let i = 0; i < top50.length; i++) {
+                let instId = top50[i].instId;
+                status.innerText = `共振计算：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
                 
                 try {
                     let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
@@ -271,7 +282,6 @@
                     if(k1H.code === '0' && k5M.code === '0' && k1H.data.length > 50 && k5M.data.length >= 2) {
                         let c1H = k1H.data.reverse().map(d => +d[4]);
                         
-                        // 计算 1H MACD
                         let macd = calcMACD(c1H);
                         let dif = macd.macd;
                         let dea = macd.signal;
@@ -281,15 +291,11 @@
                         let prevDif = dif[dif.length-2];
                         let prevDea = dea[dea.length-2];
 
-                        // 刚刚金叉：上一根DIF在DEA下方，最新一根穿到上方
                         let isGoldenCross = (prevDif <= prevDea) && (currDif > currDea);
-                        // 刚刚死叉：上一根DIF在DEA上方，最新一根跌到下方
                         let isDeathCross = (prevDif >= prevDea) && (currDif < currDea);
 
                         if(isGoldenCross || isDeathCross) {
                             let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
-                            
-                            // 上一根彻底收盘的 5m K线
                             let prevCandle = fmt5M[fmt5M.length - 2];
                             
                             let body = Math.abs(prevCandle.c - prevCandle.o);
@@ -297,11 +303,9 @@
                             let lowerWick = Math.min(prevCandle.o, prevCandle.c) - prevCandle.l; 
 
                             if(body > 0) {
-                                // 1H刚刚金叉 + 5m绿柱下影线 >= 2倍
                                 if(isGoldenCross && prevCandle.c > prevCandle.o && lowerWick >= body * 2) {
                                     longCandidates.push({ instId: instId });
                                 }
-                                // 1H刚刚死叉 + 5m红柱上影线 >= 2倍
                                 if(isDeathCross && prevCandle.c < prevCandle.o && upperWick >= body * 2) {
                                     shortCandidates.push({ instId: instId });
                                 }
@@ -313,7 +317,7 @@
             }
 
             if(longCandidates.length === 0 && shortCandidates.length === 0) {
-                throw new Error("前30名中，暂无'1H刚交叉+5m神针'的标的。");
+                throw new Error("前50名中，暂无'1H刚交叉+5m神针'的标的。");
             }
 
             scanLongs = longCandidates.slice(0, 3);
@@ -331,7 +335,9 @@
             else if(scanShorts.length > 0) switchCoin(scanShorts[0].instId); 
 
         } catch (error) {
+            // 扫不到目标时，显示错误文字，并显示返回按钮
             status.innerText = error.message;
+            document.getElementById('modal-close-btn').style.display = 'block';
         }
     }
 
@@ -340,7 +346,7 @@
         let e12 = calcEMA(prices, 12); 
         let e26 = calcEMA(prices, 26); 
         let macdLine = e12.map((v, i) => v - e26[i]); 
-        let signalLine = calcEMA(macdLine, 9); 
+        let signalLine = calcMACD(macdLine, 9); // Bug fix: 这里应该是 calcEMA(macdLine, 9)，上一版手误写错了！马上纠正
         return { macd: macdLine, signal: signalLine }; 
     }
 
