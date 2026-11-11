@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H 默认EMA金叉 + 多指标打分 (Top 5)</title>
+    <title>30m 刚金叉 + 涨幅2-3% (Top 5)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在扫描 100 支币的 EMA 金叉...</div>
+            <div class="scan-loading" id="scan-status">正在筛选涨幅2-3%且30m金叉的币...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 默认金叉打分 Top 5</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 30m金叉Top 5</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -72,7 +72,7 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看指标)</button>
+        <button class="time-btn active" data-tf="30m" onclick="switchTimeframe('30m')">30分钟 (看指标)</button>
         <button class="time-btn" data-tf="15m" onclick="switchTimeframe('15m')">15分 (找入场)</button>
     </div>
 
@@ -96,7 +96,7 @@
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
-    let currentTf = '1H'; 
+    let currentTf = '30m'; // 默认展示 30 分钟
     let klineData = [];
     let ws = null;
 
@@ -233,66 +233,87 @@
         });
     }
 
-    // === 核心引擎：系统默认 EMA (5, 10) 金叉准入，多指标打分 ===
+    // === 核心引擎：涨幅2-3% + 30m EMA金叉 + 多指标打分 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在扫描 1H EMA(5/10) 金叉并打分...";
+        status.innerText = "正在初筛当日涨幅 2%~3% 的币种...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
+            
+            // 1. 初筛：过滤当日涨幅在 2% 到 3% 之间的币种
+            let filteredCoins = [];
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
-            usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top100 = usdt.slice(0, 100); 
+            
+            usdt.forEach(t => {
+                let last = parseFloat(t.last);
+                let open24h = parseFloat(t.open24h);
+                if (open24h > 0) {
+                    let change = ((last - open24h) / open24h) * 100;
+                    if (change >= 2 && change <= 3) {
+                        filteredCoins.push(t);
+                    }
+                }
+            });
+
+            // 如果初筛后一个都没有，直接退出
+            if (filteredCoins.length === 0) {
+                throw new Error("当前市场没有涨幅在 2%~3% 的币种，请耐心等待。");
+            }
+
+            // 2. 对初筛出来的币，按成交量排序（确保流动性），取前 50 个进行深入扫描
+            filteredCoins.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
+            let targetCoins = filteredCoins.slice(0, 50); 
 
             let candidates = [];
 
-            for (let i = 0; i < top100.length; i++) {
-                let instId = top100[i].instId;
-                status.innerText = `交叉打分：${instId.replace('-USDT-SWAP','')} (${i+1}/100)`;
+            for (let i = 0; i < targetCoins.length; i++) {
+                let instId = targetCoins[i].instId;
+                status.innerText = `深度计算 30m：${instId.replace('-USDT-SWAP','')} (${i+1}/${targetCoins.length})`;
                 
                 try {
-                    let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
+                    let k30M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=30m&limit=100`).then(r=>r.json());
 
-                    if(k1H.code === '0' && k1H.data.length > 50) {
-                        let fmt1H = k1H.data.reverse().map(d => ({ c:+d[4], v:+d[5] }));
-                        let c1H = fmt1H.map(d => d.c);
+                    if(k30M.code === '0' && k30M.data.length > 50) {
+                        let fmt30M = k30M.data.reverse().map(d => ({ c:+d[4], v:+d[5] }));
+                        let c30M = fmt30M.map(d => d.c);
                         
-                        // 1. 【准入条件】：系统默认 EMA5 和 EMA10 必须在最近 2 根内金叉
-                        let e5 = calcEMA(c1H, 5); 
-                        let e10 = calcEMA(c1H, 10); 
-                        let currE5 = e5[e5.length-1], prevE5 = e5[e5.length-2], prevPrevE5 = e5[e5.length-3];
-                        let currE10 = e10[e10.length-1], prevE10 = e10[e10.length-2], prevPrevE10 = e10[e10.length-3];
+                        // 3. 【准入条件】：系统默认 EMA5 和 EMA10 在 30m 级别，最新这一根刚刚形成金叉
+                        let e5 = calcEMA(c30M, 5); 
+                        let e10 = calcEMA(c30M, 10); 
+                        let currE5 = e5[e5.length-1], prevE5 = e5[e5.length-2];
+                        let currE10 = e10[e10.length-1], prevE10 = e10[e10.length-2];
 
-                        let isEmaCross = (prevE5 <= prevE10 && currE5 > currE10) || 
-                                         (prevPrevE5 <= prevPrevE10 && prevE5 > prevE10);
+                        // 严格限定：只发生在最新这一格
+                        let isEmaCross = (prevE5 <= prevE10) && (currE5 > currE10);
 
                         if(isEmaCross) {
-                            // 2. 【多指标打分】
+                            // 4. 【多指标打分】
                             let score = 60; // 基础分（刚金叉）
                             
                             // 加分项 1：MACD 是多头（DIFF > DEA）
-                            let macd = calcMACD(c1H);
+                            let macd = calcMACD(c30M);
                             let lastDif = macd.macd[macd.macd.length-1];
                             let lastDea = macd.signal[macd.signal.length-1];
                             if(lastDif > lastDea) score += 15;
 
                             // 加分项 2：成交量放大
-                            let vols = fmt1H.map(d => d.v);
+                            let vols = fmt30M.map(d => d.v);
                             let lastVol = vols[vols.length-1];
                             let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
                             if(lastVol > avgVol * 1.2) score += 15;
 
                             // 加分项 3：RSI 处于健康强势区（50 - 70）
-                            let rsi = calcRSI(c1H, 14);
+                            let rsi = calcRSI(c30M, 14);
                             let lastRsi = rsi[rsi.length-1];
                             if(lastRsi > 50 && lastRsi < 70) score += 10;
                             
-                            // 防追高过滤：当前价格不能高出 EMA10 的 2%
-                            let price = c1H[c1H.length-1];
-                            if (price < currE10 * 1.02) {
+                            // 防追高过滤：当前价格不能高出 EMA10 的 1.5%（30m级别要求更严格）
+                            let price = c30M[c30M.length-1];
+                            if (price < currE10 * 1.015) {
                                 candidates.push({ instId: instId, score: score });
                             }
                         }
@@ -302,7 +323,7 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("当前100个币中暂无'刚形成EMA(5/10)金叉'的标的。");
+                throw new Error("在涨幅2~3%的币中，暂无'30m最新格子刚形成EMA金叉'的标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
