@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>极速并发 15m黄金回调 + 1H支撑</title>
+    <title>全市场 2H/1H多头 + 5m极限回调</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在极速并发扫描 (包含1H支撑)...</div>
+            <div class="scan-loading" id="scan-status">正在极速扫描全市场...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">⚡ 极速共振扫描</button>
+            <button class="scan-btn" onclick="runScanner()">🌐 全市场猎杀</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -72,9 +72,9 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" data-tf="15m" onclick="switchTimeframe('15m')">15分钟 (找买点)</button>
-        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看支撑)</button>
-        <button class="time-btn" data-tf="4H" onclick="switchTimeframe('4H')">4小时 (看多头)</button>
+        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找极限买点)</button>
+        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时</button>
+        <button class="time-btn" data-tf="2H" onclick="switchTimeframe('2H')">2小时</button>
     </div>
 
     <div id="price-bar">
@@ -88,16 +88,16 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 黄金回调解析</div>
+        <div class="analysis-header">🎯 极限回调解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_golden_pullback_1h')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_all_market_pullback')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
-    let currentTf = '15m'; 
+    let currentTf = '5m'; 
     let klineData = [];
     let ws = null;
 
@@ -140,7 +140,7 @@
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="card-title">🎯 黄金买点 Top ${index+1}</div>
+                    <div class="card-title">🌐 全市场极品 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
                     <div class="score-text">时机分: ${item.score}</div>
                 `;
@@ -234,12 +234,12 @@
         });
     }
 
-    // === 极速并发引擎：4H多头 + 15M死叉 + 1H支撑打分 ===
+    // === 核心引擎：全市场 (所有USDT永续) 扫描 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "极速获取全市场数据 (包含1H)...";
+        status.innerText = "获取全市场所有合约数据...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
@@ -248,83 +248,74 @@
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             
-            // 扫描池：前 80 名
-            let targetCoins = usdt.slice(0, 80); 
+            // 彻底放开限制：扫描所有 USDT-SWAP 合约
+            let targetCoins = usdt; 
 
             let candidates = [];
-            let batchSize = 10; 
+            // 并发批次调小到 4，防止被欧易封 IP
+            let batchSize = 4; 
 
             for (let i = 0; i < targetCoins.length; i += batchSize) {
                 let batch = targetCoins.slice(i, i + batchSize);
-                status.innerText = `并发深度扫描... (${i}/${targetCoins.length})`;
+                status.innerText = `全市场并发扫描... (${i}/${targetCoins.length})`;
 
                 let promises = batch.map(async (coin) => {
                     let instId = coin.instId;
                     try {
-                        // 恢复 1H 数据请求
-                        let k4H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=4H&limit=50`).then(r=>r.json());
-                        let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
-                        let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
+                        let k2H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=2H&limit=50`).then(r=>r.json());
+                        let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=50`).then(r=>r.json());
+                        let k5M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=5m&limit=100`).then(r=>r.json());
 
-                        if(k4H.code === '0' && k1H.code === '0' && k15M.code === '0' && k15M.data.length > 50) {
+                        if(k2H.code === '0' && k1H.code === '0' && k5M.code === '0' && k5M.data.length > 50) {
                             
-                            // 1. 4H 大趋势多头
-                            let c4H = k4H.data.reverse().map(d => +d[4]);
-                            let e20_4H = calcEMA(c4H, 20);
-                            let e50_4H = calcEMA(c4H, 50);
-                            let price4H = c4H[c4H.length-1];
-                            
-                            let isBull4H = (price4H > e20_4H[e20_4H.length-1]) && (e20_4H[e20_4H.length-1] > e50_4H[e50_4H.length-1]);
+                            // 1. 2H 和 1H 绝对多头
+                            let c2H = k2H.data.reverse().map(d => +d[4]);
+                            let e20_2H = calcEMA(c2H, 20); let e50_2H = calcEMA(c2H, 50);
+                            let isBull2H = (c2H[c2H.length-1] > e20_2H[e20_2H.length-1]) && (e20_2H[e20_2H.length-1] > e50_2H[e50_2H.length-1]);
 
-                            if(isBull4H) {
-                                // 2. 15M 处于死叉回调
-                                let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-                                let c15M = fmt15M.map(d => d.c);
-                                let price15M = c15M[c15M.length-1];
+                            let c1H = k1H.data.reverse().map(d => +d[4]);
+                            let e20_1H = calcEMA(c1H, 20); let e50_1H = calcEMA(c1H, 50);
+                            let isBull1H = (c1H[c1H.length-1] > e20_1H[e20_1H.length-1]) && (e20_1H[e20_1H.length-1] > e50_1H[e50_1H.length-1]);
 
-                                let macd15M = calcMACD(c15M);
-                                let currDif = macd15M.macd[macd15M.macd.length-1];
-                                let currDea = macd15M.signal[macd15M.signal.length-1];
+                            if(isBull2H && isBull1H) {
+                                // 2. 5M 死叉回调
+                                let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                                let c5M = fmt5M.map(d => d.c);
+                                let price5M = c5M[c5M.length-1];
+
+                                let macd5M = calcMACD(c5M);
+                                let currDif = macd5M.macd[macd5M.macd.length-1];
+                                let currDea = macd5M.signal[macd5M.signal.length-1];
                                 
-                                let e5_15M = calcEMA(c15M, 5);
-                                let e10_15M = calcEMA(c15M, 10);
-                                let isDeadCross = (currDif < currDea) || (e5_15M[e5_15M.length-1] < e10_15M[e10_15M.length-1]);
+                                let e5_5M = calcEMA(c5M, 5);
+                                let e10_5M = calcEMA(c5M, 10);
+                                let isDeadCross = (currDif < currDea) || (e5_5M[e5_5M.length-1] < e10_5M[e10_5M.length-1]);
 
                                 if(isDeadCross) {
-                                    // 打分
                                     let score = 0;
-                                    let currK15M = fmt15M[fmt15M.length-1];
-                                    let prevHist = macd15M.hist[macd15M.hist.length-2];
-                                    let currHist = macd15M.hist[macd15M.hist.length-1];
+                                    let currK5M = fmt5M[fmt5M.length-1];
+                                    let prevHist = macd5M.hist[macd5M.hist.length-2];
+                                    let currHist = macd5M.hist[macd5M.hist.length-1];
 
-                                    if(currHist < 0 && currHist > prevHist) score += 20; // 动能衰竭
+                                    if(currHist < 0 && currHist > prevHist) score += 20; 
 
-                                    // 3. 1H 支撑判断 (核心恢复项)
-                                    let c1H = k1H.data.reverse().map(d => +d[4]);
-                                    let e20_1H = calcEMA(c1H, 20);
                                     let support1H = e20_1H[e20_1H.length-1];
-                                    
-                                    let support4H = e20_4H[e20_4H.length-1];
-                                    let dist1H = Math.abs(price15M - support1H) / price15M;
-                                    let dist4H = Math.abs(price15M - support4H) / price15M;
-                                    
-                                    // 如果踩在 1H 或 4H 支撑附近 0.5% 以内，加 20 分
-                                    if(dist1H < 0.005 || dist4H < 0.005) score += 20; 
+                                    let support2H = e20_2H[e20_2H.length-1];
+                                    let dist1H = Math.abs(price5M - support1H) / price5M;
+                                    let dist2H = Math.abs(price5M - support2H) / price5M;
+                                    if(dist1H < 0.005 || dist2H < 0.005) score += 20; 
 
-                                    // 极度缩量
-                                    let vols = fmt15M.map(d => d.v);
+                                    let vols = fmt5M.map(d => d.v);
                                     let currVol = vols[vols.length-1];
                                     let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
                                     if(currVol < avgVol * 0.8) score += 20; 
 
-                                    // K线企稳
-                                    let body = Math.abs(currK15M.c - currK15M.o);
-                                    let lowerWick = Math.min(currK15M.c, currK15M.o) - currK15M.l;
-                                    if(currK15M.c > currK15M.o) score += 10; 
+                                    let body = Math.abs(currK5M.c - currK5M.o);
+                                    let lowerWick = Math.min(currK5M.c, currK5M.o) - currK5M.l;
+                                    if(currK5M.c > currK5M.o) score += 10; 
                                     if(lowerWick > body * 0.5) score += 10; 
 
-                                    // RSI 拐头
-                                    let rsi = calcRSI(c15M, 14);
+                                    let rsi = calcRSI(c5M, 14);
                                     let currRsi = rsi[rsi.length-1];
                                     let prevRsi = rsi[rsi.length-2];
                                     if(currRsi > 30 && currRsi < 50 && currRsi > prevRsi) score += 20; 
@@ -342,19 +333,20 @@
                 let batchResults = await Promise.all(promises);
                 candidates.push(...batchResults.filter(r => r !== null));
                 
-                // 批次间微小的安全延迟
-                await new Promise(r => setTimeout(r, 80));
+                // 延迟放宽到 150ms，确保在扫全市场时绝对不封IP
+                await new Promise(r => setTimeout(r, 150));
             }
 
             if(candidates.length === 0) {
-                throw new Error("当前全市场暂无'4H多头+15m完美回调+1H支撑'的标的。");
+                throw new Error("全市场扫描完毕，暂无'2H+1H绝对多头+5m完美回调'的标的。");
             }
 
+            // 按照分数降序，取前五名
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_golden_pullback_1h', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_all_market_pullback', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
