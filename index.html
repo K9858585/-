@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前200名 极速猎手 (5m死叉2-3根)</title>
+    <title>前200名 极速猎手 (5m死叉2-5根)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -93,7 +93,7 @@
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_200_fast')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_200_fast_v2')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -248,11 +248,9 @@
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             
-            // 锁池：只查前 200 名
             let targetCoins = usdt.slice(0, 200); 
 
             let potentialCoins = []; 
-            // 极限并发：20 (确保200个币能在安全范围内极速跑完)
             let batchSize = 20; 
 
             // --- 第一级过滤 ---
@@ -290,14 +288,13 @@
                 let results = await Promise.all(promises);
                 potentialCoins.push(...results.filter(r => r !== null));
                 
-                // 延迟降至 10 毫秒
                 await new Promise(r => setTimeout(r, 10));
             }
 
             if(potentialCoins.length === 0) throw new Error("前200名中暂无绝对多头。");
 
             // --- 第二级过滤 ---
-            status.innerText = "第二级极速过滤：找5m死叉2-3根...";
+            status.innerText = "第二级极速过滤：找5m死叉2-5根...";
             let candidates = [];
 
             for (let i = 0; i < potentialCoins.length; i += batchSize) {
@@ -318,13 +315,20 @@
                             let hist = macd5M.hist;
                             let len = hist.length;
 
-                            let isDeadCross2or3 = false;
-                            if (hist[len-1] < 0) {
-                                if (hist[len-2] < 0 && hist[len-3] >= 0) isDeadCross2or3 = true;
-                                else if (hist[len-2] < 0 && hist[len-3] < 0 && hist[len-4] >= 0) isDeadCross2or3 = true;
+                            // 核心修改：计算连续死叉的根数
+                            let deadCrossCount = 0;
+                            for (let j = len - 1; j >= 0; j--) {
+                                if (hist[j] < 0) {
+                                    deadCrossCount++;
+                                } else {
+                                    break; // 遇到正数（金叉）就停止计数
+                                }
                             }
+                            
+                            // 判定是否在 2 到 5 根之间
+                            let isDeadCross2to5 = (deadCrossCount >= 2 && deadCrossCount <= 5);
 
-                            if(isDeadCross2or3) {
+                            if(isDeadCross2to5) {
                                 let score = 0;
                                 let currK5M = fmt5M[fmt5M.length-1];
                                 let prevHist = hist[len-2];
@@ -380,7 +384,7 @@
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_200_fast', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_200_fast_v2', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
