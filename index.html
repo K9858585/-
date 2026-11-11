@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 严苛精准狙击雷达</title>
+    <title>OKX 多头猎手 (Top 3)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -13,17 +13,16 @@
         .search-box { display: flex; flex: 1; gap: 5px; }
         .search-box input { flex: 1; background: #2a2e39; border: 1px solid #363a45; color: #fff; padding: 8px; border-radius: 4px; font-size: 13px; text-transform: uppercase; outline: none; }
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
-        .scan-btn { background: linear-gradient(135deg, #ff8a00, #e52e71); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(229,46,113,0.4);}
+        .scan-btn { background: linear-gradient(135deg, #0ecb81, #00b8d4); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(14,203,129,0.4);}
         
-        #sniper-area { display: none; flex-direction: row; gap: 10px; padding-top: 5px; }
-        .sniper-card { flex: 1; padding: 12px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 2px solid transparent;}
-        .sniper-card.long { background: rgba(14,203,129,0.1); border-color: var(--up); }
-        .sniper-card.short { background: rgba(246,70,93,0.1); border-color: var(--down); }
-        .sniper-title { font-size: 12px; font-weight: bold; color: #fff; }
-        .sniper-coin { font-size: 18px; font-weight: 900; }
-        .sniper-card.long .sniper-coin { color: var(--up); }
-        .sniper-card.short .sniper-coin { color: var(--down); }
-        .sniper-score { font-size: 11px; padding: 2px 6px; border-radius: 10px; background: rgba(0,0,0,0.3); color: #fff;}
+        /* 做多前三名展示区 */
+        #long-area { display: none; flex-direction: column; gap: 8px; padding-top: 5px; }
+        .rank-row { display: flex; gap: 8px; }
+        .long-card { flex: 1; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); transition: 0.2s;}
+        .long-card:active { background: rgba(14,203,129,0.2); }
+        .long-title { font-size: 10px; color: #fff; }
+        .long-coin { font-size: 15px; font-weight: 900; color: var(--up); }
+        .long-score { font-size: 10px; color: var(--sub); }
 
         #coinList { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; border: 1px solid transparent;}
@@ -51,20 +50,17 @@
         #analysis-panel { height: 28vh; background: var(--panel); padding: 15px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
         .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; }
         #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; }
-        .highlight-red { color: var(--down); font-weight: bold; }
-        .highlight-green { color: var(--up); font-weight: bold; }
-        .highlight-yellow { color: var(--yellow); font-weight: bold; }
 
         #scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .scanner-box { background: var(--panel); border-radius: 12px; width: 100%; max-width: 350px; padding: 20px; border: 1px solid #363a45; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
-        .scan-loading { color: var(--yellow); font-weight: bold; font-size: 14px; line-height: 1.5;}
+        .scan-loading { color: var(--up); font-weight: bold; font-size: 14px; line-height: 1.5;}
     </style>
 </head>
 <body>
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在调取全市场数据...</div>
+            <div class="scan-loading" id="scan-status">正在全市场寻找最强多头...</div>
         </div>
     </div>
 
@@ -74,20 +70,28 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🎯 严苛狙击</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 寻找多头</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
-        <div id="sniper-area">
-            <div class="sniper-card long" id="card-long" onclick="switchCoin(document.getElementById('card-long-coin').innerText)">
-                <div class="sniper-title">🟢 最佳做多</div>
-                <div class="sniper-coin" id="card-long-coin">--</div>
-                <div class="sniper-score" id="card-long-score">--</div>
-            </div>
-            <div class="sniper-card short" id="card-short" onclick="switchCoin(document.getElementById('card-short-coin').innerText)">
-                <div class="sniper-title">🔴 最佳做空</div>
-                <div class="sniper-coin" id="card-short-coin">--</div>
-                <div class="sniper-score" id="card-short-score">--</div>
+        <!-- 做多前三名卡片 -->
+        <div id="long-area">
+            <div class="rank-row">
+                <div class="long-card" id="card-1" onclick="switchCoin(document.getElementById('coin-1').innerText)">
+                    <div class="long-title">🥇 最佳做多</div>
+                    <div class="long-coin" id="coin-1">--</div>
+                    <div class="long-score" id="score-1">--</div>
+                </div>
+                <div class="long-card" id="card-2" onclick="switchCoin(document.getElementById('coin-2').innerText)">
+                    <div class="long-title">🥈 潜力做多</div>
+                    <div class="long-coin" id="coin-2">--</div>
+                    <div class="long-score" id="score-2">--</div>
+                </div>
+                <div class="long-card" id="card-3" onclick="switchCoin(document.getElementById('coin-3').innerText)">
+                    <div class="long-title">🥉 备选做多</div>
+                    <div class="long-coin" id="coin-3">--</div>
+                    <div class="long-score" id="score-3">--</div>
+                </div>
             </div>
         </div>
         
@@ -119,22 +123,25 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 严苛版盘面解析</div>
+        <div class="analysis-header">🎯 多头猎手解析</div>
         <div id="analysis-text">等待数据...</div>
     </div>
 
 <script>
+    // 抓取结果存储
+    let scanResults = JSON.parse(localStorage.getItem('okx_long_top3')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
-    let scanResults = JSON.parse(localStorage.getItem('okx_sniper_results')) || null; 
-    let currentCoin = scanResults && scanResults.long ? scanResults.long.instId : coinList[0];
+    
+    // 默认选中第一名
+    let currentCoin = scanResults ? scanResults[0].instId : coinList[0];
     let currentTf = '1H'; 
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
 
     window.toggleView = function() {
-        let isScan = document.getElementById('sniper-area').style.display === 'flex';
-        document.getElementById('sniper-area').style.display = isScan ? 'none' : 'flex';
+        let isScan = document.getElementById('long-area').style.display === 'flex';
+        document.getElementById('long-area').style.display = isScan ? 'none' : 'flex';
         document.getElementById('coinList').style.display = isScan ? 'flex' : 'none';
     }
 
@@ -159,17 +166,21 @@
         `).join('');
         
         if(scanResults) {
-            document.getElementById('card-long-coin').innerText = scanResults.long ? scanResults.long.instId.replace('-USDT-SWAP','') : '暂无';
-            document.getElementById('card-long-score').innerText = scanResults.long ? '信心: ' + scanResults.long.score + '%' : '--';
-            
-            document.getElementById('card-short-coin').innerText = scanResults.short ? scanResults.short.instId.replace('-USDT-SWAP','') : '暂无';
-            document.getElementById('card-short-score').innerText = scanResults.short ? '信心: ' + scanResults.short.score + '%' : '--';
+            for(let i=0; i<3; i++) {
+                if(scanResults[i]) {
+                    document.getElementById(`coin-${i+1}`).innerText = scanResults[i].instId.replace('-USDT-SWAP','');
+                    document.getElementById(`score-${i+1}`).innerText = '得分: ' + scanResults[i].score;
+                } else {
+                    document.getElementById(`coin-${i+1}`).innerText = '--';
+                    document.getElementById(`score-${i+1}`).innerText = '--';
+                }
+            }
         }
         document.getElementById('currentCoinName').innerText = currentCoin.replace('-USDT-SWAP','');
     }
 
     window.switchCoin = function(name) { 
-        if(name === '暂无') return;
+        if(name === '--') return;
         let fullName = name.includes('-SWAP') ? name : name + '-USDT-SWAP';
         if(currentCoin !== fullName) { currentCoin = fullName; renderList(); loadData(); } 
     }
@@ -308,7 +319,6 @@
         });
     }
 
-    // 严苛版解析：提示风险与止损
     function generateStrictAnalysis(res) {
         if(!res['1h'] || !res['1d']) return;
         
@@ -321,93 +331,91 @@
         
         let text = "";
 
-        // 1. 完美的右侧做空
-        if(d1Price < d1Ema20 && h1Price < h1Ema20 && h1Macd < 0) {
-            text = `🔴 <b>严苛做空信号确立：</b><br>日线与1小时级别均处于EMA20均线下方，且MACD空头动能强劲。这是极高胜率的<b>右侧顺势空</b>。<br><br>💡 <b>策略：</b>切忌扛单，止损设在1小时前高或EMA20上方 1% 处。`;
+        if(d1Price > d1Ema20 && h1Price > h1Ema20 && h1Macd > 0) {
+            text = `🟢 <b>完美多头共振：</b><br>日线与1小时级别均站上EMA20均线，MACD多头放量。这是极高胜率的<b>右侧顺势做多</b>。<br><br>💡 <b>策略：</b>可逢低买入，务必带好止损（跌破1小时EMA20或前低）。`;
         } 
-        // 2. 完美的右侧做多
-        else if(d1Price > d1Ema20 && h1Price > h1Ema20 && h1Macd > 0) {
-            text = `🟢 <b>严苛做多信号确立：</b><br>日线与1小时级别均站上EMA20均线，MACD多头放量。这是极高胜率的<b>右侧顺势多</b>。<br><br>💡 <b>策略：</b>进场后止损设在1小时前低或EMA20下方 1% 处。`;
-        } 
-        // 3. 多头趋势下的回调（防做空）
-        else if(d1Price > d1Ema20 && h1Price < h1Ema20) {
-            text = `⚠️ <b>风险预警（多头回调）：</b><br>当前1小时虽然在跌，但日线大趋势依然看涨。这叫“洗盘”，<b>此时做空极易被爆</b>。耐心等待1小时企稳后做多。`;
-        } 
-        // 4. 空头趋势下的反弹（防做多）
         else if(d1Price < d1Ema20 && h1Price > h1Ema20) {
-            text = `⚠️ <b>风险预警（空头反弹）：</b><br>当前1小时虽然在涨，但日线大趋势被死死压制。这是典型的“诱多”，<b>追高做多就是接盘</b>。建议观望。`;
+            text = `⚠️ <b>空头反弹（危险）：</b><br>虽然1小时在涨，但日线大趋势被死死压制。这是典型的“诱多”，<b>追高容易被套</b>。建议观望。`;
         } 
-        // 5. 震荡
+        else if(d1Price > d1Ema20 && h1Price < h1Ema20) {
+            text = `⚡ <b>多头回调（洗盘）：</b><br>日线看涨，但1小时正在回调。耐心等待1小时企稳（例如收出下影线或站回EMA20）再进场做多。`;
+        } 
         else {
-            text = `⚖️ <b>多空拉锯震荡：</b><br>日线与1小时方向不一致，且均未站上/跌破关键均线。此时进场容易被来回扫损，<b>管住手，空仓观望。</b>`;
+            text = `⚖️ <b>空头主导：</b><br>日线和1小时都在均线下方，坚决不碰多单，等待底部形态。`;
         }
 
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 极度严苛的雷达扫描 (绝对胜率优先) ===
+    // === 核心引擎：全市场寻找 Top 3 做多 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在调取全市场数据...";
+        status.innerText = "正在获取全市场合约...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
+            
+            // 按24小时成交额排序，过滤掉没有流动性的垃圾币
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let top50 = usdt.slice(0, 50); 
+            // 取前 120 名扫描，兼顾速度与广度
+            let top120 = usdt.slice(0, 120); 
 
-            let bestLong = null, maxLongScore = 80; // 门槛极高
-            let bestShort = null, minShortScore = 20; // 门槛极低
+            let longCandidates = [];
 
-            for (let i = 0; i < top50.length; i++) {
-                let instId = top50[i].instId;
-                status.innerText = `深度解析 1D+1H 双周期：${instId.replace('-USDT-SWAP','')} (${i+1}/50)`;
+            for (let i = 0; i < top120.length; i++) {
+                let instId = top120[i].instId;
+                status.innerText = `深度计算：${instId.replace('-USDT-SWAP','')} (${i+1}/${top120.length})`;
                 
                 try {
-                    // 抓取 1H 数据
+                    // 抓取 1H 和 1D
                     let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
-                    await new Promise(r => setTimeout(r, 100)); // 延迟防封
-                    // 抓取 1D 数据
+                    // 加入极小延迟，防止被封
+                    await new Promise(r => setTimeout(r, 80)); 
                     let k1D = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1D&limit=100`).then(r=>r.json());
 
                     if(k1H.code === '0' && k1D.code === '0' && k1H.data.length > 80 && k1D.data.length > 50) {
-                        let fmtH = k1H.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-                        let fmtD = k1D.data.reverse().map(d => ({ c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let fmtH = k1H.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let fmtD = k1D.data.reverse().map(d => ({ c:+d[4] }));
                         
-                        let result = strictSniperScore(fmtH, fmtD);
+                        let score = longScore(fmtH, fmtD);
                         
-                        if(result.score !== null) {
-                            if(result.score > maxLongScore) { maxLongScore = result.score; bestLong = { instId, score: result.score }; }
-                            if(result.score < minShortScore) { minShortScore = result.score; bestShort = { instId, score: result.score }; }
+                        // 只要分数达到 60 分以上，就加入候选
+                        if(score !== null && score >= 60) {
+                            longCandidates.push({ instId, score });
                         }
                     }
                 } catch(e) {}
-                await new Promise(r => setTimeout(r, 150)); 
+                await new Promise(r => setTimeout(r, 120)); 
             }
 
-            if(!bestLong && !bestShort) throw new Error("当前市场极度震荡，所有币种均未达到严苛的胜率标准。建议空仓观望！");
+            if(longCandidates.length === 0) throw new Error("全市场都在震荡或下跌，今日无做多标的。管住手！");
 
-            scanResults = { long: bestLong, short: bestShort };
-            localStorage.setItem('okx_sniper_results', JSON.stringify(scanResults));
+            // 按分数降序，取前三
+            longCandidates.sort((a, b) => b.score - a.score);
+            let top3 = longCandidates.slice(0, 3);
+
+            scanResults = top3;
+            localStorage.setItem('okx_long_top3', JSON.stringify(scanResults));
             
             document.getElementById('scanner-modal').style.display = 'none';
-            document.getElementById('sniper-area').style.display = 'flex';
+            document.getElementById('long-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
             
-            if(bestLong) switchCoin(bestLong.instId); 
-            else if(bestShort) switchCoin(bestShort.instId);
+            // 默认切换到第一名
+            if(top3[0]) switchCoin(top3[0].instId); 
 
         } catch (error) {
             status.innerText = error.message;
         }
     }
 
-    // 最核心严苛打分：结合形态、双周期、防插针
-    function strictSniperScore(data1H, data1D) {
-        if(data1H.length < 80 || data1D.length < 50) return { score: null };
+    // 做多打分算法 (极其严格)
+    function longScore(data1H, data1D) {
+        if(data1H.length < 80 || data1D.length < 50) return null;
         
         let c1H = data1H.map(d => d.c), c1D = data1D.map(d => d.c);
         let lastPrice = c1H[c1H.length-1];
@@ -421,43 +429,34 @@
         let rsi1H = calcRSI(c1H, 14);
         let lastRsi = rsi1H[rsi1H.length-1];
 
-        // 当前1H K线的形态数据
+        // 形态过滤：防长上影线
         let curr = data1H[data1H.length-1];
         let body = Math.abs(curr.c - curr.o);
         let upperWick = curr.h - Math.max(curr.c, curr.o);
-        let lowerWick = Math.min(curr.c, curr.o) - curr.l;
         let totalLength = curr.h - curr.l;
 
-        // --- 极度严苛的做空条件 ---
-        // 1. 日线在 EMA20 之下 (大空头)
-        // 2. 1H 在 EMA20 之下 (小空头)
-        // 3. 1H MACD 在零轴之下
-        // 4. 禁止做空极度超卖 (RSI < 30 容易反弹)
-        // 5. 防插针：当前 K 线不能是极长的下影线 (如果下影线占整个K线 60% 以上，说明有托盘，取消做空)
-        if(lastPrice < lastEma20_1D && lastPrice < lastEma20_1H && lastMacd_1H < 0 && lastRsi > 30) {
-            if(lowerWick > totalLength * 0.6) return { score: null }; // 形态过滤
-            let score = 50 - 30; // 基础扣分
-            if(lastRsi < 50) score -= 10;
-            if(lastMacd_1H < macd1H[macd1H.length-2]) score -= 10; // 动能加速
-            return { score: Math.max(0, score) };
+        // 1. 必须满足双周期多头
+        if(lastPrice > lastEma20_1D && lastPrice > lastEma20_1H && lastMacd_1H > 0) {
+            // 2. 不追极度超买 (RSI < 75)
+            if(lastRsi > 75) return null;
+            // 3. 防插针：如果当前 K 线上影线太长，说明抛压大，过滤
+            if(totalLength > 0 && upperWick > totalLength * 0.6) return null;
+
+            // 打分系统
+            let score = 50;
+            score += 20; // 均线多头
+            score += 15; // MACD多头
+            if(lastRsi > 50 && lastRsi < 70) score += 15; // RSI强势但未超买
+            
+            // 加分项：突破放量
+            let vols = data1H.map(d => d.v);
+            let lastVol = vols[vols.length-1], avgVol = vols.slice(-20).reduce((a,b)=>a+b,0)/20;
+            if(lastVol > avgVol * 1.3) score += 10;
+            
+            return Math.min(100, score);
         }
 
-        // --- 极度严苛的做多条件 ---
-        // 1. 日线在 EMA20 之上
-        // 2. 1H 在 EMA20 之上
-        // 3. 1H MACD 在零轴之上
-        // 4. 禁止做多极度超买 (RSI > 70 容易回调)
-        // 5. 防插针：不能是极长上影线
-        if(lastPrice > lastEma20_1D && lastPrice > lastEma20_1H && lastMacd_1H > 0 && lastRsi < 70) {
-            if(upperWick > totalLength * 0.6) return { score: null }; // 形态过滤
-            let score = 50 + 30;
-            if(lastRsi > 50) score += 10;
-            if(lastMacd_1H > macd1H[macd1H.length-2]) score += 10;
-            return { score: Math.min(100, score) };
-        }
-
-        // 其他情况全属于“震荡”或“逆势”，直接淘汰
-        return { score: null };
+        return null; // 逆势或震荡，直接淘汰
     }
 
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
@@ -468,7 +467,7 @@
     window.onload = () => {
         renderList();
         if(scanResults) {
-            document.getElementById('sniper-area').style.display = 'flex';
+            document.getElementById('long-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
         } else {
             document.getElementById('coinList').style.display = 'flex';
