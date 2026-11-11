@@ -19,7 +19,7 @@
         .card-long { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); }
         .card-title { font-size: 10px; color: #fff; }
         .coin-long { font-size: 15px; font-weight: 900; color: var(--up); }
-        .score-text { font-size: 9px; color: var(--yellow); }
+        .score-text { font-size: 10px; color: var(--yellow); font-weight: bold;}
 
         #coinList { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; border: 1px solid transparent;}
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在扫描 100 支币的 EMA 金叉...</div>
+            <div class="scan-loading" id="scan-status">正在扫描 1H EMA(5/10) 金叉并打分...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 默认金叉打分 Top 5</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 1H金叉 Top 5</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -92,7 +92,7 @@
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_scored_golden_long')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_scored_golden_long_1h')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -233,7 +233,7 @@
         });
     }
 
-    // === 核心引擎：系统默认 EMA (5, 10) 金叉准入，多指标打分 ===
+    // === 核心引擎：1H 默认EMA金叉准入，多指标打分 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
@@ -260,7 +260,7 @@
                         let fmt1H = k1H.data.reverse().map(d => ({ c:+d[4], v:+d[5] }));
                         let c1H = fmt1H.map(d => d.c);
                         
-                        // 1. 【准入条件】：系统默认 EMA5 和 EMA10 必须在最近 2 根内金叉
+                        // 1. 【准入条件】：1H 级别，EMA5 和 EMA10 在最近 2 根内金叉
                         let e5 = calcEMA(c1H, 5); 
                         let e10 = calcEMA(c1H, 10); 
                         let currE5 = e5[e5.length-1], prevE5 = e5[e5.length-2], prevPrevE5 = e5[e5.length-3];
@@ -302,14 +302,14 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("当前100个币中暂无'刚形成EMA(5/10)金叉'的标的。");
+                throw new Error("当前100个币中暂无'刚形成1H EMA(5/10)金叉'的标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_scored_golden_long', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_scored_golden_long_1h', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
