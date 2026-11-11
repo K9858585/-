@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 百里挑五狙击雷达</title>
+    <title>OKX 极限锤子线狙击</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -15,7 +15,7 @@
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
         .scan-btn { background: linear-gradient(135deg, #0ecb81, #00b8d4); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(14,203,129,0.4);}
         
-        /* Top 5 展示区 (自动换行) */
+        /* Top 3 展示区 */
         #long-area { display: none; flex-wrap: wrap; gap: 8px; padding-top: 5px; }
         .long-card { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); transition: 0.2s;}
         .long-card:active { background: rgba(14,203,129,0.2); }
@@ -59,7 +59,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在全市场寻找 Top 5 回调买点...</div>
+            <div class="scan-loading" id="scan-status">正在全市场寻找完美锤子线...</div>
         </div>
     </div>
 
@@ -69,13 +69,11 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🔍 百里挑五</button>
+            <button class="scan-btn" onclick="runScanner()">🔨 寻找神针</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
-        <!-- Top 5 展示区 -->
         <div id="long-area"></div>
-        
         <div id="coinList"></div>
     </div>
 
@@ -104,15 +102,15 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 回撤买点解析</div>
+        <div class="analysis-header">🎯 形态解析</div>
         <div id="analysis-text">等待数据...</div>
     </div>
 
 <script>
-    let scanResults = JSON.parse(localStorage.getItem('okx_top5')) || null; 
+    let scanResults = JSON.parse(localStorage.getItem('okx_hammer_top3')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     let currentCoin = scanResults && scanResults.length > 0 ? scanResults[0].instId : coinList[0];
-    let currentTf = '1H'; 
+    let currentTf = '15m'; // 默认切到15分，方便看形态
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
@@ -137,26 +135,24 @@
     }
 
     function renderList() {
-        // 渲染自选
         document.getElementById('coinList').innerHTML = coinList.map(c => `
             <div class="coin-tag ${c===currentCoin?'active':''}" onclick="switchCoin('${c}')">
                 ${c.replace('-USDT-SWAP','')}
             </div>
         `).join('');
         
-        // 渲染 Top 5
         const longArea = document.getElementById('long-area');
         longArea.innerHTML = '';
         if(scanResults) {
             scanResults.forEach((item, index) => {
-                let medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : '🏅'));
+                let medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : '🥉');
                 let div = document.createElement('div');
                 div.className = 'long-card';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="long-title">${medal} Top ${index+1}</div>
+                    <div class="long-title">${medal} 完美神针</div>
                     <div class="long-coin">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="long-score">得分: ${item.score}</div>
+                    <div class="long-score">形态匹配</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -180,7 +176,6 @@
         if(ws) ws.close();
         document.getElementById('status-tag').innerText = '加载中...';
         document.getElementById('status-tag').style.background = 'var(--yellow)';
-        document.getElementById('analysis-text').innerText = '正在计算多周期数据...';
         
         let t = setTimeout(() => { document.getElementById('status-tag').innerText = '超时'; document.getElementById('status-tag').style.background = 'var(--down)'; }, 3000);
 
@@ -303,123 +298,93 @@
 
     function generateAnalysis() {
         let text = "";
-        if(currentSignals['4h'] >= 65 && currentSignals['1h'] <= 50) {
-            text = `🔥 <b>绝佳的回调买点：</b><br>4小时大趋势依然处于多头，但1小时级别正在回撤洗盘。此时千万别追空，耐心等待15分钟级别企稳收阳，<b>即可顺势做多</b>。`;
-        } else if(currentSignals['4h'] >= 65 && currentSignals['1h'] >= 65) {
-            text = `🚀 <b>单边主升浪：</b><br>4小时与1小时全部看涨，动能极强。可以等极小幅度的回调再上车。`;
+        if(currentSignals['4h'] >= 65) {
+            text = `🔥 <b>4小时完美多头：</b><br>大趋势极其强劲！如果15分钟图刚收出带长下影线的阳线（实体3倍以上），这就是教科书级别的<b>黄金买点</b>，果断进场，跌破下影线最低点止损。`;
         } else if(currentSignals['4h'] <= 35) {
-            text = `⚠️ <b>大趋势向下：</b><br>4小时级别处于空头，千万不要逆势抄底。此时所有反弹都可能是诱多。`;
+            text = `⚠️ <b>大趋势向下：</b><br>4小时级别空头，切勿逆势接飞刀。此时的锤子线大概率是诱多。`;
         } else {
-            text = `⚖️ <b>震荡洗盘中：</b><br>周期方向不明确，耐心等待4小时级别走出明确多头趋势后，再找回调买点。`;
+            text = `⚖️ <b>震荡洗盘中：</b><br>4小时级别方向不明，胜率不高，建议观望。`;
         }
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 核心：抓取前 100 名，寻找 Top 5 回调买点 ===
+    // === 核心算法：寻找完美 4H多头 + 15M 3倍下影线阳线 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在获取全市场前100名合约...";
+        status.innerText = "正在全市场寻找完美锤子线...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            
-            // 扫描池扩大到 100
             let top100 = usdt.slice(0, 100); 
 
             let candidates = [];
 
             for (let i = 0; i < top100.length; i++) {
                 let instId = top100[i].instId;
-                status.innerText = `深度计算：${instId.replace('-USDT-SWAP','')} (${i+1}/100)`;
+                status.innerText = `扫描形态：${instId.replace('-USDT-SWAP','')} (${i+1}/100)`;
                 
                 try {
-                    // 抓 4H 看大趋势，抓 15M 看回撤
                     let k4H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=4H&limit=100`).then(r=>r.json());
-                    await new Promise(r => setTimeout(r, 60)); // 稍微缩短延迟，因为数量多了
+                    await new Promise(r => setTimeout(r, 60)); 
                     let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
 
                     if(k4H.code === '0' && k15M.code === '0' && k4H.data.length > 50 && k15M.data.length > 80) {
-                        let fmt4H = k4H.data.reverse().map(d => ({ c:+d[4], v:+d[5] }));
-                        let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let c4H = k4H.data.reverse().map(d => +d[4]);
+                        let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
                         
-                        let score = pullbackScore(fmt4H, fmt15M);
-                        if(score !== null && score >= 55) { // 稍微放宽门槛，确保能凑够5个
-                            candidates.push({ instId, score });
+                        // 1. 判断 4H 完美多头排列 (价格 > EMA20 > EMA50 > EMA100)
+                        let e20_4H = calcEMA(c4H, 20), e50_4H = calcEMA(c4H, 50), e100_4H = calcEMA(c4H, 100);
+                        let price4H = c4H[c4H.length-1];
+                        let isBull4H = price4H > e20_4H[e20_4H.length-1] && e20_4H[e20_4H.length-1] > e50_4H[e50_4H.length-1] && e50_4H[e50_4H.length-1] > e100_4H[e100_4H.length-1];
+
+                        if(isBull4H) {
+                            // 2. 判断 15M 极限锤子线 (最新一根)
+                            let curr = fmt15M[fmt15M.length-1];
+                            
+                            // 实体长度 (必须阳线，且实体 > 0)
+                            let body = Math.abs(curr.c - curr.o);
+                            if(curr.c > curr.o && body > 0) {
+                                let lowerWick = Math.min(curr.o, curr.c) - curr.l; // 下影线
+                                let upperWick = curr.h - Math.max(curr.o, curr.c); // 上影线
+
+                                // 严格条件：下影线 >= 3倍实体，且上影线极短（不能超过下影线一半）
+                                if(lowerWick >= body * 3 && upperWick < lowerWick * 0.5) {
+                                    candidates.push({ instId: instId, score: 100 });
+                                }
+                            }
                         }
                     }
                 } catch(e) {}
                 await new Promise(r => setTimeout(r, 100)); 
             }
 
-            if(candidates.length === 0) throw new Error("当前暂无符合'4H多头+短期回撤'的标的。");
+            if(candidates.length === 0) throw new Error("当前全市场暂无符合'4H多头+3倍下影线锤子'的完美标的，建议空仓等待。");
 
-            candidates.sort((a, b) => b.score - a.score);
-            // 取前 5 名
-            let top5 = candidates.slice(0, 5);
+            // 按照形态完美度排序（全符合就是100分）
+            let top3 = candidates.slice(0, 3);
 
-            scanResults = top5;
-            localStorage.setItem('okx_top5', JSON.stringify(scanResults));
+            scanResults = top3;
+            localStorage.setItem('okx_hammer_top3', JSON.stringify(scanResults));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
             
-            if(top5[0]) switchCoin(top5[0].instId); 
+            if(top3[0]) switchCoin(top3[0].instId); 
 
         } catch (error) {
             status.innerText = error.message;
         }
     }
 
-    function pullbackScore(data4H, data15M) {
-        if(data4H.length < 50 || data15M.length < 80) return null;
-        
-        let c4H = data4H.map(d => d.c);
-        let price4H = c4H[c4H.length-1];
-        let ema20_4H = calcEMA(c4H, 20);
-        let ema50_4H = calcEMA(c4H, 50);
-        let lastEma20_4H = ema20_4H[ema20_4H.length-1];
-        let lastEma50_4H = ema50_4H[ema50_4H.length-1];
-        
-        if(price4H < lastEma20_4H) return null; // 4H必须多头
-
-        let c15M = data15M.map(d => d.c);
-        let price15M = c15M[c15M.length-1];
-        let ema20_15M = calcEMA(c15M, 20);
-        let lastEma20_15M = ema20_15M[ema20_15M.length-1];
-        
-        let rsi15M = calcRSI(c15M, 14);
-        let lastRsi = rsi15M[rsi15M.length-1];
-        let prevRsi = rsi15M[rsi15M.length-2];
-
-        let curr = data15M[data15M.length-1];
-        let prev = data15M[data15M.length-2];
-        let isRedToGreen = prev.c < prev.o && curr.c > curr.o;
-        let isHammer = (curr.c - curr.l) > (curr.h - curr.c) * 2;
-
-        let isPulledBack = (price15M < lastEma20_15M) || (lastRsi < 45);
-
-        if(isPulledBack) {
-            let score = 50;
-            if(price4H > lastEma20_4H && lastEma20_4H > lastEma50_4H) score += 20;
-            if(lastRsi < 35) score += 15;
-            if(isRedToGreen) score += 10;
-            if(isHammer) score += 10;
-            if(lastRsi > prevRsi) score += 5;
-            return Math.min(100, score);
-        }
-        return null;
-    }
-
     function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
     function calcBOLL(prices, p) { let up=[],dn=[]; for(let i=0;i<prices.length;i++){let s=0,sq=0,st=Math.max(0,i-p+1),ct=i-st+1;for(let j=st;j<=i;j++){s+=prices[j];sq+=prices[j]*prices[j];}let m=s/ct,v=(sq/ct)-(m*m),sd=Math.sqrt(v);up.push(m+sd*2);dn.push(m-sd*2);} return {up,dn}; }
     function calcMACD(prices) { let e12=calcEMA(prices,12),e26=calcEMA(prices,26),m=e12.map((v,i)=>v-e26[i]),s=calcEMA(m,9);return m.map((v,i)=>v-s[i]); }
-    function calcRSI(prices, period) { let gains=0,losses=0,rsi=[]; for(let i=1;i<prices.length;i++){let diff=prices[i]-prices[i-1]; if(diff>=0) gains+=diff; else losses-=diff; if(i===period){let ag=gains/period, al=losses/period; rsi.push(100-(100/(1+ag/al)));} else if(i>period){let diff2=prices[i]-prices[i-1]; let g=diff2>0?diff2:0; let l=diff2<0?-diff2:0; let lastRsi=rsi[rsi.length-1]; rsi.push(lastRsi + (100-lastRsi)*g/period - lastRsi*l/period);} else { rsi.push(50); }} return rsi; }
 
     window.onload = () => {
         renderList();
