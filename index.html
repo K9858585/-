@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>15m 右侧突破 + 0-3%涨幅</title>
+    <title>15m 右侧突破 + 多指标打分</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在寻找 0-3%涨幅 + 15m右侧突破的币种...</div>
+            <div class="scan-loading" id="scan-status">正在寻找 15m 右侧突破的强势币种...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 15m突破 Top 5</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 形态突破 Top 5</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -141,7 +141,7 @@
                 div.innerHTML = `
                     <div class="card-title">🏆 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="score-text">突破分: ${item.score}分</div>
+                    <div class="score-text">形态分: ${item.score}分</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -233,47 +233,29 @@
         });
     }
 
-    // === 核心引擎：涨幅0-3% + 15m右侧突破 + 全指标打分 ===
+    // === 核心引擎：纯形态（右侧突破 + 金叉） + 全指标打分（取消涨幅限制） ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在初筛今日涨幅 0%~3% 的潜力币...";
+        status.innerText = "正在全市场扫描形态突破...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             
-            let filteredCoins = [];
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
-            
-            usdt.forEach(t => {
-                let last = parseFloat(t.last);
-                let open24h = parseFloat(t.open24h);
-                let sodUtc8 = parseFloat(t.sodUtc8); 
-                let basePrice = (!isNaN(sodUtc8) && sodUtc8 > 0) ? sodUtc8 : open24h;
-                
-                if (basePrice > 0) {
-                    let change = ((last - basePrice) / basePrice) * 100;
-                    if (change >= 0 && change <= 3) {
-                        filteredCoins.push(t);
-                    }
-                }
-            });
-
-            if (filteredCoins.length === 0) throw new Error("当前市场没有涨幅在 0%~3% 的币种。");
-
-            filteredCoins.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            let targetCoins = filteredCoins.slice(0, 60); 
+            // 按成交量排序，取前 100 个最活跃的币种进行扫描
+            usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
+            let targetCoins = usdt.slice(0, 100); 
 
             let candidates = [];
 
             for (let i = 0; i < targetCoins.length; i++) {
                 let instId = targetCoins[i].instId;
-                status.innerText = `15m突破检测：${instId.replace('-USDT-SWAP','')} (${i+1}/${targetCoins.length})`;
+                status.innerText = `形态检测：${instId.replace('-USDT-SWAP','')} (${i+1}/${targetCoins.length})`;
                 
                 try {
-                    // 核心修改：请求 15m 数据
                     let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
 
                     if(k15M.code === '0' && k15M.data.length > 50) {
@@ -286,11 +268,11 @@
                         
                         let price = curr.c;
                         
-                        // 1. 右侧突破：最新15m收盘价 > 前两根的最高价
+                        // 1. 右侧突破
                         let breakHigh = Math.max(prev1.h, prev2.h);
                         let isBreakout = price > breakHigh;
 
-                        // 2. EMA 金叉：2格内 EMA5 上穿 EMA10
+                        // 2. EMA 金叉：2格内
                         let e5 = calcEMA(c15M, 5); let e10 = calcEMA(c15M, 10); 
                         let currE5 = e5[e5.length-1], prevE5 = e5[e5.length-2], prevPrevE5 = e5[e5.length-3];
                         let currE10 = e10[e10.length-1], prevE10 = e10[e10.length-2], prevPrevE10 = e10[e10.length-3];
@@ -301,46 +283,41 @@
 
                         if(isBreakout && isEmaCross) {
                             
-                            let score = 70; // 突破+金叉基础分
+                            let score = 70; // 基础分
                             
-                            // MACD
+                            // 指标打分
                             let macd = calcMACD(c15M);
                             if(macd.macd[macd.macd.length-1] > macd.signal[macd.signal.length-1]) score += 5;
 
-                            // KDJ
                             let kdj = calcKDJ(fmt15M, 9, 3, 3);
                             if(kdj.K[kdj.K.length-1] > kdj.D[kdj.D.length-1]) score += 5;
 
-                            // RSI
                             let rsi = calcRSI(c15M, 14);
                             let lastRsi = rsi[rsi.length-1];
                             if(lastRsi > 50 && lastRsi < 70) score += 5;
 
-                            // BOLL
                             let boll = calcBOLL(c15M, 20);
                             if(price > boll.mid[boll.mid.length-1]) score += 5;
 
-                            // VOL放量
                             let vols = fmt15M.map(d => d.v);
                             let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
                             if(vols[vols.length-1] > avgVol * 1.2) score += 5;
                             
-                            // 大趋势(EMA20 > EMA50)
                             let e20 = calcEMA(c15M, 20); let e50 = calcEMA(c15M, 50);
                             if(e20[e20.length-1] > e50[e50.length-1]) score += 5;
 
-                            // 防追高：15m级别突破后，偏离EMA10不超过 2%
+                            // 核心保留：防追高！偏离EMA10不超过 2% 才推荐
                             if (price < currE10 * 1.02) {
                                 candidates.push({ instId: instId, score: score });
                             }
                         }
                     }
                 } catch(e) {}
-                await new Promise(r => setTimeout(r, 80)); 
+                await new Promise(r => setTimeout(r, 70)); 
             }
 
             if(candidates.length === 0) {
-                throw new Error("暂无符合'0-3%涨幅 + 15m右侧突破 + 金叉'的标的。");
+                throw new Error("当前市场暂无符合'15m突破+金叉'的标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
