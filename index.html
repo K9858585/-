@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H金叉 + 15m阴线回踩 (Top 10)</title>
+    <title>15m 超跌反弹雷达 (暴跌抄底版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在获取前100名，扫描纯形态回踩...</div>
+            <div class="scan-loading" id="scan-status">正在寻找超跌反弹机会...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 纯形态扫描</button>
+            <button class="scan-btn" onclick="runScanner()">🩸 寻找超跌反弹</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -72,8 +72,8 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" data-tf="15m" onclick="switchTimeframe('15m')">15分钟 (找买点)</button>
-        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看金叉)</button>
+        <button class="time-btn active" data-tf="15m" onclick="switchTimeframe('15m')">15分钟 (找企稳)</button>
+        <button class="time-btn" data-tf="5m" onclick="switchTimeframe('5m')">5分 (抓反弹)</button>
     </div>
 
     <div id="price-bar">
@@ -87,12 +87,12 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 纯形态解析</div>
+        <div class="analysis-header">🎯 暴跌形态解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_pullback_top10_noscore')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_oversold_rebound')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -139,9 +139,9 @@
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="card-title">🏆 Top ${index+1}</div>
+                    <div class="card-title">🩸 超跌 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="score-text">完美回踩</div>
+                    <div class="score-text">已企稳</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -233,19 +233,18 @@
         });
     }
 
-    // === 核心引擎：纯形态过滤 (无打分) ===
+    // === 核心引擎：前100名 + RSI超卖 + 15m收阳线或长下影 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在获取成交额前100名，扫描纯形态回踩...";
+        status.innerText = "正在全市场寻找超跌企稳标的...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
-            // 严格锁定前 100 名
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             let targetCoins = usdt.slice(0, 100); 
 
@@ -253,40 +252,35 @@
 
             for (let i = 0; i < targetCoins.length; i++) {
                 let instId = targetCoins[i].instId;
-                status.innerText = `纯形态扫描 (${i+1}/100)：${instId.replace('-USDT-SWAP','')}`;
+                status.innerText = `暴跌检测 (${i+1}/100)：${instId.replace('-USDT-SWAP','')}`;
                 
                 try {
-                    // 获取 1H 数据
-                    let k1H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1H&limit=100`).then(r=>r.json());
-                    await new Promise(r => setTimeout(r, 60)); 
-                    // 获取 15m 数据
                     let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=100`).then(r=>r.json());
 
-                    if(k1H.code === '0' && k15M.code === '0' && k1H.data.length > 50 && k15M.data.length > 50) {
-                        // 处理 1H
-                        let c1H = k1H.data.reverse().map(d => +d[4]);
-                        let e5_1H = calcEMA(c1H, 5), e10_1H = calcEMA(c1H, 10);
+                    if(k15M.code === '0' && k15M.data.length > 50) {
+                        let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let c15M = fmt15M.map(d => d.c);
                         
-                        let currE5_1H = e5_1H[e5_1H.length-1], prevE5_1H = e5_1H[e5_1H.length-2], prevPrevE5_1H = e5_1H[e5_1H.length-3];
-                        let currE10_1H = e10_1H[e10_1H.length-1], prevE10_1H = e10_1H[e10_1H.length-2], prevPrevE10_1H = e10_1H[e10_1H.length-3];
+                        let curr = fmt15M[fmt15M.length - 1]; // 最新正在走的一根
+                        let prev1 = fmt15M[fmt15M.length - 2]; // 上一根已收盘
+                        
+                        // 1. 计算 RSI(14)，寻找超跌
+                        let rsi = calcRSI(c15M, 14);
+                        let lastRsi = rsi[rsi.length - 1];
 
-                        // 1H 最近 3 根内金叉
-                        let isCross1H_Current = (prevE5_1H <= prevE10_1H) && (currE5_1H > currE10_1H);
-                        let isCross1H_Prev = (prevPrevE5_1H <= prevPrevE10_1H) && (prevE5_1H > prevE10_1H);
-                        let isGoldenCross1H = isCross1H_Current || isCross1H_Prev;
+                        // 2. 形态企稳：最新这根必须是阳线（或者跌破了前低又收回）
+                        let isBullish = curr.c > curr.o; // 阳线
+                        let isReversal = (curr.l < prev1.l) && (curr.c > prev1.c); // 破底翻
 
-                        if(isGoldenCross1H) {
-                            // 处理 15m
-                            let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4] }));
+                        // 组合条件：极度超跌 (RSI < 35) + 出现阳线或破底翻
+                        if (lastRsi < 35 && (isBullish || isReversal)) {
                             
-                            // 取上一根已经收盘的 15m K线
-                            let prevCandle15M = fmt15M[fmt15M.length - 2];
+                            // 计算下影线的长度
+                            let body = Math.abs(curr.c - curr.o);
+                            let lowerWick = Math.min(curr.c, curr.o) - curr.l;
                             
-                            // 只要上一根是阴线
-                            let isPrevBearish = prevCandle15M.c < prevCandle15M.o;
-
-                            if(isPrevBearish) {
-                                // 直接加入候选，不打分
+                            // 如果有长下影线，或者当前是阳线且RSI从更低的位置拐头，直接入选
+                            if (lowerWick > body * 1.5 || curr.c > curr.o) {
                                 candidates.push({ instId: instId });
                             }
                         }
@@ -296,21 +290,20 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("前100名中，暂无'1H刚金叉+15m阴线回踩'的标的。");
+                throw new Error("当前市场极度孱弱，暂无出现企稳止跌形态的标的。");
             }
 
-            // 因为候选池已经是按成交额从大到小排的，直接取前10个
-            let top10 = candidates.slice(0, 10);
+            let top5 = candidates.slice(0, 5);
 
-            scanLongs = top10;
-            localStorage.setItem('okx_pullback_top10_noscore', JSON.stringify(scanLongs));
+            scanLongs = top5;
+            localStorage.setItem('okx_oversold_rebound', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
             
-            if(top10.length > 0) switchCoin(top10[0].instId); 
+            if(top5.length > 0) switchCoin(top5[0].instId); 
 
         } catch (error) {
             status.innerText = error.message;
@@ -319,7 +312,20 @@
     }
 
     // ================= 指标计算函数区 =================
-    function calcEMA(prices, p) { let k=2/(p+1), e=[prices[0]], prev=prices[0]; for(let i=1;i<prices.length;i++){prev=prices[i]*k+prev*(1-k);e.push(prev);} return e; }
+    function calcRSI(prices, period) { 
+        let gains=0,losses=0,rsi=[]; 
+        for(let i=1;i<prices.length;i++){
+            let diff=prices[i]-prices[i-1]; 
+            if(diff>=0) gains+=diff; else losses-=diff; 
+            if(i===period){let ag=gains/period, al=losses/period; rsi.push(100-(100/(1+ag/al)));} 
+            else if(i>period){
+                let diff2=prices[i]-prices[i-1]; let g=diff2>0?diff2:0; let l=diff2<0?-diff2:0; 
+                let lastRsi=rsi[rsi.length-1]; 
+                rsi.push(lastRsi + (100-lastRsi)*g/period - lastRsi*l/period);
+            } else { rsi.push(50); }
+        } 
+        return rsi; 
+    }
 
     window.onload = () => {
         renderList();
