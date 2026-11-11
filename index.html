@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>OKX 极限锤子线狙击 (前30)</title>
+    <title>OKX 双向神针狙击</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -13,15 +13,19 @@
         .search-box { display: flex; flex: 1; gap: 5px; }
         .search-box input { flex: 1; background: #2a2e39; border: 1px solid #363a45; color: #fff; padding: 8px; border-radius: 4px; font-size: 13px; text-transform: uppercase; outline: none; }
         .search-box button { background: var(--blue); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 14px; font-weight: bold; }
-        .scan-btn { background: linear-gradient(135deg, #0ecb81, #00b8d4); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(14,203,129,0.4);}
+        .scan-btn { background: linear-gradient(135deg, #2962ff, #00b8d4); color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 13px; font-weight: bold; box-shadow: 0 0 10px rgba(41,98,255,0.4);}
         
-        /* Top 3 展示区 */
-        #long-area { display: none; flex-wrap: wrap; gap: 8px; padding-top: 5px; }
-        .long-card { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); transition: 0.2s;}
-        .long-card:active { background: rgba(14,203,129,0.2); }
-        .long-title { font-size: 10px; color: #fff; }
-        .long-coin { font-size: 15px; font-weight: 900; color: var(--up); }
-        .long-score { font-size: 10px; color: var(--sub); }
+        /* 双向展示区 */
+        #signal-area { display: none; flex-direction: column; gap: 8px; padding-top: 5px; }
+        .signal-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        
+        .card-long { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(14,203,129,0.08); border: 1px solid var(--up); }
+        .card-short { flex: 1 1 30%; min-width: 100px; padding: 8px; border-radius: 8px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; background: rgba(246,70,93,0.08); border: 1px solid var(--down); }
+        
+        .card-title { font-size: 10px; color: #fff; }
+        .coin-long { font-size: 15px; font-weight: 900; color: var(--up); }
+        .coin-short { font-size: 15px; font-weight: 900; color: var(--down); }
+        .card-score { font-size: 10px; color: var(--sub); }
 
         #coinList { display: none; flex-wrap: wrap; gap: 8px; max-height: 120px; overflow-y: auto; }
         .coin-tag { padding: 6px 10px; background: #2a2e39; border-radius: 4px; font-size: 13px; font-weight: bold; color: var(--sub); cursor: pointer; border: 1px solid transparent;}
@@ -46,20 +50,20 @@
         #chart-container { flex: 1; min-height: 200px; position: relative; }
         canvas { width: 100%; height: 100%; display: block; }
         
-        #analysis-panel { height: 28vh; background: var(--panel); padding: 15px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
+        #analysis-panel { height: 26vh; background: var(--panel); padding: 15px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid #2a2e39; }
         .analysis-header { font-size: 14px; font-weight: bold; color: #fff; margin-bottom: 8px; }
         #analysis-text { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; }
 
         #scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
         .scanner-box { background: var(--panel); border-radius: 12px; width: 100%; max-width: 350px; padding: 20px; border: 1px solid #363a45; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
-        .scan-loading { color: var(--up); font-weight: bold; font-size: 14px; line-height: 1.5;}
+        .scan-loading { color: var(--yellow); font-weight: bold; font-size: 14px; line-height: 1.5;}
     </style>
 </head>
 <body>
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在前30名中寻找完美锤子线...</div>
+            <div class="scan-loading" id="scan-status">正在双向寻找完美神针...</div>
         </div>
     </div>
 
@@ -69,17 +73,22 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🔨 寻找神针</button>
+            <button class="scan-btn" onclick="runScanner()">🎯 双向狙击</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
-        <div id="long-area"></div>
+        <!-- 双向结果展示区 -->
+        <div id="signal-area">
+            <div class="signal-row" id="long-area"></div>
+            <div class="signal-row" id="short-area"></div>
+        </div>
+        
         <div id="coinList"></div>
     </div>
 
     <div id="time-bar">
-        <button class="time-btn" data-tf="15m" onclick="switchTimeframe('15m')">15分</button>
-        <button class="time-btn active" data-tf="1H" onclick="switchTimeframe('1H')">1小时</button>
+        <button class="time-btn active" data-tf="15m" onclick="switchTimeframe('15m')">15分</button>
+        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时</button>
         <button class="time-btn" data-tf="4H" onclick="switchTimeframe('4H')">4小时</button>
         <button class="time-btn" data-tf="1D" onclick="switchTimeframe('1D')">日线</button>
     </div>
@@ -107,17 +116,19 @@
     </div>
 
 <script>
-    let scanResults = JSON.parse(localStorage.getItem('okx_hammer_top3')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_hammer_long')) || null; 
+    let scanShorts = JSON.parse(localStorage.getItem('okx_hammer_short')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
-    let currentCoin = scanResults && scanResults.length > 0 ? scanResults[0].instId : coinList[0];
-    let currentTf = '15m'; // 默认切到15分，方便看形态
+    
+    let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : ((scanShorts && scanShorts.length > 0) ? scanShorts[0].instId : coinList[0]);
+    let currentTf = '15m'; 
     let klineData = [], ema20 = [], ema50 = [], bollUp = [], bollDown = [];
     let ws = null;
     let currentSignals = { '30m': 50, '1h': 50, '4h': 50, '1d': 50 };
 
     window.toggleView = function() {
-        let isScan = document.getElementById('long-area').style.display === 'flex';
-        document.getElementById('long-area').style.display = isScan ? 'none' : 'flex';
+        let isScan = document.getElementById('signal-area').style.display === 'flex';
+        document.getElementById('signal-area').style.display = isScan ? 'none' : 'flex';
         document.getElementById('coinList').style.display = isScan ? 'flex' : 'none';
     }
 
@@ -135,28 +146,45 @@
     }
 
     function renderList() {
+        // 渲染自选
         document.getElementById('coinList').innerHTML = coinList.map(c => `
             <div class="coin-tag ${c===currentCoin?'active':''}" onclick="switchCoin('${c}')">
                 ${c.replace('-USDT-SWAP','')}
             </div>
         `).join('');
         
+        // 渲染做多区
         const longArea = document.getElementById('long-area');
         longArea.innerHTML = '';
-        if(scanResults) {
-            scanResults.forEach((item, index) => {
-                let medal = index === 0 ? '🥇' : (index === 1 ? '🥈' : '🥉');
+        if(scanLongs) {
+            scanLongs.forEach((item, index) => {
                 let div = document.createElement('div');
-                div.className = 'long-card';
+                div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="long-title">${medal} 完美神针</div>
-                    <div class="long-coin">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="long-score">形态匹配</div>
+                    <div class="card-title">🟢 做多神针 ${index+1}</div>
+                    <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
                 `;
                 longArea.appendChild(div);
             });
         }
+
+        // 渲染做空区
+        const shortArea = document.getElementById('short-area');
+        shortArea.innerHTML = '';
+        if(scanShorts) {
+            scanShorts.forEach((item, index) => {
+                let div = document.createElement('div');
+                div.className = 'card-short';
+                div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
+                div.innerHTML = `
+                    <div class="card-title">🔴 做空神针 ${index+1}</div>
+                    <div class="coin-short">${item.instId.replace('-USDT-SWAP','')}</div>
+                `;
+                shortArea.appendChild(div);
+            });
+        }
+        
         document.getElementById('currentCoinName').innerText = currentCoin.replace('-USDT-SWAP','');
     }
 
@@ -301,29 +329,28 @@
         if(currentSignals['4h'] >= 65) {
             text = `🔥 <b>4小时完美多头：</b><br>大趋势极其强劲！如果15分钟图刚收出带长下影线的阳线（实体3倍以上），这就是教科书级别的<b>黄金买点</b>，果断进场，跌破下影线最低点止损。`;
         } else if(currentSignals['4h'] <= 35) {
-            text = `⚠️ <b>大趋势向下：</b><br>4小时级别空头，切勿逆势接飞刀。此时的锤子线大概率是诱多。`;
+            text = `🔴 <b>4小时完美空头：</b><br>大趋势极度弱势！如果15分钟图刚收出带长上影线的阴线（实体3倍以上），这是极佳的<b>做空信号</b>，进场后，突破上影线最高点止损。`;
         } else {
             text = `⚖️ <b>震荡洗盘中：</b><br>4小时级别方向不明，胜率不高，建议观望。`;
         }
         document.getElementById('analysis-text').innerHTML = text;
     }
 
-    // === 核心：抓取前 30 名，寻找 4H多头 + 15M锤子线 ===
+    // === 核心：前30名，双向寻找完美形态 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         let status = document.getElementById('scan-status');
-        status.innerText = "正在前30名中寻找完美锤子线...";
+        status.innerText = "正在前30名中双向寻找完美神针...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
             let data = await res.json();
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            
-            // 将扫描池缩减到前 30 名
             let top30 = usdt.slice(0, 30); 
 
-            let candidates = [];
+            let longCandidates = [];
+            let shortCandidates = [];
 
             for (let i = 0; i < top30.length; i++) {
                 let instId = top30[i].instId;
@@ -338,24 +365,28 @@
                         let c4H = k4H.data.reverse().map(d => +d[4]);
                         let fmt15M = k15M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3] }));
                         
-                        // 1. 判断 4H 完美多头排列 (价格 > EMA20 > EMA50 > EMA100)
+                        // 1. 判断 4H 趋势
                         let e20_4H = calcEMA(c4H, 20), e50_4H = calcEMA(c4H, 50), e100_4H = calcEMA(c4H, 100);
                         let price4H = c4H[c4H.length-1];
                         let isBull4H = price4H > e20_4H[e20_4H.length-1] && e20_4H[e20_4H.length-1] > e50_4H[e50_4H.length-1] && e50_4H[e50_4H.length-1] > e100_4H[e100_4H.length-1];
+                        let isBear4H = price4H < e20_4H[e20_4H.length-1] && e20_4H[e20_4H.length-1] < e50_4H[e50_4H.length-1] && e50_4H[e50_4H.length-1] < e100_4H[e100_4H.length-1];
 
-                        if(isBull4H) {
-                            // 2. 判断 15M 极限锤子线 (最新一根)
-                            let curr = fmt15M[fmt15M.length-1];
-                            
-                            let body = Math.abs(curr.c - curr.o);
-                            if(curr.c > curr.o && body > 0) {
-                                let lowerWick = Math.min(curr.o, curr.c) - curr.l; 
-                                let upperWick = curr.h - Math.max(curr.o, curr.c); 
+                        // 2. 判断 15M 极限形态
+                        let curr = fmt15M[fmt15M.length-1];
+                        let body = Math.abs(curr.c - curr.o);
+                        
+                        if(body > 0) {
+                            let upperWick = curr.h - Math.max(curr.o, curr.c); 
+                            let lowerWick = Math.min(curr.o, curr.c) - curr.l; 
 
-                                // 严格条件：下影线 >= 3倍实体，且上影线极短（不能超过下影线一半）
-                                if(lowerWick >= body * 3 && upperWick < lowerWick * 0.5) {
-                                    candidates.push({ instId: instId, score: 100 });
-                                }
+                            // 做多形态：4H多头 + 15M阳线 + 下影线>=实体3倍 + 上影线极短
+                            if(isBull4H && curr.c > curr.o && lowerWick >= body * 3 && upperWick < lowerWick * 0.5) {
+                                longCandidates.push({ instId: instId });
+                            }
+
+                            // 做空形态：4H空头 + 15M阴线 + 上影线>=实体3倍 + 下影线极短
+                            if(isBear4H && curr.c < curr.o && upperWick >= body * 3 && lowerWick < upperWick * 0.5) {
+                                shortCandidates.push({ instId: instId });
                             }
                         }
                     }
@@ -363,19 +394,24 @@
                 await new Promise(r => setTimeout(r, 100)); 
             }
 
-            if(candidates.length === 0) throw new Error("前30名中暂无符合'4H多头+3倍下影线锤子'的完美标的，建议空仓等待。");
+            if(longCandidates.length === 0 && shortCandidates.length === 0) {
+                throw new Error("当前全市场暂无符合标准的完美神针，建议空仓等待。");
+            }
 
-            let top3 = candidates.slice(0, 3);
+            scanLongs = longCandidates.slice(0, 3);
+            scanShorts = shortCandidates.slice(0, 3);
 
-            scanResults = top3;
-            localStorage.setItem('okx_hammer_top3', JSON.stringify(scanResults));
+            localStorage.setItem('okx_hammer_long', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_hammer_short', JSON.stringify(scanShorts));
             
             document.getElementById('scanner-modal').style.display = 'none';
-            document.getElementById('long-area').style.display = 'flex';
+            document.getElementById('signal-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
             renderList();
             
-            if(top3[0]) switchCoin(top3[0].instId); 
+            // 优先展示做多，如果没有做多，展示做空
+            if(scanLongs.length > 0) switchCoin(scanLongs[0].instId); 
+            else if(scanShorts.length > 0) switchCoin(scanShorts[0].instId); 
 
         } catch (error) {
             status.innerText = error.message;
@@ -388,8 +424,8 @@
 
     window.onload = () => {
         renderList();
-        if(scanResults && scanResults.length > 0) {
-            document.getElementById('long-area').style.display = 'flex';
+        if((scanLongs && scanLongs.length > 0) || (scanShorts && scanShorts.length > 0)) {
+            document.getElementById('signal-area').style.display = 'flex';
             document.getElementById('coinList').style.display = 'none';
         } else {
             document.getElementById('coinList').style.display = 'flex';
