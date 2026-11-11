@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前200名 极速猎手 (5m死叉2-5根)</title>
+    <title>前300名 极速猎手 (5m死叉2-5根)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在极速扫描前200名...</div>
+            <div class="scan-loading" id="scan-status">正在极速扫描前300名...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🌐 200币极速猎杀</button>
+            <button class="scan-btn" onclick="runScanner()">🌐 300币全市场猎杀</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -93,7 +93,7 @@
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_200_fast_v2')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_300_fast')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -234,12 +234,12 @@
         });
     }
 
-    // === 终极提速引擎：并发20 + 锁定前200 ===
+    // === 终极提速引擎：并发15 + 锁定前300 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
         let status = document.getElementById('scan-status');
-        status.innerText = "极速获取前200名活跃币种...";
+        status.innerText = "极速获取前300名活跃币种...";
 
         try {
             let res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
@@ -248,10 +248,12 @@
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
             
-            let targetCoins = usdt.slice(0, 200); 
+            // 极限锁池：前 300 名
+            let targetCoins = usdt.slice(0, 300); 
 
             let potentialCoins = []; 
-            let batchSize = 20; 
+            // 并发微调至 15，确保手机浏览器不崩溃，同时兼顾速度
+            let batchSize = 15; 
 
             // --- 第一级过滤 ---
             status.innerText = "第一级极速过滤：2H/1H绝对多头...";
@@ -288,10 +290,10 @@
                 let results = await Promise.all(promises);
                 potentialCoins.push(...results.filter(r => r !== null));
                 
-                await new Promise(r => setTimeout(r, 10));
+                await new Promise(r => setTimeout(r, 20));
             }
 
-            if(potentialCoins.length === 0) throw new Error("前200名中暂无绝对多头。");
+            if(potentialCoins.length === 0) throw new Error("前300名中暂无绝对多头。");
 
             // --- 第二级过滤 ---
             status.innerText = "第二级极速过滤：找5m死叉2-5根...";
@@ -315,13 +317,13 @@
                             let hist = macd5M.hist;
                             let len = hist.length;
 
-                            // 核心修改：计算连续死叉的根数
+                            // 核心：计算连续死叉的根数
                             let deadCrossCount = 0;
                             for (let j = len - 1; j >= 0; j--) {
                                 if (hist[j] < 0) {
                                     deadCrossCount++;
                                 } else {
-                                    break; // 遇到正数（金叉）就停止计数
+                                    break; 
                                 }
                             }
                             
@@ -373,18 +375,18 @@
                 let results = await Promise.all(promises);
                 candidates.push(...results.filter(r => r !== null));
                 
-                await new Promise(r => setTimeout(r, 10));
+                await new Promise(r => setTimeout(r, 20));
             }
 
             if(candidates.length === 0) {
-                throw new Error("前200名中，暂无完美回调标的。");
+                throw new Error("前300名中，暂无完美回调标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_200_fast_v2', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_300_fast', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
