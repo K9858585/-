@@ -3,13 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>20大精选币 三屏共振推算</title>
+    <title>20大精选币 极速推算终端</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        #top-bar { background: var(--panel); padding: 10px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; gap: 10px; }
-        .scan-btn { background: linear-gradient(135deg, #2962ff, #e056fd); color: #fff; border: none; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(41,98,255,0.4); width: 100%;}
+        #top-bar { background: var(--panel); padding: 20px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        
+        .btn-container { width: 100%; max-width: 400px; }
+        .scan-btn { 
+            background: linear-gradient(135deg, #2962ff, #e056fd); color: #fff; border: none; 
+            padding: 16px; border-radius: 8px; font-size: 18px; font-weight: bold; 
+            box-shadow: 0 6px 20px rgba(41,98,255,0.4); width: 100%; cursor: pointer;
+            transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .scan-btn:active { transform: scale(0.98); }
+        .scan-btn:disabled { background: #363a45; color: #848e9c; box-shadow: none; cursor: not-allowed; }
+        
+        .progress-text { font-size: 13px; color: var(--yellow); height: 20px; text-align: center; font-weight: bold; }
+        .progress-bar-bg { width: 100%; height: 4px; background: #2a2e39; border-radius: 2px; overflow: hidden; display: none; }
+        .progress-bar { height: 100%; width: 0%; background: var(--blue); transition: width 0.3s; }
         
         /* 结果展示区 */
         #result-area { flex: 1; overflow-y: auto; padding: 15px; display: none; flex-direction: column; gap: 20px; }
@@ -30,25 +43,24 @@
 
         .reason-box { font-size: 13px; line-height: 1.6; color: #b2b5be; text-align: justify; background: #12161f; padding: 12px; border-radius: 8px; }
         .highlight { color: var(--yellow); font-weight: bold; }
-
-        #scanner-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .scan-loading { color: var(--yellow); font-weight: bold; font-size: 16px; line-height: 1.5; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="scanner-modal">
-        <div class="scan-loading" id="scan-status">正在进行日线级深层推算...</div>
-    </div>
-
     <div id="top-bar">
-        <button class="scan-btn" onclick="runScanner()">🌐 推算当前 20 大币种趋势</button>
+        <div class="btn-container">
+            <button class="scan-btn" id="startBtn" onclick="runScanner()">
+                <span id="btnText">⚡ 启动推算 20 大币种</span>
+            </button>
+        </div>
+        <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
+        <div class="progress-bar-bg" id="progressBarBg"><div class="progress-bar" id="progressBar"></div></div>
     </div>
 
     <div id="result-area"></div>
 
 <script>
-    // 你指定的 20 个币种（已转换为 OKX 永续合约格式）
+    // 目标币种列表
     const targetCoins = [
         "BTC-USDT-SWAP", "ETH-USDT-SWAP", "OKB-USDT-SWAP", "SOL-USDT-SWAP", "DOGE-USDT-SWAP",
         "XRP-USDT-SWAP", "BCH-USDT-SWAP", "DOOD-USDT-SWAP", "ZEC-USDT-SWAP", "xNVDA-USDT-SWAP",
@@ -56,172 +68,187 @@
         "TRUMP-USDT-SWAP", "BNB-USDT-SWAP", "xSOXL-USDT-SWAP", "SUI-USDT-SWAP", "FIL-USDT-SWAP"
     ];
 
-    // === 核心引擎：拉取数据并计算三屏共振 ===
-    window.runScanner = async function() {
-        document.getElementById('scanner-modal').style.display = 'flex';
-        document.getElementById('scan-status').innerText = "正在进行日线(1D) + 四小时(4H) + 十五分钟(15m) 多因子深度推算...\n请稍候(约3-5秒)";
-        document.getElementById('result-area').style.display = 'none';
-        document.getElementById('result-area').innerHTML = '';
+    let isRunning = false;
 
-        let longResults = [];
-        let shortResults = [];
-
-        // 并发拉取这 20 个币的 1D, 4H, 15m 数据
-        const promises = targetCoins.map(async (instId) => {
-            try {
-                // 限制并发 5 个，防止手机网络瞬断
-                await new Promise(r => setTimeout(r, Math.random() * 500)); 
-
-                let [res1D, res4H, res15M] = await Promise.all([
-                    fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1D&limit=50`).then(r=>r.json()),
-                    fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=4H&limit=50`).then(r=>r.json()),
-                    fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=50`).then(r=>r.json())
-                ]);
-
-                // 容错：有些代币化股票可能在某些周期没数据
-                if(res1D.code === '0' && res4H.code === '0' && res15M.code === '0' && res15M.data.length > 20) {
-                    return processCoinData(instId, res1D.data, res4H.data, res15M.data);
-                }
-            } catch(e) {
-                console.warn(instId + " 数据获取失败");
-            }
-            return null;
-        });
-
-        const results = await Promise.all(promises);
-
-        // 分类多头和空头
-        results.forEach(r => {
-            if(!r) return;
-            if(r.signalType === 'LONG') longResults.push(r);
-            if(r.signalType === 'SHORT') shortResults.push(r);
-        });
-
-        // 排序取 Top 3
-        longResults.sort((a, b) => b.score - a.score);
-        shortResults.sort((a, b) => b.score - a.score);
-        
-        renderResults(longResults.slice(0, 3), shortResults.slice(0, 3));
+    // === UI 控制 ===
+    function updateProgress(text, percent) {
+        document.getElementById('progressText').innerText = text;
+        if(percent !== undefined) {
+            document.getElementById('progressBarBg').style.display = 'block';
+            document.getElementById('progressBar').style.width = percent + '%';
+        }
     }
 
-    // === 分析单个币种的三屏共振逻辑 ===
-    function processCoinData(instId, data1D, data4H, data15M) {
-        // 格式化收盘价和成交量
-        let c1D = data1D.reverse().map(d => +d[4]);
-        let c4H = data4H.reverse().map(d => +d[4]);
-        let fmt15M = data15M.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
-        let c15M = fmt15M.map(d => d.c);
-
-        // 计算技术指标 (均线、MACD)
-        let e5_1D = calcEMA(c1D, 5), e10_1D = calcEMA(c1D, 10), e20_1D = calcEMA(c1D, 20);
-        let macd1D = calcMACD(c1D);
+    // === 极速启动引擎 ===
+    window.runScanner = async function() {
+        if(isRunning) return;
+        isRunning = true;
         
-        let macd4H = calcMACD(c4H);
-        let e20_4H = calcEMA(c4H, 20); // 4H级别生命线
+        let btn = document.getElementById('startBtn');
+        btn.disabled = true;
+        document.getElementById('btnText').innerText = "⏳ 正在全速推算中...";
+        document.getElementById('result-area').style.display = 'none';
+        document.getElementById('result-area').innerHTML = '';
+        
+        let longResults = [];
+        let shortResults = [];
+        let passed1DCoins = []; // 第一轮胜出者
 
-        let macd15M = calcMACD(c15M);
-        let kdj15M = calcKDJ(fmt15M, 9, 3, 3);
-        let rsi15M = calcRSI(c15M, 14);
-
-        // 获取最新一根数据
-        let last1D = c1D.length - 1;
-        let last4H = c4H.length - 1;
-        let last15M = c15M.length - 1;
-
-        let currentPrice = c15M[last15M];
-        let signalType = 'NONE';
-        let score = 0;
-        let reason = '';
-
-        // --- 多头逻辑 ---
-        // 1. 1D 大级别多头 (价格在20均线上，且5>10)
-        let isBull1D = (c1D[last1D] > e20_1D[last1D]) && (e5_1D[last1D] > e10_1D[last1D]);
-        // 2. 4H 拐点：回调中 (MACD死叉，或者价格逼近4H EMA20)
-        let isPullback4H = (macd4H.macd[last4H] < macd4H.signal[last4H]) || (Math.abs(currentPrice - e20_4H[last4H]) / currentPrice < 0.01);
-        // 3. 15m 切入点：刚金叉，或者极度超卖企稳
-        let isEntry15M_Long = (macd15M.macd[last15M-1] <= macd15M.signal[last15M-1] && macd15M.macd[last15M] > macd15M.signal[last15M]) || (rsi15M[last15M] < 35 && fmt15M[last15M].c > fmt15M[last15M].o);
-
-        if(isBull1D && isPullback4H && isEntry15M_Long) {
-            signalType = 'LONG';
-            score = 80;
+        try {
+            // ================= 第一轮：1D 大趋势过滤 =================
+            updateProgress("第 1/3 步：正在扫描日线(1D)大趋势...", 10);
+            const chunkSize = 5; // 每次并发5个，防止卡死
             
-            // 加外部因素/资金情绪判断
-            let vol15M = fmt15M[last15M].v;
-            let avgVol = fmt15M.slice(-20).reduce((a,b)=>a+b.v,0)/20;
-            let volSpike = vol15M > avgVol * 1.2;
+            for (let i = 0; i < targetCoins.length; i += chunkSize) {
+                let chunk = targetCoins.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(async (instId) => {
+                    try {
+                        let res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=1D&limit=30`).then(r=>r.json());
+                        if(res.code === '0' && res.data.length > 20) {
+                            let c1D = res.data.reverse().map(d => +d[4]);
+                            let e5 = calcEMA(c1D, 5), e10 = calcEMA(c1D, 10), e20 = calcEMA(c1D, 20);
+                            let last = c1D.length - 1;
 
-            if(volSpike) score += 10;
-            if(rsi15M[last15M] < 30) score += 5;
+                            let isBull1D = (c1D[last] > e20[last]) && (e5[last] > e10[last]);
+                            let isBear1D = (c1D[last] < e20[last]) && (e5[last] < e10[last]);
 
-            reason = `日线级别呈现<span class="highlight">多头排列</span>，宏观趋势向好。4小时级别正处于主力洗盘/回调阶段（拐点已现）。当前15分钟级别 ${macd15M.hist[last15M] > 0 ? 'MACD金叉' : '严重超卖'} 且 ${volSpike ? '<span class="highlight">伴随放量</span>' : '缩量'}。外界资金在下方支撑位介入明显，属于典型的<b>顺大势、逆小势的左侧抄底买点</b>，随时可能跟随大盘情绪爆发。`;
+                            if(isBull1D) passed1DCoins.push({ instId, type: 'LONG' });
+                            if(isBear1D) passed1DCoins.push({ instId, type: 'SHORT' });
+                        }
+                    } catch(e) {}
+                }));
+                updateProgress("第 1/3 步：正在扫描日线大趋势...", 10 + (i / targetCoins.length) * 30);
+            }
+
+            if(passed1DCoins.length === 0) {
+                updateProgress("扫描完毕：当前20个币日线级别均无极端单边趋势。", 100);
+                endScanner();
+                return;
+            }
+
+            // ================= 第二轮：4H 拐点过滤 =================
+            updateProgress(`已淘汰${targetCoins.length - passed1DCoins.length}个，正在扫描4H拐点...`, 40);
+            let passed4HCoins = [];
+
+            for (let i = 0; i < passed1DCoins.length; i += chunkSize) {
+                let chunk = passed1DCoins.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(async (coin) => {
+                    try {
+                        let res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${coin.instId}&bar=4H&limit=30`).then(r=>r.json());
+                        if(res.code === '0' && res.data.length > 20) {
+                            let c4H = res.data.reverse().map(d => +d[4]);
+                            let macd = calcMACD(c4H);
+                            let e20 = calcEMA(c4H, 20);
+                            let last = c4H.length - 1;
+                            let price = c4H[last];
+
+                            if(coin.type === 'LONG') {
+                                // 多头回调：MACD死叉，或价格逼近4H EMA20
+                                let isPullback = (macd.macd[last] < macd.signal[last]) || (Math.abs(price - e20[last]) / price < 0.01);
+                                if(isPullback) passed4HCoins.push({ ...coin, c1D: null, c4H: c4H }); 
+                            } else {
+                                // 空头反弹：MACD金叉，或价格反抽4H EMA20
+                                let isRebound = (macd.macd[last] > macd.signal[last]) || (Math.abs(price - e20[last]) / price < 0.01);
+                                if(isRebound) passed4HCoins.push({ ...coin, c1D: null, c4H: c4H });
+                            }
+                        }
+                    } catch(e) {}
+                }));
+                updateProgress("第 2/3 步：正在寻找4H级别拐点...", 40 + (i / passed1DCoins.length) * 30);
+            }
+
+            if(passed4HCoins.length === 0) {
+                updateProgress("扫描完毕：当前币种大趋势单边，但均无4H级别回调/反弹，建议耐心等洗盘。", 100);
+                endScanner();
+                return;
+            }
+
+            // ================= 第三轮：15m 精准切入 =================
+            updateProgress(`还剩${passed4HCoins.length}个，正在扫描15m精确买点...`, 75);
+            
+            await Promise.all(passed4HCoins.map(async (coin) => {
+                try {
+                    let res = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${coin.instId}&bar=15m&limit=30`).then(r=>r.json());
+                    if(res.code === '0' && res.data.length > 20) {
+                        let fmt15M = res.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
+                        let c15M = fmt15M.map(d => d.c);
+                        let macd = calcMACD(c15M);
+                        let rsi = calcRSI(c15M, 14);
+                        let last = c15M.length - 1;
+                        let currK = fmt15M[last];
+
+                        let score = 80;
+                        let reason = '';
+                        let vol = currK.v;
+                        let avgVol = fmt15M.slice(-20).reduce((a,b)=>a+b.v,0)/20;
+                        let volSpike = vol > avgVol * 1.2;
+
+                        if(coin.type === 'LONG') {
+                            let isEntry = (macd.macd[last-1] <= macd.signal[last-1] && macd.macd[last] > macd.signal[last]) || (rsi[last] < 35 && currK.c > currK.o);
+                            if(isEntry) {
+                                if(volSpike) score += 10;
+                                if(rsi[last] < 30) score += 5;
+                                reason = `日线级别<b>多头排列</b>，4H级别主力洗盘（拐点已现）。当前15分钟级别 ${macd.hist[last] > 0 ? 'MACD金叉' : '严重超卖'} 且 ${volSpike ? '<span class="highlight">伴随放量</span>' : '缩量'}。外界资金下方托底明显，属于<b>左侧极度安全的买点</b>。`;
+                                longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score: score, reason: reason });
+                            }
+                        } else {
+                            let isEntry = (macd.macd[last-1] >= macd.signal[last-1] && macd.macd[last] < macd.signal[last]) || (rsi[last] > 65 && currK.c < currK.o);
+                            if(isEntry) {
+                                if(volSpike) score += 10;
+                                if(rsi[last] > 70) score += 5;
+                                reason = `日线级别被均线死死压制，属于<b>宏观空头</b>。4H级别正处于反弹诱多阶段。当前15分钟级别 ${macd.hist[last] < 0 ? 'MACD死叉' : '严重超买'} 且遇阻。上方套牢盘极重，外界无接盘意愿，属于<b>顺势逢高做空位</b>。`;
+                                shortResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score: score, reason: reason });
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }));
+
+            // 渲染结果
+            longResults.sort((a, b) => b.score - a.score);
+            shortResults.sort((a, b) => b.score - a.score);
+            renderResults(longResults.slice(0, 3), shortResults.slice(0, 3));
+
+        } catch (err) {
+            updateProgress("推算发生错误，请检查网络后再试。", 100);
+            endScanner();
         }
+    }
 
-        // --- 空头逻辑 ---
-        // 1. 1D 大级别空头 (价格在20均线下，且5<10)
-        let isBear1D = (c1D[last1D] < e20_1D[last1D]) && (e5_1D[last1D] < e10_1D[last1D]);
-        // 2. 4H 拐点：反弹中 (MACD金叉，或者价格反抽至4H EMA20受阻)
-        let isRebound4H = (macd4H.macd[last4H] > macd4H.signal[last4H]) || (Math.abs(currentPrice - e20_4H[last4H]) / currentPrice < 0.01);
-        // 3. 15m 切入点：刚死叉，或者极度超买遇阻
-        let isEntry15M_Short = (macd15M.macd[last15M-1] >= macd15M.signal[last15M-1] && macd15M.macd[last15M] < macd15M.signal[last15M]) || (rsi15M[last15M] > 65 && fmt15M[last15M].c < fmt15M[last15M].o);
-
-        if(isBear1D && isRebound4H && isEntry15M_Short) {
-            signalType = 'SHORT';
-            score = 80;
-
-            let vol15M = fmt15M[last15M].v;
-            let avgVol = fmt15M.slice(-20).reduce((a,b)=>a+b.v,0)/20;
-            let volSpike = vol15M > avgVol * 1.2;
-
-            if(volSpike) score += 10;
-            if(rsi15M[last15M] > 70) score += 5;
-
-            reason = `日线级别被均线死死压制，属于<span class="highlight">宏观空头趋势</span>。4小时级别正处于下跌途中的反弹诱多阶段。当前15分钟级别 ${macd15M.hist[last15M] < 0 ? 'MACD死叉' : '严重超买'} 且遇阻回落。上方套牢盘极多，外界抄底资金意愿薄弱，属于<b>顺势逢高做空的绝佳位置</b>，谨防大盘回调带崩。`;
-        }
-
-        return {
-            instId: instId.replace('-USDT-SWAP', ''),
-            signalType: signalType,
-            score: score,
-            reason: reason
-        };
+    function endScanner() {
+        isRunning = false;
+        let btn = document.getElementById('startBtn');
+        btn.disabled = false;
+        document.getElementById('btnText').innerText = "⚡ 重新推算";
     }
 
     // === UI 渲染 ===
     function renderResults(longs, shorts) {
-        document.getElementById('scanner-modal').style.display = 'none';
+        updateProgress("✅ 推算完成！已为您找出最优共振点。", 100);
+        endScanner();
+        
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
-
         let html = '';
 
-        // 渲染多头
         html += `<div class="section-title long">🟢 强烈看多 Top 3</div>`;
-        if(longs.length === 0) html += `<div style="color:#848e9c; font-size:13px; margin-bottom:20px;">当前20个币中，暂无满足日线多头的完美回踩共振形态。</div>`;
+        if(longs.length === 0) html += `<div style="color:#848e9c; font-size:13px; margin-bottom:20px;">暂无满足所有条件的完美多头。建议空仓等待4H回调。</div>`;
         longs.forEach((item, index) => {
             html += `
                 <div class="card long-card">
-                    <div class="card-header">
-                        <div class="coin-name">${index+1}. ${item.instId}</div>
-                        <div class="score-badge">信心分: ${item.score}</div>
-                    </div>
+                    <div class="card-header"><div class="coin-name">${index+1}. ${item.instId}</div><div class="score-badge">信心分: ${item.score}</div></div>
                     <div class="reason-box"><b>推算理由：</b><br>${item.reason}</div>
-                </div>
-            `;
+                </div>`;
         });
 
-        // 渲染空头
         html += `<div class="section-title short" style="margin-top:10px;">🔴 强烈看空 Top 3</div>`;
-        if(shorts.length === 0) html += `<div style="color:#848e9c; font-size:13px;">当前20个币中，暂无满足日线空头的完美反弹共振形态。</div>`;
+        if(shorts.length === 0) html += `<div style="color:#848e9c; font-size:13px;">暂无满足所有条件的完美空头。建议空仓等待4H反弹。</div>`;
         shorts.forEach((item, index) => {
             html += `
                 <div class="card short-card">
-                    <div class="card-header">
-                        <div class="coin-name">${index+1}. ${item.instId}</div>
-                        <div class="score-badge">信心分: ${item.score}</div>
-                    </div>
+                    <div class="card-header"><div class="coin-name">${index+1}. ${item.instId}</div><div class="score-badge">信心分: ${item.score}</div></div>
                     <div class="reason-box"><b>推算理由：</b><br>${item.reason}</div>
-                </div>
-            `;
+                </div>`;
         });
 
         area.innerHTML = html;
@@ -251,26 +278,6 @@
             } else { rsi.push(50); }
         } 
         return rsi; 
-    }
-
-    function calcKDJ(data, n, m1, m2) {
-        let K = [], D = [], J = [];
-        let prevK = 50, prevD = 50;
-        for(let i=0; i<data.length; i++) {
-            let start = Math.max(0, i - n + 1);
-            let highest = -Infinity, lowest = Infinity;
-            for(let j=start; j<=i; j++) {
-                if(data[j].h > highest) highest = data[j].h;
-                if(data[j].l < lowest) lowest = data[j].l;
-            }
-            let rsv = highest === lowest ? 50 : (data[i].c - lowest) / (highest - lowest) * 100;
-            let curK = (2/3) * prevK + (1/3) * rsv;
-            let curD = (2/3) * prevD + (1/3) * curK;
-            let curJ = 3 * curK - 2 * curD;
-            K.push(curK); D.push(curD); J.push(curJ);
-            prevK = curK; prevD = curD;
-        }
-        return { K, D, J };
     }
 </script>
 </body>
