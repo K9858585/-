@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 2H当前K线 + 5M连续3-4根排列</title>
+    <title>50大精选币 2H定势 + 5M反向连续回调</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 2H当前K线 + 5M连续排列 扫描</span>
+                <span id="btnText">🎯 启动 2H定势 + 5M反向连阴/连阳 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -191,8 +191,8 @@
                 return;
             }
 
-            // ========== 第二轮：5M 连续K线判定 ==========
-            updateProgress(`第 2/2 步：正在检查 ${passed2H.length} 个币的 5m 连续排列...`, 50);
+            // ========== 第二轮：5M 反向连续K线判定 ==========
+            updateProgress(`第 2/2 步：正在检查 ${passed2H.length} 个币的 5m 回调排列...`, 50);
             let done2 = 0;
             const batch2 = 10;
 
@@ -210,14 +210,13 @@
                         let signalCount = 0;
 
                         if (isBullTrend) {
-                            // 2H 多头，5m 必须有连续 3 根或以上的阳线（绿线）
-                            // 用户说 3-4 根，这里用 >=3 覆盖，5根全连也算极强
-                            ok = st.maxBull >= 3;
-                            signalCount = st.maxBull;
-                        } else {
-                            // 2H 空头，5m 必须有连续 3 根或以上的阴线
+                            // 2H 多头，5m 必须有连续阴线（回调做多）
                             ok = st.maxBear >= 3;
                             signalCount = st.maxBear;
+                        } else {
+                            // 2H 空头，5m 必须有连续阳线（反弹做空）
+                            ok = st.maxBull >= 3;
+                            signalCount = st.maxBull;
                         }
                         if (!ok) return;
 
@@ -234,9 +233,9 @@
                         let reason = `${trendDesc}。<br>`;
                         
                         if (isBullTrend) {
-                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阳线（绿线），短线上涨动能连贯，符合顺势做多条件。`;
+                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阴线，短线出现有效回调，符合<b>顺势回调做多</b>条件。`;
                         } else {
-                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阴线，短线下跌动能连贯，符合顺势做空条件。`;
+                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阳线（绿线），短线出现有效反弹，符合<b>顺势反弹做空</b>条件。`;
                         }
 
                         const resObj = {
@@ -251,7 +250,7 @@
                     } catch (e) { /* ignore */ }
 
                     done2++;
-                    updateProgress(`第 2/2 步：正在检查 5m 连续排列...`,
+                    updateProgress(`第 2/2 步：正在检查 5m 回调排列...`,
                         50 + (done2 / passed2H.length) * 45);
                 }));
             }
@@ -271,14 +270,14 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 2H当前方向 + 5M连续排列 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 2H定势 + 5M反向连续 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（2H 收阳 + 5m 连阳）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（2H 收阳 + 5m 连阴回调）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
@@ -293,7 +292,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H 收阴 + 5m 连阴）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H 收阴 + 5m 连阳反弹）</div>`;
         if (shorts.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
