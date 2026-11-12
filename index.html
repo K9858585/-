@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>4H+2H强多头 + 5m极速金叉</title>
+    <title>4H+2H强多头 + 5m放宽金叉</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在全市场寻找双周期强多头共振...</div>
+            <div class="scan-loading" id="scan-status">正在全市场寻找强多头...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 强多头极速金叉</button>
+            <button class="scan-btn" onclick="runScanner()">🚀 强多头金叉扫描</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -93,7 +93,7 @@
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_strong_bull_golden')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_relaxed_golden')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -234,7 +234,7 @@
         });
     }
 
-    // === 核心引擎：全市场扫描 (前300) - 极速版 ===
+    // === 核心引擎：全市场扫描 (前300) - 放宽版 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
@@ -268,12 +268,10 @@
                         let k2H = await res2H.json();
 
                         if(k4H.code === '0' && k2H.code === '0' && k4H.data.length > 20 && k2H.data.length > 20) {
-                            // 4H 多头
                             let c4H = k4H.data.reverse().map(d => +d[4]);
                             let e20_4H = calcEMA(c4H, 20); let e50_4H = calcEMA(c4H, 50);
                             let isBull4H = (c4H[c4H.length-1] > e20_4H[e20_4H.length-1]) && (e20_4H[e20_4H.length-1] > e50_4H[e50_4H.length-1]);
 
-                            // 2H 多头
                             let c2H = k2H.data.reverse().map(d => +d[4]);
                             let e20_2H = calcEMA(c2H, 20); let e50_2H = calcEMA(c2H, 50);
                             let isBull2H = (c2H[c2H.length-1] > e20_2H[e20_2H.length-1]) && (e20_2H[e20_2H.length-1] > e50_2H[e50_2H.length-1]);
@@ -294,8 +292,8 @@
 
             if(potentialCoins.length === 0) throw new Error("前300名中，暂无'4H+2H双多头'的形态。");
 
-            // --- 第二级过滤：5m 金叉 ---
-            status.innerText = "第二级过滤：寻找5m极速MACD金叉...";
+            // --- 第二级过滤：5m 放宽金叉 ---
+            status.innerText = "第二级过滤：寻找5m放宽MACD金叉...";
             let candidates = [];
 
             for (let i = 0; i < potentialCoins.length; i += batchSize) {
@@ -316,7 +314,7 @@
                             let hist = macd5M.hist;
                             let len = hist.length;
 
-                            // 核心：计算连续金叉的根数
+                            // 放宽1：连续金叉 1 到 6 根之间
                             let goldenCrossCount = 0;
                             for (let j = len - 1; j >= 0; j--) {
                                 if (hist[j] > 0) {
@@ -326,38 +324,32 @@
                                 }
                             }
                             
-                            // 刚刚金叉，或者金叉了2根、3根
-                            let isGoldenCross1to3 = (goldenCrossCount >= 1 && goldenCrossCount <= 3);
+                            let isGoldenCross1to6 = (goldenCrossCount >= 1 && goldenCrossCount <= 6);
 
-                            if(isGoldenCross1to3) {
+                            if(isGoldenCross1to6) {
                                 let score = 0;
                                 let currK5M = fmt5M[fmt5M.length-1];
                                 let prevHist = hist[len-2];
                                 let currHist = hist[len-1];
 
-                                // 红柱放大
                                 if(currHist > 0 && currHist > prevHist) score += 20; 
-                                // 阳线
                                 if(currK5M.c > currK5M.o) score += 10; 
-                                // 长下影线
                                 let body = Math.abs(currK5M.c - currK5M.o);
                                 let lowerWick = Math.min(currK5M.c, currK5M.o) - currK5M.l;
                                 if(lowerWick > body * 0.5) score += 10; 
-                                // RSI低位反弹
                                 let rsi = calcRSI(c5M, 14);
                                 let currRsi = rsi[rsi.length-1];
                                 let prevRsi = rsi[rsi.length-2];
                                 if(currRsi > 30 && currRsi < 60 && currRsi > prevRsi) score += 20; 
-                                // 站上5m均线
                                 let e20_5m = calcEMA(c5M, 20);
                                 if (price5M > e20_5m[e20_5m.length-1]) score += 20;
-                                // 放量
                                 let vols = fmt5M.map(d => d.v);
                                 let currVol = vols[vols.length-1];
                                 let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
                                 if(currVol > avgVol * 1.2) score += 20; 
 
-                                if(score >= 60) {
+                                // 放宽2：及格线降到 40 分！
+                                if(score >= 40) {
                                     return { instId: instId, score: score };
                                 }
                             }
@@ -373,14 +365,14 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("前300名中，暂无5m刚金叉标的。");
+                throw new Error("前300名中，暂无5m金叉标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_strong_bull_golden', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_relaxed_golden', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
