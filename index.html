@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 4H定势 + 1H/15M/5M 最新K线共振</title>
+    <title>50大精选币 4H定势 + 1H/15M 同向 / 5M 反向共振</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 4H定势 + 短周期共振扫描</span>
+                <span id="btnText">🎯 启动 4H定势 + 1H/15M同向 + 5M反向 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -71,12 +71,6 @@
         "STX-USDT-SWAP", "HBAR-USDT-SWAP", "ICP-USDT-SWAP", "ETC-USDT-SWAP", "XLM-USDT-SWAP",
         "VET-USDT-SWAP", "GRT-USDT-SWAP", "THETA-USDT-SWAP", "FTM-USDT-SWAP", "SAND-USDT-SWAP",
         "MANA-USDT-SWAP", "EOS-USDT-SWAP", "AAVE-USDT-SWAP", "MKR-USDT-SWAP", "WIF-USDT-SWAP"
-    ];
-
-    const TF_LIST = [
-        { bar: '1H',  name: '1小时'  },
-        { bar: '15m', name: '15分钟' },
-        { bar: '5m',  name: '5分钟'  }
     ];
 
     let isRunning = false;
@@ -193,8 +187,8 @@
                 return;
             }
 
-            // ========== 第二轮：1H / 15m / 5m 最新K线共振 ==========
-            updateProgress(`第 2/3 步：正在检查 ${passed4H.length} 个币的 1H / 15m / 5m 最新K线...`, 50);
+            // ========== 第二轮：1H / 15m 同向，5m 反向 ==========
+            updateProgress(`第 2/3 步：正在检查 ${passed4H.length} 个币的 1H/15m/5m 结构...`, 50);
 
             let done2 = 0;
             const batch = 8;
@@ -210,43 +204,52 @@
                             fetchCandles(coin.instId, '5m',  40)
                         ]);
 
-                        const arrs = [
-                            { name: TF_LIST[0].name, d: analyzeTF(k1h) },
-                            { name: TF_LIST[1].name, d: analyzeTF(k15) },
-                            { name: TF_LIST[2].name, d: analyzeTF(k5)  }
-                        ];
-                        if (arrs.some(a => !a.d)) return;
+                        const d1h = analyzeTF(k1h);
+                        const d15 = analyzeTF(k15);
+                        const d5  = analyzeTF(k5);
+                        if (!d1h || !d15 || !d5) return;
 
-                        // 4H 多头 → 三个短周期最新K线全部收阴 → 做空
-                        // 4H 空头 → 三个短周期最新K线全部收阳 → 做多
+                        // 4H 多头 → 目标做空：
+                        //   1H 收阴 + 15m 收阴（短周期转弱）+ 5m 最新一根收阳（相反，反弹）
+                        // 4H 空头 → 目标做多：
+                        //   1H 收阳 + 15m 收阳（短周期转强）+ 5m 最新一根收阴（相反，回调）
                         const wantBear = (coin.type === 'LONG');
-                        const okAll = arrs.every(a => wantBear ? a.d.isBear : a.d.isBull);
+                        const okAll = wantBear
+                            ? (d1h.isBear && d15.isBear && d5.isBull)
+                            : (d1h.isBull && d15.isBull && d5.isBear);
                         if (!okAll) return;
 
-                        const avgBody = arrs.reduce((s, a) => s + a.d.bodyRatio, 0) / 3;
-                        const avgVol  = arrs.reduce((s, a) => s + a.d.volRatio, 0) / 3;
+                        // ---- 评分 ----
+                        // 1H/15m 实体越强越好；5m 反向K实体越小越好（说明反向力度弱，原方向占优）
+                        const strongBody = (d1h.bodyRatio + d15.bodyRatio) / 2;
+                        const weakBody   = 1 - d5.bodyRatio;
+                        const avgVol = (d1h.volRatio + d15.volRatio) / 2;
+
                         let score = 70
-                            + Math.round(avgBody * 20)
-                            + Math.round(Math.min(avgVol / 2, 1) * 10);
+                            + Math.round(strongBody * 15)                          // 0~15
+                            + Math.round(weakBody * 10)                            // 0~10
+                            + Math.round(Math.min(avgVol / 2, 1) * 5);             // 0~5
                         score = Math.min(100, score);
 
-                        const dirWord = wantBear ? '空头' : '多头';
+                        // ---- 理由 ----
                         const trendDesc = coin.type === 'LONG'
                             ? `4H 收盘价站上 EMA20（<b>多头趋势</b>，偏离 +${coin.dist.toFixed(2)}%）`
                             : `4H 收盘价跌破 EMA20（<b>空头趋势</b>，偏离 ${coin.dist.toFixed(2)}%）`;
 
-                        const detail = arrs.map(a => {
-                            const v = a.d.chg;
-                            return `${a.name} ${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
-                        }).join(' ｜ ');
+                        const fmt = d => `${d.chg >= 0 ? '+' : ''}${d.chg.toFixed(2)}%`;
+                        const detail = `1H ${fmt(d1h)} ｜ 15m ${fmt(d15)} ｜ <span class="highlight">5m ${fmt(d5)}（反向）</span>`;
 
                         let reason = `${trendDesc}。<br>`
-                            + `<b>${arrs.map(a => a.name).join(' / ')}</b> 最新已收盘K线同步收${wantBear ? '阴' : '阳'}`
-                            + `（三周期共振${dirWord}），属于大趋势中的短周期${wantBear ? '回调转弱' : '反弹转强'}信号。`
-                            + `<br><span class="highlight">${detail}</span>`;
+                            + `1H、15m 最新已收盘K线${wantBear ? '同步收阴转弱' : '同步收阳转强'}，`
+                            + `<b>5m 最新一根反向收${wantBear ? '阳' : '阴'}</b>`
+                            + `（${wantBear ? '反弹' : '回调'}），形成“大趋势 + 中周期同向 + 5m 反向”的${wantBear ? '反弹做空' : '回调做多'}结构。`
+                            + `<br>${detail}`;
 
+                        if (d5.bodyRatio < 0.35) {
+                            reason += ` <span class="highlight">5m 反向K实体偏弱（实体占比 ${(d5.bodyRatio * 100).toFixed(0)}%），反向动能不足，原方向占优。</span>`;
+                        }
                         if (avgVol > 1.5) {
-                            reason += ` <span class="highlight">且伴随放量（量比 ${avgVol.toFixed(2)}）</span>`;
+                            reason += ` <span class="highlight">1H/15m 伴随放量（量比 ${avgVol.toFixed(2)}）</span>`;
                         }
 
                         const resObj = {
@@ -260,7 +263,7 @@
                     } catch (e) { /* ignore */ }
 
                     done2++;
-                    updateProgress(`第 2/3 步：正在检查 1H / 15m / 5m 最新K线...`,
+                    updateProgress(`第 2/3 步：正在检查 1H/15m/5m 结构...`,
                         50 + (done2 / passed4H.length) * 45);
                 }));
             }
@@ -280,16 +283,16 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 4H 定势 + 短周期共振 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 4H定势 + 1H/15M同向 + 5M反向 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H 空头 + 1H/15M/5M 最新K线转多）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H 空头 + 1H/15M 转强 + 5M 反向回调）</div>`;
         if (longs.length === 0) {
-            html += `<div class="empty-tip">当前无三周期同步转多的标的。</div>`;
+            html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
         longs.forEach((item, index) => {
             html += `
@@ -302,9 +305,9 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 多头 + 1H/15M/5M 最新K线转空）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 多头 + 1H/15M 转弱 + 5M 反向反弹）</div>`;
         if (shorts.length === 0) {
-            html += `<div class="empty-tip">当前无三周期同步转空的标的。</div>`;
+            html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
         shorts.forEach((item, index) => {
             html += `
