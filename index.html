@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 2H定势 + 5M反向连续回调</title>
+    <title>50大精选币 2H定势 + 5M当前连续回调</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 2H定势 + 5M反向连阴/连阳 扫描</span>
+                <span id="btnText">🎯 启动 2H定势 + 5M当前连续(3-4根) 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -118,34 +118,44 @@
     // 2H 判定：只看当前正在走的最新一根K线是阳还是阴
     function analyze2H(klines) {
         if (klines.length < 5) return null;
-        const lastK = klines[klines.length - 1]; // 当前K线（含未收盘）
+        const lastK = klines[klines.length - 1];
         if (lastK.c > lastK.o) return { trend: 'BULL' };
         if (lastK.c < lastK.o) return { trend: 'BEAR' };
-        return null; // 平盘不交易
+        return null;
     }
 
-    // 5M 判定：最近5根已收盘K线，找连阳/连阴的最大数量
+    // 5M 判定：从最新已收盘K线往前数，当前到底连续了几根阴/阳
     function analyze5M(klines) {
         const lastIdx = getLastClosedIdx(klines);
         if (lastIdx < 5) return null;
         
-        const recent = klines.slice(lastIdx - 4, lastIdx + 1); // 最近5根已收盘
-        let maxBull = 0, curBull = 0;
-        let maxBear = 0, curBear = 0;
+        const lastK = klines[lastIdx];
+        let curBear = 0;
+        let curBull = 0;
         
-        for (const k of recent) {
-            const isBull = k.c > k.o;
-            const isBear = k.c < k.o;
-            
-            if (isBull) { curBull++; curBear = 0; }
-            else if (isBear) { curBear++; curBull = 0; }
-            else { curBull = 0; curBear = 0; } // 平盘中断连续
-            
-            maxBull = Math.max(maxBull, curBull);
-            maxBear = Math.max(maxBear, curBear);
+        // 只有最新一根是阴线，才符合做多的“正在回调”
+        if (lastK.c < lastK.o) {
+            for (let i = lastIdx; i >= 0; i--) {
+                if (klines[i].c < klines[i].o) {
+                    curBear++;
+                } else {
+                    break;
+                }
+            }
         }
         
-        return { maxBull, maxBear };
+        // 只有最新一根是阳线，才符合做空的“正在反弹”
+        if (lastK.c > lastK.o) {
+            for (let i = lastIdx; i >= 0; i--) {
+                if (klines[i].c > klines[i].o) {
+                    curBull++;
+                } else {
+                    break;
+                }
+            }
+        }
+        
+        return { curBear, curBull };
     }
 
     window.runScanner = async function() {
@@ -191,7 +201,7 @@
                 return;
             }
 
-            // ========== 第二轮：5M 反向连续K线判定 ==========
+            // ========== 第二轮：5M 当前反向连续判定 ==========
             updateProgress(`第 2/2 步：正在检查 ${passed2H.length} 个币的 5m 回调排列...`, 50);
             let done2 = 0;
             const batch2 = 10;
@@ -210,19 +220,25 @@
                         let signalCount = 0;
 
                         if (isBullTrend) {
-                            // 2H 多头，5m 必须有连续阴线（回调做多）
-                            ok = st.maxBear >= 3;
-                            signalCount = st.maxBear;
+                            // 2H 多头，5m 最新一根必须是阴线，且向前连续达到 3 根或以上
+                            // 这样排除了“阴阴阴阳阳”这种已经反弹过了的情况
+                            ok = (st.curBear >= 3);
+                            signalCount = st.curBear;
                         } else {
-                            // 2H 空头，5m 必须有连续阳线（反弹做空）
-                            ok = st.maxBull >= 3;
-                            signalCount = st.maxBull;
+                            // 2H 空头，5m 最新一根必须是阳线，且向前连续达到 3 根或以上
+                            ok = (st.curBull >= 3);
+                            signalCount = st.curBull;
                         }
                         if (!ok) return;
 
                         // ---- 评分 ----
-                        // 基础分 60，连续 3 根给 90，连续 4 根或 5 根给 100
-                        let score = 60 + Math.min(signalCount * 10, 40);
+                        // 基础分 60，连续 3 根或 4 根给较高分，超过 5 根可能跌/涨太深稍降一点
+                        let score = 60;
+                        if (signalCount === 3 || signalCount === 4) {
+                            score += 30; // 3-4 根最完美
+                        } else if (signalCount >= 5) {
+                            score += 20; // 虽然也符合，但可能极值随时反转
+                        }
                         score = Math.min(100, Math.round(score));
 
                         // ---- 理由 ----
@@ -233,9 +249,9 @@
                         let reason = `${trendDesc}。<br>`;
                         
                         if (isBullTrend) {
-                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阴线，短线出现有效回调，符合<b>顺势回调做多</b>条件。`;
+                            reason += `5m 最新已收盘K线及其往前，呈现出 <span class="highlight">${signalCount} 连阴</span>（最新一根为阴，尚未出现反弹阳线），正在走回调，符合<b>顺势做多</b>的潜伏条件。`;
                         } else {
-                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阳线（绿线），短线出现有效反弹，符合<b>顺势反弹做空</b>条件。`;
+                            reason += `5m 最新已收盘K线及其往前，呈现出 <span class="highlight">${signalCount} 连阳</span>（最新一根为阳，尚未出现回调阴线），正在走反弹，符合<b>顺势做空</b>的潜伏条件。`;
                         }
 
                         const resObj = {
@@ -258,6 +274,7 @@
             // ========== 排序取前三 ==========
             updateProgress("正在整理榜单...", 98);
 
+            // 优先按分数排，分数一样按连续性接近 3-4 根排
             longResults.sort((a, b) => b.score - a.score || b.signalCount - a.signalCount);
             shortResults.sort((a, b) => b.score - a.score || b.signalCount - a.signalCount);
 
@@ -270,14 +287,14 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 2H定势 + 5M反向连续 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 2H定势 + 5M当前连续回调 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（2H 收阳 + 5m 连阴回调）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（2H 收阳 + 5m 当前连阴未反弹）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
@@ -292,7 +309,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H 收阴 + 5m 连阳反弹）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H 收阴 + 5m 当前连阳未回调）</div>`;
         if (shorts.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
