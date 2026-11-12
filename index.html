@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 4H定势 + 5M有效10根阴阳(过滤十字星)</title>
+    <title>50大精选币 4H+2H定势 + 5M有效9根阴阳(过滤十字星)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 4H定势 + 5M有效10根阴阳 扫描</span>
+                <span id="btnText">🎯 启动 4H+2H定势 + 5M有效9根 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -115,24 +115,44 @@
         return klines.length - 2;
     }
 
-    // 5m：倒序回溯，过滤细小十字线，凑满最近 10 根有效K线
+    // 通用大周期趋势判定（4H / 2H）：收盘 > EMA20 且收阳（多头）；收盘 < EMA20 且收阴（空头）
+    function analyzeMacro(klines) {
+        const lastIdx = getLastClosedIdx(klines);
+        if (lastIdx < 20) return null;
+        const closed = klines.slice(0, lastIdx + 1);
+        const closes = closed.map(k => k.c);
+        const e20 = calcEMA(closes, 20);
+        
+        const lastK = closed[closed.length - 1];
+        const c = lastK.c;
+        const o = lastK.o;
+        const e = e20[e20.length - 1];
+        const dist = (c - e) / e * 100;
+        
+        let trend = null;
+        if (c > e && c > o) trend = 'BULL';
+        else if (c < e && c < o) trend = 'BEAR';
+
+        return { trend, dist, isBullCandle: c > o };
+    }
+
+    // 5m：倒序回溯，过滤细小十字线，凑满最近 9 根有效K线
     function analyze5m(klines) {
         const lastIdx = getLastClosedIdx(klines);
-        if (lastIdx < 25) return null; // 稍微多拉一点数据，防止过滤后不够10根
+        if (lastIdx < 25) return null;
 
         let bearCount = 0, bullCount = 0;
         let sumV = 0;
         let validCount = 0;
         let i = lastIdx;
 
-        // 往下找 10 根有效K线（跳过十字星/平盘线）
-        while (i >= 0 && validCount < 10) {
+        while (i >= 0 && validCount < 9) {
             const k = klines[i];
             const range = k.h - k.l;
             const body = Math.abs(k.c - k.o);
             const bodyRatio = range > 0 ? body / range : 1;
             
-            // 过滤条件：实体占振幅比例极小 (小于0.2)，或者实体占价格比例极小 (小于万分之5)，或平盘
+            // 过滤十字星
             const isThinDoji = (bodyRatio < 0.2) || (body / k.o < 0.0005);
             const isFlat = k.c === k.o;
 
@@ -145,12 +165,11 @@
             i--;
         }
 
-        if (validCount < 10) return null;
+        if (validCount < 9) return null;
 
-        // 计算量比（找前面的 10 根有效K线做均量对比）
         let sumV0 = 0, n0 = 0;
         let j = i;
-        while (j >= 0 && n0 < 10) {
+        while (j >= 0 && n0 < 9) {
             const k = klines[j];
             const range = k.h - k.l;
             const body = Math.abs(k.c - k.o);
@@ -166,7 +185,7 @@
         }
 
         const avgV0 = n0 > 0 ? sumV0 / n0 : 0;
-        const volRatio = avgV0 > 0 ? (sumV / 10) / avgV0 : 1;
+        const volRatio = avgV0 > 0 ? (sumV / 9) / avgV0 : 1;
 
         return { bearCount, bullCount, volRatio };
     }
@@ -188,7 +207,7 @@
 
         try {
             // ========== 第一轮：4H 趋势判定 ==========
-            updateProgress("第 1/2 步：正在判定 4H 大趋势...", 5);
+            updateProgress("第 1/3 步：正在判定 4H 大趋势...", 5);
             const chunkSize = 10;
             let done1 = 0;
 
@@ -197,39 +216,58 @@
                 await Promise.all(chunk.map(async (instId) => {
                     try {
                         const kl = await fetchCandles(instId, '4H', 40);
-                        if (kl.length < 25) return;
-                        const lastIdx = getLastClosedIdx(kl);
-                        if (lastIdx < 20) return;
-                        const closed = kl.slice(0, lastIdx + 1);
-                        const closes = closed.map(k => k.c);
-                        const e20 = calcEMA(closes, 20);
-                        const c = closes[closes.length - 1];
-                        const e = e20[e20.length - 1];
-                        const dist = (c - e) / e * 100;
-
-                        if (c > e)      passed4H.push({ instId, trend: 'BULL', dist });
-                        else if (c < e) passed4H.push({ instId, trend: 'BEAR', dist });
+                        const mac = analyzeMacro(kl);
+                        if (mac && mac.trend) {
+                            passed4H.push({ instId, trend: mac.trend, dist4H: mac.dist });
+                        }
                     } catch (e) { /* ignore */ }
                     done1++;
-                    updateProgress("第 1/2 步：正在判定 4H 大趋势...",
-                        5 + (done1 / targetCoins.length) * 45);
+                    updateProgress("第 1/3 步：正在判定 4H 大趋势...",
+                        5 + (done1 / targetCoins.length) * 30);
                 }));
             }
 
             if (passed4H.length === 0) {
-                updateProgress("扫描完毕：4H 级别暂无明确趋势。", 100);
+                updateProgress("扫描完毕：4H 级别暂无符合大实体同向的趋势。", 100);
                 endScanner();
                 return;
             }
 
-            // ========== 第二轮：5m 近10根有效阴阳比 ==========
-            updateProgress(`第 2/2 步：正在检查 ${passed4H.length} 个币的 5m 阴阳比...`, 50);
-
+            // ========== 第二轮：2H 趋势共振判定 ==========
+            updateProgress(`第 2/3 步：正在核对 ${passed4H.length} 个币的 2H 趋势...`, 35);
+            const pass2H = [];
             let done2 = 0;
-            const batch2 = 10;
 
-            for (let i = 0; i < passed4H.length; i += batch2) {
-                const chunk = passed4H.slice(i, i + batch2);
+            for (let i = 0; i < passed4H.length; i += chunkSize) {
+                const chunk = passed4H.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(async (coin) => {
+                    try {
+                        const kl = await fetchCandles(coin.instId, '2H', 40);
+                        const mac = analyzeMacro(kl);
+                        // 2H 方向必须与 4H 一致
+                        if (mac && mac.trend === coin.trend) {
+                            pass2H.push({ ...coin, dist2H: mac.dist });
+                        }
+                    } catch (e) { /* ignore */ }
+                    done2++;
+                    updateProgress(`第 2/3 步：正在核对 2H 趋势...`,
+                        35 + (done2 / passed4H.length) * 30);
+                }));
+            }
+
+            if (pass2H.length === 0) {
+                updateProgress("扫描完毕：4H 与 2H 没有形成完美同向共振。", 100);
+                endScanner();
+                return;
+            }
+
+            // ========== 第三轮：5m 近9根有效阴阳比 ==========
+            updateProgress(`第 3/3 步：正在检查 ${pass2H.length} 个币的 5m 阴阳比...`, 65);
+            let done3 = 0;
+            const batch3 = 10;
+
+            for (let i = 0; i < pass2H.length; i += batch3) {
+                const chunk = pass2H.slice(i, i + batch3);
 
                 await Promise.all(chunk.map(async (coin) => {
                     try {
@@ -241,40 +279,39 @@
                         let diff, ok;
 
                         if (isBullTrend) {
-                            // 4H 多头 → 5m 要阴线多于阳线（回调）
                             diff = st.bearCount - st.bullCount;
                             ok = diff > 0;
                         } else {
-                            // 4H 空头 → 5m 要阳线多于阴线（反弹）
                             diff = st.bullCount - st.bearCount;
                             ok = diff > 0;
                         }
                         if (!ok) return;
 
                         // ---- 评分 ----
+                        // 基础分60，差值加分(最高30)，量能加分(最高10)
                         let score = 60
-                            + Math.min(diff, 5) * 6                               // 差值 1~5 给 6~30 分
-                            + Math.round(Math.min(st.volRatio / 2, 1) * 10);      // 量能 0~10
+                            + Math.min(diff, 5) * 6
+                            + Math.round(Math.min(st.volRatio / 2, 1) * 10);
                         score = Math.min(100, score);
 
                         // ---- 理由 ----
                         const trendDesc = coin.trend === 'BULL'
-                            ? `4H 收盘价站上 EMA20（<b>多头趋势</b>，偏离 +${coin.dist.toFixed(2)}%）`
-                            : `4H 收盘价跌破 EMA20（<b>空头趋势</b>，偏离 ${coin.dist.toFixed(2)}%）`;
+                            ? `4H 与 2H 收盘价均站上 EMA20 且收阳（<b>双周期多头共振</b>）`
+                            : `4H 与 2H 收盘价均跌破 EMA20 且收阴（<b>双周期空头共振</b>）`;
 
-                        const statLine = `5m 最近 <b>10</b> 根有效K线（已自动剔除十字星）：<span class="highlight">${st.bullCount} 阳</span> / <span class="highlight">${st.bearCount} 阴</span>`;
+                        const statLine = `5m 最近 <b>9</b> 根有效K线（已自动剔除十字星）：<span class="highlight">${st.bullCount} 阳</span> / <span class="highlight">${st.bearCount} 阴</span>`;
 
                         let reason = `${trendDesc}。<br>${statLine}。`;
                         if (isBullTrend) {
                             reason += `阴线数（${st.bearCount}）多于阳线数（${st.bullCount}），差值 ${diff}，`
-                                + `说明 5m 短线出现<b>明显回调</b>，回调至超卖区，属于<b>顺势做多</b>的介入机会。`;
+                                + `说明 5m 短线出现<b>有效回调</b>，属于<b>顺势做多</b>的介入机会。`;
                         } else {
                             reason += `阳线数（${st.bullCount}）多于阴线数（${st.bearCount}），差值 ${diff}，`
-                                + `说明 5m 短线出现<b>明显反弹</b>，反弹至超买区，属于<b>顺势做空</b>的介入机会。`;
+                                + `说明 5m 短线出现<b>有效反弹</b>，属于<b>顺势做空</b>的介入机会。`;
                         }
 
                         if (st.volRatio > 1.5) {
-                            reason += ` <span class="highlight">5m 有效K线均量较前期放大（量比 ${st.volRatio.toFixed(2)}）</span>`;
+                            reason += ` <span class="highlight">5m 均量放大（量比 ${st.volRatio.toFixed(2)}）</span>`;
                         }
 
                         const resObj = {
@@ -288,9 +325,9 @@
 
                     } catch (e) { /* ignore */ }
 
-                    done2++;
-                    updateProgress(`第 2/2 步：正在检查 5m 阴阳比...`,
-                        50 + (done2 / passed4H.length) * 45);
+                    done3++;
+                    updateProgress(`第 3/3 步：正在检查 5m 阴阳比...`,
+                        65 + (done3 / pass2H.length) * 30);
                 }));
             }
 
@@ -309,14 +346,14 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 4H定势 + 5M有效阴阳比 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 4H+2H共振 + 5M有效9根 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H 多头 + 5m 有效阴 > 阳）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H+2H 收阳共振 + 5m 有效阴 > 阳）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
@@ -331,7 +368,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 空头 + 5m 有效阳 > 阴）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H+2H 收阴共振 + 5m 有效阳 > 阴）</div>`;
         if (shorts.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
