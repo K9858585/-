@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>20大精选币 4H/1H/5m 极速推算</title>
+    <title>提前预判 · 左侧潜伏雷达</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -12,9 +12,9 @@
         
         .btn-container { width: 100%; max-width: 400px; }
         .scan-btn { 
-            background: linear-gradient(135deg, #2962ff, #e056fd); color: #fff; border: none; 
+            background: linear-gradient(135deg, #e056fd, #2962ff); color: #fff; border: none; 
             padding: 16px; border-radius: 8px; font-size: 18px; font-weight: bold; 
-            box-shadow: 0 6px 20px rgba(41,98,255,0.4); width: 100%; cursor: pointer;
+            box-shadow: 0 6px 20px rgba(224,86,253,0.4); width: 100%; cursor: pointer;
             transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px;
         }
         .scan-btn:active { transform: scale(0.98); }
@@ -22,7 +22,7 @@
         
         .progress-text { font-size: 13px; color: var(--yellow); height: 20px; text-align: center; font-weight: bold; }
         .progress-bar-bg { width: 100%; height: 4px; background: #2a2e39; border-radius: 2px; overflow: hidden; display: none; }
-        .progress-bar { height: 100%; width: 0%; background: var(--blue); transition: width 0.3s; }
+        .progress-bar { height: 100%; width: 0%; background: #e056fd; transition: width 0.3s; }
         
         /* 结果展示区 */
         #result-area { flex: 1; overflow-y: auto; padding: 15px; display: none; flex-direction: column; gap: 20px; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">⚡ 启动 4H/1H/5m 推算</span>
+                <span id="btnText">🦅 启动左侧提前潜伏</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -92,7 +92,7 @@
         
         let longResults = [];
         let shortResults = [];
-        let passed4HCoins = []; // 第一轮胜出者
+        let passed4HCoins = []; 
 
         try {
             // ================= 第一轮：4H 大趋势过滤 =================
@@ -109,9 +109,7 @@
                             let e5 = calcEMA(c4H, 5), e10 = calcEMA(c4H, 10), e20 = calcEMA(c4H, 20);
                             let last = c4H.length - 1;
 
-                            // 4H 完美多头：价格 > 20均线，且 5均线 > 10均线
                             let isBull4H = (c4H[last] > e20[last]) && (e5[last] > e10[last]);
-                            // 4H 完美空头：价格 < 20均线，且 5均线 < 10均线
                             let isBear4H = (c4H[last] < e20[last]) && (e5[last] < e10[last]);
 
                             if(isBull4H) passed4HCoins.push({ instId, type: 'LONG' });
@@ -129,7 +127,7 @@
             }
 
             // ================= 第二轮：1H 拐点过滤 =================
-            updateProgress(`已过滤${targetCoins.length - passed4HCoins.length}个，正在找1H拐点...`, 40);
+            updateProgress(`正在找1H拐点...`, 40);
             let passed1HCoins = [];
 
             for (let i = 0; i < passed4HCoins.length; i += chunkSize) {
@@ -140,19 +138,10 @@
                         if(res.code === '0' && res.data.length > 20) {
                             let c1H = res.data.reverse().map(d => +d[4]);
                             let macd = calcMACD(c1H);
-                            let e20 = calcEMA(c1H, 20);
                             let last = c1H.length - 1;
-                            let price = c1H[last];
 
-                            if(coin.type === 'LONG') {
-                                // 多头拐点：1H MACD死叉(回调)，或价格逼近1H EMA20
-                                let isPullback = (macd.macd[last] < macd.signal[last]) || (Math.abs(price - e20[last]) / price < 0.01);
-                                if(isPullback) passed1HCoins.push({ ...coin, c1H: c1H }); 
-                            } else {
-                                // 空头拐点：1H MACD金叉(反弹)，或价格反抽1H EMA20
-                                let isRebound = (macd.macd[last] > macd.signal[last]) || (Math.abs(price - e20[last]) / price < 0.01);
-                                if(isRebound) passed1HCoins.push({ ...coin, c1H: c1H });
-                            }
+                            if(coin.type === 'LONG' && macd.macd[last] < macd.signal[last]) passed1HCoins.push(coin); 
+                            if(coin.type === 'SHORT' && macd.macd[last] > macd.signal[last]) passed1HCoins.push(coin);
                         }
                     } catch(e) {}
                 }));
@@ -165,8 +154,8 @@
                 return;
             }
 
-            // ================= 第三轮：5m 回弹/切入 =================
-            updateProgress(`还剩${passed1HCoins.length}个，正在精准切入5m买点...`, 75);
+            // ================= 第三轮：5m 提前预判潜伏 =================
+            updateProgress(`正在进行极限潜伏推算...`, 75);
             
             await Promise.all(passed1HCoins.map(async (coin) => {
                 try {
@@ -179,28 +168,49 @@
                         let last = c5M.length - 1;
                         let currK = fmt5M[last];
 
-                        let score = 80;
+                        let score = 70; // 潜伏基础分（因为没金叉，风险稍高，基础分略低）
                         let reason = '';
+                        
+                        // 计算极度缩量
                         let vol = currK.v;
                         let avgVol = fmt5M.slice(-20).reduce((a,b)=>a+b.v,0)/20;
-                        let volSpike = vol > avgVol * 1.2;
+                        let isExtremeLowVol = vol < avgVol * 0.7;
+
+                        // 计算长影线
+                        let body = Math.abs(currK.c - currK.o);
+                        let lowerWick = Math.min(currK.c, currK.o) - currK.l;
+                        let upperWick = currK.h - Math.max(currK.c, currK.o);
+
+                        // 计算动能衰竭 (MACD柱子缩短)
+                        let isMacdWeakening = (macd.hist[last] < 0 && macd.hist[last] > macd.hist[last-1]) || // 绿柱缩短
+                                              (macd.hist[last] > 0 && macd.hist[last] < macd.hist[last-1]);   // 红柱缩短
 
                         if(coin.type === 'LONG') {
-                            // 5m 回弹切入：刚金叉，或极度超卖收阳
-                            let isEntry = (macd.macd[last-1] <= macd.signal[last-1] && macd.macd[last] > macd.signal[last]) || (rsi[last] < 35 && currK.c > currK.o);
-                            if(isEntry) {
-                                if(volSpike) score += 10;
-                                if(rsi[last] < 30) score += 5;
-                                reason = `4H级别大趋势<b>完美多头</b>，1H级别正处于主力洗盘（拐点已现）。当前5分钟级别 ${macd.hist[last] > 0 ? 'MACD刚金叉' : '严重超卖'} 且 ${volSpike ? '<span class="highlight">伴随放量</span>' : '缩量'}。微观买点已现，属于<b>顺大势、逆小势的绝佳回弹切入位</b>。`;
+                            // 预判做多条件：不要求金叉，只要极度缩量 + 超卖 + 长下影 + 动能衰减
+                            let isOversold = rsi[last] < 40;
+                            let hasLongWick = lowerWick > body * 1.2;
+                            let isBullishK = currK.c > currK.o;
+
+                            if(isOversold && isExtremeLowVol && (hasLongWick || isBullishK) && isMacdWeakening) {
+                                score = 85;
+                                if(hasLongWick) score += 5;
+                                if(rsi[last] < 30) score += 10;
+                                
+                                reason = `4H大趋势<b>绝对多头</b>，1H正在洗盘。当前5分钟级别极度缩量（散户已割肉），RSI处于超卖区。MACD绿柱开始缩短，且K线带有长下影线。这是主升浪启动前的<b>极限潜伏点</b>，即将发生反转。`;
                                 longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score: score, reason: reason });
                             }
                         } else {
-                            // 5m 遇阻切入：刚死叉，或极度超买收阴
-                            let isEntry = (macd.macd[last-1] >= macd.signal[last-1] && macd.macd[last] < macd.signal[last]) || (rsi[last] > 65 && currK.c < currK.o);
-                            if(isEntry) {
-                                if(volSpike) score += 10;
-                                if(rsi[last] > 70) score += 5;
-                                reason = `4H级别被均线死死压制，属于<b>宏观空头</b>。1H级别反弹诱多结束（拐点已现）。当前5分钟级别 ${macd.hist[last] < 0 ? 'MACD刚死叉' : '严重超买'} 且遇阻。上方抛压极重，属于<b>顺势逢高做空的最佳切入点</b>。`;
+                            // 预判做空条件：不要求死叉，只要极度缩量 + 超买 + 长上影 + 动能衰减
+                            let isOverbought = rsi[last] > 60;
+                            let hasUpperWick = upperWick > body * 1.2;
+                            let isBearishK = currK.c < currK.o;
+
+                            if(isOverbought && isExtremeLowVol && (hasUpperWick || isBearishK) && isMacdWeakening) {
+                                score = 85;
+                                if(hasUpperWick) score += 5;
+                                if(rsi[last] > 70) score += 10;
+
+                                reason = `4H大趋势<b>绝对空头</b>，1H正在诱多反弹。当前5分钟级别量能萎缩，多头无力上攻（超买）。MACD红柱缩短，且K线出现长上影线。这是空头即将砸盘的<b>极限预判点</b>。`;
                                 shortResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score: score, reason: reason });
                             }
                         }
@@ -223,35 +233,35 @@
         isRunning = false;
         let btn = document.getElementById('startBtn');
         btn.disabled = false;
-        document.getElementById('btnText').innerText = "⚡ 重新推算";
+        document.getElementById('btnText').innerText = "🦅 重新推算";
     }
 
     // === UI 渲染 ===
     function renderResults(longs, shorts) {
-        updateProgress("✅ 推算完成！已为您找出最优共振点。", 100);
+        updateProgress("✅ 推算完成！请重点关注上述标的的微观反转。", 100);
         endScanner();
         
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 强烈看多 Top 3</div>`;
-        if(longs.length === 0) html += `<div style="color:#848e9c; font-size:13px; margin-bottom:20px;">暂无完美多头。耐心等4H多头+1H回调+5m企稳。</div>`;
+        html += `<div class="section-title long">🟢 极限潜伏做多 Top 3 (未金叉)</div>`;
+        if(longs.length === 0) html += `<div style="color:#848e9c; font-size:13px; margin-bottom:20px;">当前无极致缩量+超卖的潜伏点。建议继续等待右侧金叉确认。</div>`;
         longs.forEach((item, index) => {
             html += `
                 <div class="card long-card">
-                    <div class="card-header"><div class="coin-name">${index+1}. ${item.instId}</div><div class="score-badge">信心分: ${item.score}</div></div>
-                    <div class="reason-box"><b>推算理由：</b><br>${item.reason}</div>
+                    <div class="card-header"><div class="coin-name">${index+1}. ${item.instId}</div><div class="score-badge">潜伏分: ${item.score}</div></div>
+                    <div class="reason-box"><b>预判理由：</b><br>${item.reason}</div>
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 强烈看空 Top 3</div>`;
-        if(shorts.length === 0) html += `<div style="color:#848e9c; font-size:13px;">暂无完美空头。耐心等4H空头+1H反弹+5m遇阻。</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 极限潜伏做空 Top 3 (未死叉)</div>`;
+        if(shorts.length === 0) html += `<div style="color:#848e9c; font-size:13px;">当前无极致缩量+超买的潜伏点。建议继续等待右侧死叉确认。</div>`;
         shorts.forEach((item, index) => {
             html += `
                 <div class="card short-card">
-                    <div class="card-header"><div class="coin-name">${index+1}. ${item.instId}</div><div class="score-badge">信心分: ${item.score}</div></div>
-                    <div class="reason-box"><b>推算理由：</b><br>${item.reason}</div>
+                    <div class="card-header"><div class="coin-name">${index+1}. ${item.instId}</div><div class="score-badge">潜伏分: ${item.score}</div></div>
+                    <div class="reason-box"><b>预判理由：</b><br>${item.reason}</div>
                 </div>`;
         });
 
