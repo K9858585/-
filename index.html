@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 2H交叉定势 + 5M连续排列</title>
+    <title>50大精选币 2H当前K线 + 5M连续3-4根排列</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 2H交叉 + 5M连续 扫描</span>
+                <span id="btnText">🎯 启动 2H当前K线 + 5M连续排列 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -115,34 +115,13 @@
         return klines.length - 2;
     }
 
-    // 2H 判定：EMA7 和 EMA25，检查当前排列 + 交叉是否在近3根K线内
+    // 2H 判定：只看当前正在走的最新一根K线是阳还是阴
     function analyze2H(klines) {
-        if (klines.length < 30) return null;
-        const closes = klines.map(k => k.c);
-        const emaFast = calcEMA(closes, 7);
-        const emaSlow = calcEMA(closes, 25);
-        const lastIdx = closes.length - 1;
-        
-        let trend = null;
-        if (emaFast[lastIdx] > emaSlow[lastIdx]) trend = 'BULL';
-        else if (emaFast[lastIdx] < emaSlow[lastIdx]) trend = 'BEAR';
-        else return null;
-        
-        let crossIdx = -1;
-        // 遍历最近3根（包含当前未收盘的这根），寻找交叉点
-        for (let i = lastIdx; i >= Math.max(1, lastIdx - 2); i--) {
-            if (trend === 'BULL' && emaFast[i] > emaSlow[i] && emaFast[i-1] <= emaSlow[i-1]) {
-                crossIdx = i; break;
-            }
-            if (trend === 'BEAR' && emaFast[i] < emaSlow[i] && emaFast[i-1] >= emaSlow[i-1]) {
-                crossIdx = i; break;
-            }
-        }
-        
-        // 如果近3根内没有交叉，说明趋势已经走远，过滤
-        if (crossIdx === -1) return null;
-        
-        return { trend, crossAgo: lastIdx - crossIdx };
+        if (klines.length < 5) return null;
+        const lastK = klines[klines.length - 1]; // 当前K线（含未收盘）
+        if (lastK.c > lastK.o) return { trend: 'BULL' };
+        if (lastK.c < lastK.o) return { trend: 'BEAR' };
+        return null; // 平盘不交易
     }
 
     // 5M 判定：最近5根已收盘K线，找连阳/连阴的最大数量
@@ -150,7 +129,7 @@
         const lastIdx = getLastClosedIdx(klines);
         if (lastIdx < 5) return null;
         
-        const recent = klines.slice(lastIdx - 4, lastIdx + 1); // 最近5根
+        const recent = klines.slice(lastIdx - 4, lastIdx + 1); // 最近5根已收盘
         let maxBull = 0, curBull = 0;
         let maxBear = 0, curBear = 0;
         
@@ -185,8 +164,8 @@
         const passed2H = [];
 
         try {
-            // ========== 第一轮：2H 趋势与交叉判定 ==========
-            updateProgress("第 1/2 步：正在判定 2H 均线排列与交叉...", 5);
+            // ========== 第一轮：2H 当前K线判定 ==========
+            updateProgress("第 1/2 步：正在判定 2H 当前K线方向...", 5);
             const chunkSize = 10;
             let done1 = 0;
 
@@ -194,20 +173,20 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        const kl = await fetchCandles(instId, '2H', 40);
+                        const kl = await fetchCandles(instId, '2H', 10);
                         const mac = analyze2H(kl);
                         if (mac) {
-                            passed2H.push({ instId, trend: mac.trend, crossAgo: mac.crossAgo });
+                            passed2H.push({ instId, trend: mac.trend });
                         }
                     } catch (e) { /* ignore */ }
                     done1++;
-                    updateProgress("第 1/2 步：正在判定 2H 均线排列...",
+                    updateProgress("第 1/2 步：正在判定 2H 当前K线方向...",
                         5 + (done1 / targetCoins.length) * 45);
                 }));
             }
 
             if (passed2H.length === 0) {
-                updateProgress("扫描完毕：2H 级别暂无近3根内发生交叉的趋势。", 100);
+                updateProgress("扫描完毕：2H 级别暂无明确方向。", 100);
                 endScanner();
                 return;
             }
@@ -232,6 +211,7 @@
 
                         if (isBullTrend) {
                             // 2H 多头，5m 必须有连续 3 根或以上的阳线（绿线）
+                            // 用户说 3-4 根，这里用 >=3 覆盖，5根全连也算极强
                             ok = st.maxBull >= 3;
                             signalCount = st.maxBull;
                         } else {
@@ -242,22 +222,21 @@
                         if (!ok) return;
 
                         // ---- 评分 ----
-                        // 连得越多越强，基础分60，连3给90，连4/5给100
+                        // 基础分 60，连续 3 根给 90，连续 4 根或 5 根给 100
                         let score = 60 + Math.min(signalCount * 10, 40);
                         score = Math.min(100, Math.round(score));
 
                         // ---- 理由 ----
-                        const crossText = coin.trend === 'BULL' ? '金叉' : '死叉';
                         const trendDesc = coin.trend === 'BULL'
-                            ? `2H 级别 EMA7 上穿 EMA25 形成<b>${crossText}</b>（距今仅 ${coin.crossAgo + 1} 根），呈多头排列`
-                            : `2H 级别 EMA7 下穿 EMA25 形成<b>${crossText}</b>（距今仅 ${coin.crossAgo + 1} 根），呈空头排列`;
+                            ? `2H 当前K线呈<b>阳线</b>（多头氛围）`
+                            : `2H 当前K线呈<b>阴线</b>（空头氛围）`;
 
                         let reason = `${trendDesc}。<br>`;
                         
                         if (isBullTrend) {
-                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阳线（绿线），短线多头动能强劲，符合顺势做多条件。`;
+                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阳线（绿线），短线上涨动能连贯，符合顺势做多条件。`;
                         } else {
-                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阴线，短线空头动能强劲，符合顺势做空条件。`;
+                            reason += `5m 最近 5 根已收盘K线中，出现连续 <span class="highlight">${signalCount}</span> 根阴线，短线下跌动能连贯，符合顺势做空条件。`;
                         }
 
                         const resObj = {
@@ -292,14 +271,14 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 2H交叉 + 5M连续排列 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 2H当前方向 + 5M连续排列 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（2H 金叉 + 5m 连阳）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（2H 收阳 + 5m 连阳）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
@@ -314,7 +293,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H 死叉 + 5m 连阴）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H 收阴 + 5m 连阴）</div>`;
         if (shorts.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
@@ -330,13 +309,6 @@
         });
 
         area.innerHTML = html;
-    }
-
-    // EMA 计算
-    function calcEMA(prices, p) {
-        let k = 2 / (p + 1), e = [prices[0]], prev = prices[0];
-        for (let i = 1; i < prices.length; i++) { prev = prices[i] * k + prev * (1 - k); e.push(prev); }
-        return e;
     }
 </script>
 </body>
