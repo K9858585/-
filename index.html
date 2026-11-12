@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 1H实时定势 + 5M布林/RSI/放量共振</title>
+    <title>50大精选币 纯5M超买超卖/放量拐点扫描</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 1H定势 + 5M布林/RSI放量 扫描</span>
+                <span id="btnText">🎯 启动 纯5M布林/RSI放量 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -115,26 +115,8 @@
         return klines.length - 2;
     }
 
-    // 1H 趋势判定：看当前正在走的最新一根K线
-    function analyze1H(klines) {
-        if (klines.length < 21) return null;
-        const closes = klines.map(k => k.c);
-        const e20 = calcEMA(closes, 20);
-        
-        const lastK = klines[klines.length - 1];
-        const c = lastK.c;
-        const o = lastK.o;
-        const e = e20[e20.length - 1];
-        
-        let trend = null;
-        if (c > e && c > o) trend = 'BULL';
-        else if (c < e && c < o) trend = 'BEAR';
-
-        return { trend };
-    }
-
-    // 5m 终极入场判定：布林带 + RSI + 放量 + 反向实体
-    function analyze5mEnhanced(klines) {
+    // 纯 5m 判定：布林带极值 + RSI极值 + 放量 + 反向实体
+    function analyze5m(klines) {
         const lastIdx = getLastClosedIdx(klines);
         if (lastIdx < 30) return null;
 
@@ -180,109 +162,62 @@
 
         const longResults = [];
         const shortResults = [];
-        const passed1H = [];
 
         try {
-            // ========== 第一轮：1H 趋势判定 ==========
-            updateProgress("第 1/2 步：正在判定 1H 当前趋势...", 5);
+            // ========== 直接扫描 5m ==========
+            updateProgress("正在扫描 50 个币的 5m 极值信号...", 5);
             const chunkSize = 10;
-            let done1 = 0;
+            let done = 0;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        const kl = await fetchCandles(instId, '1H', 40);
-                        const mac = analyze1H(kl);
-                        if (mac && mac.trend) {
-                            passed1H.push({ instId, trend: mac.trend });
-                        }
-                    } catch (e) { /* ignore */ }
-                    done1++;
-                    updateProgress("第 1/2 步：正在判定 1H 当前趋势...",
-                        5 + (done1 / targetCoins.length) * 45);
-                }));
-            }
-
-            if (passed1H.length === 0) {
-                updateProgress("扫描完毕：1H 级别暂无符合当前K线同向的趋势。", 100);
-                endScanner();
-                return;
-            }
-
-            // ========== 第二轮：5m 布林/RSI/放量入场筛查 ==========
-            updateProgress(`第 2/2 步：正在检查 ${passed1H.length} 个币的 5m 入场信号...`, 50);
-            let done2 = 0;
-            const batch2 = 10;
-
-            for (let i = 0; i < passed1H.length; i += batch2) {
-                const chunk = passed1H.slice(i, i + batch2);
-
-                await Promise.all(chunk.map(async (coin) => {
-                    try {
-                        const k5 = await fetchCandles(coin.instId, '5m', 50);
-                        const st = analyze5mEnhanced(k5);
+                        const k5 = await fetchCandles(instId, '5m', 50);
+                        const st = analyze5m(k5);
                         if (!st) return;
 
-                        const isBullTrend = (coin.trend === 'BULL');
-                        let score = 60; // 基础分
-
-                        if (isBullTrend) {
-                            // ---- 做多条件 ----
-                            if (!st.isBull) return; // 必须是阳线
-                            if (st.volRatio < 1.2) return; // 必须放量
-                            if (!st.touchLower && st.rsi > 35) return; // 触碰下轨或超卖
-                            
-                            score += Math.min((st.volRatio - 1) * 15, 15);
+                        // ---- 做多条件 ----
+                        // 1. 最新K线收阳
+                        // 2. 必须放量 (量比 >= 1.2)
+                        // 3. 必须触碰下轨 或 RSI <= 35
+                        if (st.isBull && st.volRatio >= 1.2 && (st.touchLower || st.rsi <= 35)) {
+                            let score = 60 + Math.min((st.volRatio - 1) * 15, 15);
                             if (st.rsi <= 35) score += Math.min((35 - st.rsi) * 1, 10);
                             if (st.touchLower) score += 10;
-                            
-                        } else {
-                            // ---- 做空条件 ----
-                            if (!st.isBear) return; // 必须是阴线
-                            if (st.volRatio < 1.2) return; // 必须放量
-                            if (!st.touchUpper && st.rsi < 65) return; // 触碰上轨或超买
-                            
-                            score += Math.min((st.volRatio - 1) * 15, 15);
+                            score = Math.min(100, Math.round(score));
+
+                            let reason = `5m 最新K线收阳，且放量（量比 <span class="highlight">${st.volRatio.toFixed(2)}</span>）。`;
+                            if (st.touchLower) reason += ` 价格下探至<b>布林带下轨</b>。`;
+                            if (st.rsi <= 35) reason += ` RSI(14) 降至 <span class="highlight">${st.rsi.toFixed(1)}</span> 的<b>超卖区</b>。`;
+                            reason += ` 短线砸盘动能衰竭，出现企稳反弹信号。`;
+
+                            longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, reason, volRatio: st.volRatio });
+                        }
+
+                        // ---- 做空条件 ----
+                        // 1. 最新K线收阴
+                        // 2. 必须放量 (量比 >= 1.2)
+                        // 3. 必须触碰上轨 或 RSI >= 65
+                        if (st.isBear && st.volRatio >= 1.2 && (st.touchUpper || st.rsi >= 65)) {
+                            let score = 60 + Math.min((st.volRatio - 1) * 15, 15);
                             if (st.rsi >= 65) score += Math.min((st.rsi - 65) * 1, 10);
                             if (st.touchUpper) score += 10;
-                        }
-                        
-                        score = Math.min(100, Math.round(score));
+                            score = Math.min(100, Math.round(score));
 
-                        // ---- 组装理由 ----
-                        const trendDesc = coin.trend === 'BULL'
-                            ? `1H 当前K线站上 EMA20 且呈阳线（<b>大周期多头</b>）`
-                            : `1H 当前K线跌破 EMA20 且呈阴线（<b>大周期空头</b>）`;
-
-                        let reason = `${trendDesc}。<br>`;
-                        
-                        if (isBullTrend) {
-                            reason += `5m 最新已收盘K线收阳，且放量（量比 <span class="highlight">${st.volRatio.toFixed(2)}</span>）。`;
-                            if (st.touchLower) reason += ` 价格已下探至<b>布林带下轨</b>。`;
-                            if (st.rsi <= 35) reason += ` RSI(14) 降至 <span class="highlight">${st.rsi.toFixed(1)}</span> 的<b>超卖区</b>。`;
-                            reason += ` 短线砸盘动能衰竭，出现企稳反弹信号，适合<b>顺势做多</b>入场。`;
-                        } else {
-                            reason += `5m 最新已收盘K线收阴，且放量（量比 <span class="highlight">${st.volRatio.toFixed(2)}</span>）。`;
-                            if (st.touchUpper) reason += ` 价格已上探至<b>布林带上轨</b>。`;
+                            let reason = `5m 最新K线收阴，且放量（量比 <span class="highlight">${st.volRatio.toFixed(2)}</span>）。`;
+                            if (st.touchUpper) reason += ` 价格上探至<b>布林带上轨</b>。`;
                             if (st.rsi >= 65) reason += ` RSI(14) 升至 <span class="highlight">${st.rsi.toFixed(1)}</span> 的<b>超买区</b>。`;
-                            reason += ` 短线拉升动能透支，出现遇阻回落信号，适合<b>顺势做空</b>入场。`;
-                        }
+                            reason += ` 短线拉升动能透支，出现遇阻回落信号。`;
 
-                        const resObj = {
-                            instId: coin.instId.replace('-USDT-SWAP', ''),
-                            score: score,
-                            reason: reason,
-                            volRatio: st.volRatio
-                        };
-                        if (isBullTrend) longResults.push(resObj);
-                        else             shortResults.push(resObj);
+                            shortResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, reason, volRatio: st.volRatio });
+                        }
 
                     } catch (e) { /* ignore */ }
 
-                    done2++;
-                    updateProgress(`第 2/2 步：正在检查 5m 入场信号...`,
-                        50 + (done2 / passed1H.length) * 45);
+                    done++;
+                    updateProgress(`正在扫描 5m 信号... (${done}/${targetCoins.length})`,
+                        5 + (done / targetCoins.length) * 90);
                 }));
             }
 
@@ -301,16 +236,16 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 1H共振 + 5M入场信号 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 5M极值放量拐点 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（1H 多头 + 5m 下轨/超卖/放量收阳）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（5m 下轨/超卖 + 放量收阳）</div>`;
         if (longs.length === 0) {
-            html += `<div class="empty-tip">当前无符合极度严格入场结构的做多标的。</div>`;
+            html += `<div class="empty-tip">当前无符合极度严格结构的做多标的。</div>`;
         }
         longs.forEach((item, index) => {
             html += `
@@ -323,9 +258,9 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（1H 空头 + 5m 上轨/超买/放量收阴）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（5m 上轨/超买 + 放量收阴）</div>`;
         if (shorts.length === 0) {
-            html += `<div class="empty-tip">当前无符合极度严格入场结构的做空标的。</div>`;
+            html += `<div class="empty-tip">当前无符合极度严格结构的做空标的。</div>`;
         }
         shorts.forEach((item, index) => {
             html += `
@@ -339,12 +274,6 @@
         });
 
         area.innerHTML = html;
-    }
-
-    function calcEMA(prices, p) {
-        let k = 2 / (p + 1), e = [prices[0]], prev = prices[0];
-        for (let i = 1; i < prices.length; i++) { prev = prices[i] * k + prev * (1 - k); e.push(prev); }
-        return e;
     }
 
     // 标准 RSI 计算
