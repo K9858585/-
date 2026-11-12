@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50大精选币 4H定势 + 1H/15M 同向 / 5M 反向共振</title>
+    <title>50大精选币 4H定势 + 1H/15M同向 + 5M近5根结构</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 4H定势 + 1H/15M同向 + 5M反向 扫描</span>
+                <span id="btnText">🎯 启动 4H定势 + 1H/15M同向 + 5M近5根结构 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -115,6 +115,7 @@
         return klines.length - 2;
     }
 
+    // === 1H / 15m：只取最新一根已收盘K线分析 ===
     function analyzeTF(klines) {
         const i = getLastClosedIdx(klines);
         if (i < 1) return null;
@@ -128,12 +129,37 @@
         const volRatio = avgV > 0 ? k.v / avgV : 1;
 
         return {
-            o: k.o, c: k.c, h: k.h, l: k.l,
             chg: (k.c - k.o) / k.o * 100,
             isBear: k.c < k.o,
             isBull: k.c > k.o,
             bodyRatio, volRatio
         };
+    }
+
+    // === 5m：最近 5 根已收盘K线（当前未收盘不计）===
+    function analyze5m(klines) {
+        const lastIdx = getLastClosedIdx(klines);
+        if (lastIdx < 4) return null;
+
+        const recent = klines.slice(lastIdx - 4, lastIdx + 1);
+        let bearCount = 0, bullCount = 0, sumV = 0;
+        let sumBody = 0;
+
+        for (const k of recent) {
+            if (k.c < k.o)      bearCount++;
+            else if (k.c > k.o) bullCount++;
+            const rng = k.h - k.l;
+            if (rng > 0) sumBody += Math.abs(k.c - k.o) / rng;
+            sumV += k.v;
+        }
+
+        let sumV0 = 0, n0 = 0;
+        const fromIdx = Math.max(0, lastIdx - 4 - 10);
+        for (let j = fromIdx; j < lastIdx - 4; j++) { sumV0 += klines[j].v; n0++; }
+        const avgV0 = n0 > 0 ? sumV0 / n0 : 0;
+        const volRatio = avgV0 > 0 ? (sumV / 5) / avgV0 : 1;
+
+        return { bearCount, bullCount, avgBodyRatio: sumBody / 5, volRatio };
     }
 
     window.runScanner = async function() {
@@ -152,7 +178,7 @@
         const passed4H = [];
 
         try {
-            // ========== 第一轮：4H 趋势判定（只用已收盘K线）==========
+            // ========== 第一轮：4H 趋势判定 ==========
             updateProgress("第 1/3 步：正在判定 4H 大趋势...", 5);
             const chunkSize = 10;
             let done1 = 0;
@@ -177,7 +203,7 @@
                     } catch (e) { /* ignore */ }
                     done1++;
                     updateProgress("第 1/3 步：正在判定 4H 大趋势...",
-                        5 + (done1 / targetCoins.length) * 45);
+                        5 + (done1 / targetCoins.length) * 40);
                 }));
             }
 
@@ -187,48 +213,76 @@
                 return;
             }
 
-            // ========== 第二轮：1H / 15m 同向，5m 反向 ==========
-            updateProgress(`第 2/3 步：正在检查 ${passed4H.length} 个币的 1H/15m/5m 结构...`, 50);
+            // ========== 第二轮：1H / 15m 最新K线（同向判定）==========
+            updateProgress(`第 2/3 步：正在核对 ${passed4H.length} 个币的 1H / 15m 最新K线...`, 45);
 
+            // 筛选：4H多头要求 1H 收阴 + 15m 收阴；4H空头要求 1H 收阳 + 15m 收阳
+            const pass2 = [];
             let done2 = 0;
-            const batch = 8;
+            const batch2 = 10;
 
-            for (let i = 0; i < passed4H.length; i += batch) {
-                const chunk = passed4H.slice(i, i + batch);
+            for (let i = 0; i < passed4H.length; i += batch2) {
+                const chunk = passed4H.slice(i, i + batch2);
+                await Promise.all(chunk.map(async (coin) => {
+                    try {
+                        const [k1h, k15] = await Promise.all([
+                            fetchCandles(coin.instId, '1H',  40),
+                            fetchCandles(coin.instId, '15m', 40)
+                        ]);
+                        const d1h = analyzeTF(k1h);
+                        const d15 = analyzeTF(k15);
+                        if (!d1h || !d15) return;
+
+                        // 4H多头 → 做空信号：1H、15m 收阴
+                        // 4H空头 → 做多信号：1H、15m 收阳
+                        const wantBear = (coin.type === 'LONG');
+                        const ok = wantBear
+                            ? (d1h.isBear && d15.isBear)
+                            : (d1h.isBull && d15.isBull);
+                        if (!ok) return;
+
+                        pass2.push({ ...coin, d1h, d15 });
+                    } catch (e) { /* ignore */ }
+                    done2++;
+                    updateProgress(`第 2/3 步：正在核对 1H / 15m 最新K线...`,
+                        45 + (done2 / passed4H.length) * 25);
+                }));
+            }
+
+            if (pass2.length === 0) {
+                updateProgress("扫描完毕：1H/15m 未与 4H 趋势形成同向转弱/转强结构。", 100);
+                endScanner();
+                return;
+            }
+
+            // ========== 第三轮：5m 最近5根K线结构筛查 ==========
+            updateProgress(`第 3/3 步：正在检查 ${pass2.length} 个币的 5m 近5根K线结构...`, 72);
+
+            let done3 = 0;
+            const batch3 = 10;
+
+            for (let i = 0; i < pass2.length; i += batch3) {
+                const chunk = pass2.slice(i, i + batch3);
 
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k1h, k15, k5] = await Promise.all([
-                            fetchCandles(coin.instId, '1H',  40),
-                            fetchCandles(coin.instId, '15m', 40),
-                            fetchCandles(coin.instId, '5m',  40)
-                        ]);
+                        const k5 = await fetchCandles(coin.instId, '5m', 40);
+                        const st = analyze5m(k5);
+                        if (!st) return;
 
-                        const d1h = analyzeTF(k1h);
-                        const d15 = analyzeTF(k15);
-                        const d5  = analyzeTF(k5);
-                        if (!d1h || !d15 || !d5) return;
+                        const wantBearSignal = (coin.type === 'LONG'); // 4H多头 → 做空信号
 
-                        // 4H 多头 → 目标做空：
-                        //   1H 收阴 + 15m 收阴（短周期转弱）+ 5m 最新一根收阳（相反，反弹）
-                        // 4H 空头 → 目标做多：
-                        //   1H 收阳 + 15m 收阳（短周期转强）+ 5m 最新一根收阴（相反，回调）
-                        const wantBear = (coin.type === 'LONG');
-                        const okAll = wantBear
-                            ? (d1h.isBear && d15.isBear && d5.isBull)
-                            : (d1h.isBull && d15.isBull && d5.isBear);
-                        if (!okAll) return;
+                        // 做空：5m 最近5根需 ≥3 根阳线（上涨过热）
+                        // 做多：5m 最近5根需 ≥3 根阴线（下跌超卖）
+                        let signalCount = wantBearSignal ? st.bullCount : st.bearCount;
+                        if (signalCount < 3) return;
 
                         // ---- 评分 ----
-                        // 1H/15m 实体越强越好；5m 反向K实体越小越好（说明反向力度弱，原方向占优）
-                        const strongBody = (d1h.bodyRatio + d15.bodyRatio) / 2;
-                        const weakBody   = 1 - d5.bodyRatio;
-                        const avgVol = (d1h.volRatio + d15.volRatio) / 2;
-
+                        // 基础70 + 5m 信号根数 (0/8/16) + 5m 量能 (0~7) + 1H/15m 强度 (0~7)
                         let score = 70
-                            + Math.round(strongBody * 15)                          // 0~15
-                            + Math.round(weakBody * 10)                            // 0~10
-                            + Math.round(Math.min(avgVol / 2, 1) * 5);             // 0~5
+                            + (signalCount - 3) * 8
+                            + Math.round(Math.min(st.volRatio / 2, 1) * 7)
+                            + Math.round(((coin.d1h.bodyRatio + coin.d15.bodyRatio) / 2) * 7);
                         score = Math.min(100, score);
 
                         // ---- 理由 ----
@@ -237,42 +291,39 @@
                             : `4H 收盘价跌破 EMA20（<b>空头趋势</b>，偏离 ${coin.dist.toFixed(2)}%）`;
 
                         const fmt = d => `${d.chg >= 0 ? '+' : ''}${d.chg.toFixed(2)}%`;
-                        const detail = `1H ${fmt(d1h)} ｜ 15m ${fmt(d15)} ｜ <span class="highlight">5m ${fmt(d5)}（反向）</span>`;
+                        const tfLine = `1H ${fmt(coin.d1h)}（${coin.d1h.isBull ? '阳' : '阴'}） ｜ 15m ${fmt(coin.d15)}（${coin.d15.isBull ? '阳' : '阴'}）`;
+                        const fiveLine = `5m 最近5根已收盘：<span class="highlight">${st.bullCount} 阳</span> / <span class="highlight">${st.bearCount} 阴</span>`;
 
                         let reason = `${trendDesc}。<br>`
-                            + `1H、15m 最新已收盘K线${wantBear ? '同步收阴转弱' : '同步收阳转强'}，`
-                            + `<b>5m 最新一根反向收${wantBear ? '阳' : '阴'}</b>`
-                            + `（${wantBear ? '反弹' : '回调'}），形成“大趋势 + 中周期同向 + 5m 反向”的${wantBear ? '反弹做空' : '回调做多'}结构。`
-                            + `<br>${detail}`;
+                            + `1H、15m 最新已收盘K线${wantBearSignal ? '同步收阴转弱' : '同步收阳转强'}（${tfLine}）。<br>`
+                            + `${fiveLine}，满足${wantBearSignal ? '<b>≥3 根阳线</b>（5m 上涨过热，高位反抽）' : '<b>≥3 根阴线</b>（5m 下跌超卖，低位反弹）'}的${wantBearSignal ? '做空' : '做多'}条件。`;
 
-                        if (d5.bodyRatio < 0.35) {
-                            reason += ` <span class="highlight">5m 反向K实体偏弱（实体占比 ${(d5.bodyRatio * 100).toFixed(0)}%），反向动能不足，原方向占优。</span>`;
-                        }
-                        if (avgVol > 1.5) {
-                            reason += ` <span class="highlight">1H/15m 伴随放量（量比 ${avgVol.toFixed(2)}）</span>`;
+                        if (st.volRatio > 1.5) {
+                            reason += ` <span class="highlight">5m 近5根均量较前期放大（量比 ${st.volRatio.toFixed(2)}）</span>`;
                         }
 
                         const resObj = {
                             instId: coin.instId.replace('-USDT-SWAP', ''),
                             score: score,
-                            reason: reason
+                            reason: reason,
+                            signalCount: signalCount
                         };
-                        if (wantBear) shortResults.push(resObj);
-                        else          longResults.push(resObj);
+                        if (wantBearSignal) shortResults.push(resObj);
+                        else                longResults.push(resObj);
 
                     } catch (e) { /* ignore */ }
 
-                    done2++;
-                    updateProgress(`第 2/3 步：正在检查 1H/15m/5m 结构...`,
-                        50 + (done2 / passed4H.length) * 45);
+                    done3++;
+                    updateProgress(`第 3/3 步：正在检查 5m 近5根K线结构...`,
+                        72 + (done3 / pass2.length) * 25);
                 }));
             }
 
-            // ========== 第三轮：排序取前三并渲染 ==========
-            updateProgress("第 3/3 步：正在整理榜单...", 97);
+            // ========== 排序取前三 ==========
+            updateProgress("正在整理榜单...", 98);
 
-            longResults.sort((a, b) => b.score - a.score);
-            shortResults.sort((a, b) => b.score - a.score);
+            longResults.sort((a, b) => b.score - a.score || b.signalCount - a.signalCount);
+            shortResults.sort((a, b) => b.score - a.score || b.signalCount - a.signalCount);
 
             renderResults(longResults.slice(0, 3), shortResults.slice(0, 3));
 
@@ -283,14 +334,14 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 4H定势 + 1H/15M同向 + 5M反向 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 4H定势 + 1H/15M同向 + 5M近5根结构 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H 空头 + 1H/15M 转强 + 5M 反向回调）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H 空头 + 1H/15M 转强 + 5m 近5根 ≥3 阴线）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
@@ -305,7 +356,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 多头 + 1H/15M 转弱 + 5M 反向反弹）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 多头 + 1H/15M 转弱 + 5m 近5根 ≥3 阳线）</div>`;
         if (shorts.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
