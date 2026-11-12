@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H定势+15m回调+5m入场 (前150名)</title>
+    <title>4H定势+1H回调+5m入场 (波段猎手)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在执行三屏共振扫描...</div>
+            <div class="scan-loading" id="scan-status">正在执行4H波段共振扫描...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🎯 三屏精准共振</button>
+            <button class="scan-btn" onclick="runScanner()">🎯 4H波段狙击</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -73,8 +73,8 @@
 
     <div id="time-bar">
         <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (扣扳机)</button>
-        <button class="time-btn" data-tf="15m" onclick="switchTimeframe('15m')">15分 (看回调)</button>
-        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (定方向)</button>
+        <button class="time-btn" data-tf="1H" onclick="switchTimeframe('1H')">1小时 (看回调)</button>
+        <button class="time-btn" data-tf="4H" onclick="switchTimeframe('4H')">4小时 (看大牛)</button>
     </div>
 
     <div id="price-bar">
@@ -88,12 +88,12 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 三屏共振解析</div>
+        <div class="analysis-header">🎯 波段共振解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_triple_screen')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_4h_triple')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -140,7 +140,7 @@
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="card-title">🏆 极佳入场 Top ${index+1}</div>
+                    <div class="card-title">🏆 波段入场 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
                     <div class="score-text">共振分: ${item.score}</div>
                 `;
@@ -234,7 +234,7 @@
         });
     }
 
-    // === 核心引擎：三屏共振 (1H定势+15m回调+5m入场) ===
+    // === 核心引擎：三屏共振 (4H定势+1H回调+5m入场) ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
@@ -247,16 +247,45 @@
             
             let usdt = data.data.filter(t => t.instId.endsWith('-USDT-SWAP'));
             usdt.sort((a, b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h));
-            // 剔除流动性不高的，只扫前150名
             let targetCoins = usdt.slice(0, 150); 
 
             let level1Coins = []; 
             let batchSize = 15; 
 
-            // --- 第一屏：1H 定方向 ---
-            status.innerText = "第一屏过滤：寻找1H多头趋势...";
+            // --- 第一屏：4H 定方向 (金叉或多头) ---
+            status.innerText = "第一屏过滤：寻找4H大级别多头...";
             for (let i = 0; i < targetCoins.length; i += batchSize) {
                 let batch = targetCoins.slice(i, i + batchSize);
+                
+                let promises = batch.map(async (coin) => {
+                    let instId = coin.instId;
+                    try {
+                        let k4H = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=4H&limit=50`).then(r=>r.json());
+                        if(k4H.code === '0' && k4H.data.length > 20) {
+                            let c4H = k4H.data.reverse().map(d => +d[4]);
+                            let macd4H = calcMACD(c4H);
+                            let currDif = macd4H.macd[macd4H.macd.length-1];
+                            let currDea = macd4H.signal[macd4H.signal.length-1];
+                            
+                            // 4H MACD 多头
+                            if(currDif > currDea) return { instId }; 
+                        }
+                    } catch(e) {}
+                    return null;
+                });
+                let results = await Promise.all(promises);
+                level1Coins.push(...results.filter(r => r !== null));
+                await new Promise(r => setTimeout(r, 20));
+            }
+
+            if(level1Coins.length === 0) throw new Error("全市场暂无4H多头币种。");
+
+            // --- 第二屏：1H 找回调 (死叉状态) ---
+            status.innerText = "第二屏过滤：寻找1H死叉回调...";
+            let level2Coins = [];
+
+            for (let i = 0; i < level1Coins.length; i += batchSize) {
+                let batch = level1Coins.slice(i, i + batchSize);
                 
                 let promises = batch.map(async (coin) => {
                     let instId = coin.instId;
@@ -268,36 +297,7 @@
                             let currDif = macd1H.macd[macd1H.macd.length-1];
                             let currDea = macd1H.signal[macd1H.signal.length-1];
                             
-                            if(currDif > currDea) return { instId }; // 1H 多头
-                        }
-                    } catch(e) {}
-                    return null;
-                });
-                let results = await Promise.all(promises);
-                level1Coins.push(...results.filter(r => r !== null));
-                await new Promise(r => setTimeout(r, 20));
-            }
-
-            if(level1Coins.length === 0) throw new Error("暂无1H多头币种。");
-
-            // --- 第二屏：15m 找回调 ---
-            status.innerText = "第二屏过滤：寻找15m死叉回调...";
-            let level2Coins = [];
-
-            for (let i = 0; i < level1Coins.length; i += batchSize) {
-                let batch = level1Coins.slice(i, i + batchSize);
-                
-                let promises = batch.map(async (coin) => {
-                    let instId = coin.instId;
-                    try {
-                        let k15M = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=15m&limit=50`).then(r=>r.json());
-                        if(k15M.code === '0' && k15M.data.length > 20) {
-                            let c15M = k15M.data.reverse().map(d => +d[4]);
-                            let macd15M = calcMACD(c15M);
-                            let currDif = macd15M.macd[macd15M.macd.length-1];
-                            let currDea = macd15M.signal[macd15M.signal.length-1];
-                            
-                            // 15m 死叉（回调）或者刚死叉不久
+                            // 1H MACD 死叉（代表正在回调）
                             if(currDif < currDea) return { instId };
                         }
                     } catch(e) {}
@@ -308,10 +308,10 @@
                 await new Promise(r => setTimeout(r, 20));
             }
 
-            if(level2Coins.length === 0) throw new Error("暂无15m回调币种。");
+            if(level2Coins.length === 0) throw new Error("大级别多头中，暂无1H回调币种。");
 
-            // --- 第三屏：5m 扣扳机 + 打分 ---
-            status.innerText = "第三屏过滤：寻找5m企稳买点...";
+            // --- 第三屏：5m 扣扳机 (企稳/金叉) + 打分 ---
+            status.innerText = "第三屏过滤：寻找5m精准买点...";
             let candidates = [];
 
             for (let i = 0; i < level2Coins.length; i += batchSize) {
@@ -330,28 +330,23 @@
                             let dif = macd5M.macd, dea = macd5M.signal, hist = macd5M.hist;
                             let len = dif.length;
 
-                            // 5m 刚刚金叉（1根内）
+                            // 5m 刚金叉，或者即将金叉（绿柱缩短）
                             let isGoldenCross = (dif[len-2] <= dea[len-2]) && (dif[len-1] > dea[len-1]);
-                            
-                            // 或者 5m 绿柱缩短，即将金叉
                             let isReversing = (hist[len-1] < 0 && hist[len-1] > hist[len-2]);
 
                             if(isGoldenCross || isReversing) {
-                                let score = 70; // 完美符合三屏共振，给基础高分
+                                let score = 70; // 4H+1H+5M共振，极高基础分
                                 
-                                // 加分项 1：5m收阳线
-                                if(currK5M.c > currK5M.o) score += 10;
+                                if(currK5M.c > currK5M.o) score += 10; // 阳线
                                 
-                                // 加分项 2：5m带长下影线
                                 let body = Math.abs(currK5M.c - currK5M.o);
                                 let lowerWick = Math.min(currK5M.c, currK5M.o) - currK5M.l;
-                                if(lowerWick > body * 1.5) score += 10;
+                                if(lowerWick > body * 1.5) score += 10; // 长下影
 
-                                // 加分项 3：放量
                                 let vols = fmt5M.map(d => d.v);
                                 let currVol = vols[vols.length-1];
                                 let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
-                                if(currVol > avgVol * 1.2) score += 10;
+                                if(currVol > avgVol * 1.2) score += 10; // 放量
 
                                 return { instId: instId, score: score };
                             }
@@ -365,14 +360,14 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("暂无5m完美入场标的。");
+                throw new Error("当前暂无4H+1H+5m完美共振标的（说明大环境不支持，休息就是赚钱）。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_triple_screen', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_4h_triple', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
