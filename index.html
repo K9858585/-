@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>4H+2H强多头 + 5m放宽金叉</title>
+    <title>4H+2H强多头 + 5m超卖企稳</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -52,7 +52,7 @@
 
     <div id="scanner-modal">
         <div class="scanner-box">
-            <div class="scan-loading" id="scan-status">正在全市场寻找强多头...</div>
+            <div class="scan-loading" id="scan-status">正在寻找强多头下的超卖点...</div>
             <button class="close-btn" id="modal-close-btn" onclick="closeScannerModal()">返回页面</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
                 <input type="text" id="coinInput" placeholder="如 BTC" onkeydown="if(event.key==='Enter') addCoin()">
                 <button onclick="addCoin()">+</button>
             </div>
-            <button class="scan-btn" onclick="runScanner()">🚀 强多头金叉扫描</button>
+            <button class="scan-btn" onclick="runScanner()">💎 猎杀5m超卖</button>
             <button onclick="toggleView()" style="background:#363a45; color:#fff; border:none; padding:8px; border-radius:4px;">▼</button>
         </div>
         
@@ -72,7 +72,7 @@
     </div>
 
     <div id="time-bar">
-        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (找金叉)</button>
+        <button class="time-btn active" data-tf="5m" onclick="switchTimeframe('5m')">5分 (看超卖)</button>
         <button class="time-btn" data-tf="2H" onclick="switchTimeframe('2H')">2小时 (看多头)</button>
         <button class="time-btn" data-tf="4H" onclick="switchTimeframe('4H')">4小时 (看大牛)</button>
     </div>
@@ -88,12 +88,12 @@
     </div>
 
     <div id="analysis-panel">
-        <div class="analysis-header">🎯 强多头共振解析</div>
+        <div class="analysis-header">🎯 超卖反弹解析</div>
         <div id="analysis-text">等待扫描...</div>
     </div>
 
 <script>
-    let scanLongs = JSON.parse(localStorage.getItem('okx_relaxed_golden')) || null; 
+    let scanLongs = JSON.parse(localStorage.getItem('okx_oversold_bull')) || null; 
     let coinList = JSON.parse(localStorage.getItem('okx_coins')) || ['BTC-USDT-SWAP', 'ETH-USDT-SWAP'];
     
     let currentCoin = (scanLongs && scanLongs.length > 0) ? scanLongs[0].instId : coinList[0];
@@ -140,9 +140,9 @@
                 div.className = 'card-long';
                 div.onclick = () => switchCoin(item.instId.replace('-USDT-SWAP',''));
                 div.innerHTML = `
-                    <div class="card-title">🚀 强多头 Top ${index+1}</div>
+                    <div class="card-title">💎 超卖企稳 Top ${index+1}</div>
                     <div class="coin-long">${item.instId.replace('-USDT-SWAP','')}</div>
-                    <div class="score-text">时机分: ${item.score}</div>
+                    <div class="score-text">反弹分: ${item.score}</div>
                 `;
                 longArea.appendChild(div);
             });
@@ -234,7 +234,7 @@
         });
     }
 
-    // === 核心引擎：全市场扫描 (前300) - 放宽版 ===
+    // === 核心引擎：全市场扫描 (前300) - 超卖版 ===
     window.runScanner = async function() {
         document.getElementById('scanner-modal').style.display = 'flex';
         document.getElementById('modal-close-btn').style.display = 'none';
@@ -292,8 +292,8 @@
 
             if(potentialCoins.length === 0) throw new Error("前300名中，暂无'4H+2H双多头'的形态。");
 
-            // --- 第二级过滤：5m 放宽金叉 ---
-            status.innerText = "第二级过滤：寻找5m放宽MACD金叉...";
+            // --- 第二级过滤：5m 超卖 + 企稳 ---
+            status.innerText = "第二级过滤：寻找5m超卖拐点...";
             let candidates = [];
 
             for (let i = 0; i < potentialCoins.length; i += batchSize) {
@@ -308,50 +308,55 @@
                         if(k5M.code === '0' && k5M.data.length > 50) {
                             let fmt5M = k5M.data.reverse().map(d => ({ o:+d[1], c:+d[4], h:+d[2], l:+d[3], v:+d[5] }));
                             let c5M = fmt5M.map(d => d.c);
-                            let price5M = c5M[c5M.length-1];
+                            let currK5M = fmt5M[fmt5M.length-1];
 
+                            // 1. 计算 RSI 和 KDJ 找超卖
+                            let rsi = calcRSI(c5M, 14);
+                            let currRsi = rsi[rsi.length-1];
+                            let prevRsi = rsi[rsi.length-2];
+
+                            let kdj = calcKDJ(fmt5M, 9, 3, 3);
+                            let currJ = kdj.J[kdj.J.length-1];
+
+                            // 超卖条件：RSI < 35 或者 J < 20
+                            let isOversold = (currRsi < 35) || (currJ < 20);
+
+                            // 2. 必须企稳（拒绝接飞刀）
+                            // 条件A：收阳线（当前收盘价 > 开盘价）
+                            let isBullish = currK5M.c > currK5M.o;
+                            // 条件B：带长下影线（下方有托底）
+                            let body = Math.abs(currK5M.c - currK5M.o);
+                            let lowerWick = Math.min(currK5M.c, currK5M.o) - currK5M.l;
+                            let hasLongWick = lowerWick > body * 1.5;
+
+                            // 3. 动能拐头（RSI向上，或 MACD 绿柱缩短）
                             let macd5M = calcMACD(c5M);
                             let hist = macd5M.hist;
-                            let len = hist.length;
+                            let currHist = hist[hist.length-1];
+                            let prevHist = hist[hist.length-2];
+                            let isReversing = (currRsi > prevRsi) || (currHist < 0 && currHist > prevHist);
 
-                            // 放宽1：连续金叉 1 到 6 根之间
-                            let goldenCrossCount = 0;
-                            for (let j = len - 1; j >= 0; j--) {
-                                if (hist[j] > 0) {
-                                    goldenCrossCount++;
-                                } else {
-                                    break; 
-                                }
-                            }
-                            
-                            let isGoldenCross1to6 = (goldenCrossCount >= 1 && goldenCrossCount <= 6);
+                            if(isOversold && (isBullish || hasLongWick) && isReversing) {
+                                let score = 60; // 基础分
+                                
+                                // 极度超卖加分
+                                if(currRsi < 30) score += 10;
+                                if(currJ < 0) score += 10;
+                                
+                                // 阳线和长下影加分
+                                if(isBullish) score += 10;
+                                if(hasLongWick) score += 10;
+                                
+                                // MACD绿柱缩短加分
+                                if(currHist < 0 && currHist > prevHist) score += 10;
 
-                            if(isGoldenCross1to6) {
-                                let score = 0;
-                                let currK5M = fmt5M[fmt5M.length-1];
-                                let prevHist = hist[len-2];
-                                let currHist = hist[len-1];
-
-                                if(currHist > 0 && currHist > prevHist) score += 20; 
-                                if(currK5M.c > currK5M.o) score += 10; 
-                                let body = Math.abs(currK5M.c - currK5M.o);
-                                let lowerWick = Math.min(currK5M.c, currK5M.o) - currK5M.l;
-                                if(lowerWick > body * 0.5) score += 10; 
-                                let rsi = calcRSI(c5M, 14);
-                                let currRsi = rsi[rsi.length-1];
-                                let prevRsi = rsi[rsi.length-2];
-                                if(currRsi > 30 && currRsi < 60 && currRsi > prevRsi) score += 20; 
-                                let e20_5m = calcEMA(c5M, 20);
-                                if (price5M > e20_5m[e20_5m.length-1]) score += 20;
+                                // 放量加分
                                 let vols = fmt5M.map(d => d.v);
                                 let currVol = vols[vols.length-1];
                                 let avgVol = vols.slice(-21, -1).reduce((a,b)=>a+b,0) / 20;
-                                if(currVol > avgVol * 1.2) score += 20; 
+                                if(currVol > avgVol * 1.2) score += 10;
 
-                                // 放宽2：及格线降到 40 分！
-                                if(score >= 40) {
-                                    return { instId: instId, score: score };
-                                }
+                                candidates.push({ instId: instId, score: score });
                             }
                         }
                     } catch(e) {}
@@ -365,14 +370,14 @@
             }
 
             if(candidates.length === 0) {
-                throw new Error("前300名中，暂无5m金叉标的。");
+                throw new Error("前300名中，暂无'5m超卖企稳'标的。");
             }
 
             candidates.sort((a, b) => b.score - a.score);
             let top5 = candidates.slice(0, 5);
 
             scanLongs = top5;
-            localStorage.setItem('okx_relaxed_golden', JSON.stringify(scanLongs));
+            localStorage.setItem('okx_oversold_bull', JSON.stringify(scanLongs));
             
             document.getElementById('scanner-modal').style.display = 'none';
             document.getElementById('long-area').style.display = 'flex';
@@ -411,6 +416,26 @@
             } else { rsi.push(50); }
         } 
         return rsi; 
+    }
+
+    function calcKDJ(data, n, m1, m2) {
+        let K = [], D = [], J = [];
+        let prevK = 50, prevD = 50;
+        for(let i=0; i<data.length; i++) {
+            let start = Math.max(0, i - n + 1);
+            let highest = -Infinity, lowest = Infinity;
+            for(let j=start; j<=i; j++) {
+                if(data[j].h > highest) highest = data[j].h;
+                if(data[j].l < lowest) lowest = data[j].l;
+            }
+            let rsv = highest === lowest ? 50 : (data[i].c - lowest) / (highest - lowest) * 100;
+            let curK = (2/3) * prevK + (1/3) * rsv;
+            let curD = (2/3) * prevD + (1/3) * curK;
+            let curJ = 3 * curK - 2 * curD;
+            K.push(curK); D.push(curD); J.push(curJ);
+            prevK = curK; prevD = curD;
+        }
+        return { K, D, J };
     }
 
     window.onload = () => {
