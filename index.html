@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>60大精选币 2H/1H大涨跌 + 15M反向0.3% (带止盈止损)</title>
+    <title>100币 剔除横盘 + 2H/1H同色共振 + 15M反向0.2-0.8%</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -42,7 +42,6 @@
 
         .reason-box { font-size: 13px; line-height: 1.7; color: #b2b5be; text-align: justify; background: #12161f; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
         
-        /* 止盈止损价格展示区 */
         .trade-plan { display: flex; justify-content: space-between; background: #1a1f2b; border: 1px solid #2a2e39; border-radius: 8px; padding: 10px 15px; font-size: 13px; font-weight: bold; }
         .trade-plan .tp { color: var(--up); }
         .trade-plan .sl { color: var(--down); }
@@ -56,7 +55,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 60币定势 + 15M反向 扫描</span>
+                <span id="btnText">🎯 启动 100币强共振 + 15M反向 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -66,24 +65,29 @@
     <div id="result-area"></div>
 
 <script>
-    // 扩展至 60 个币种（保留了原有的前 30 个，新增了近期热门和主流币）
+    // 扩充至 100 个主流及热门合约币种
     const allCoins = [
-        // 原 30 个
         "BTC-USDT-SWAP", "ETH-USDT-SWAP", "OKB-USDT-SWAP", "SOL-USDT-SWAP", "DOGE-USDT-SWAP",
         "XRP-USDT-SWAP", "BCH-USDT-SWAP", "DOOD-USDT-SWAP", "ZEC-USDT-SWAP", "xNVDA-USDT-SWAP",
         "PEPE-USDT-SWAP", "XAUT-USDT-SWAP", "xSNDK-USDT-SWAP", "UNI-USDT-SWAP", "HYPE-USDT-SWAP",
         "TRUMP-USDT-SWAP", "BNB-USDT-SWAP", "xSOXL-USDT-SWAP", "SUI-USDT-SWAP", "FIL-USDT-SWAP",
         "ADA-USDT-SWAP", "AVAX-USDT-SWAP", "DOT-USDT-SWAP", "LINK-USDT-SWAP", "LTC-USDT-SWAP",
         "TRX-USDT-SWAP", "ATOM-USDT-SWAP", "NEAR-USDT-SWAP", "APT-USDT-SWAP", "ARB-USDT-SWAP",
-        // 新增 30 个主流/热门合约
         "OP-USDT-SWAP", "INJ-USDT-SWAP", "TIA-USDT-SWAP", "RNDR-USDT-SWAP", "IMX-USDT-SWAP",
         "STX-USDT-SWAP", "HBAR-USDT-SWAP", "ICP-USDT-SWAP", "ETC-USDT-SWAP", "XLM-USDT-SWAP",
         "VET-USDT-SWAP", "GRT-USDT-SWAP", "THETA-USDT-SWAP", "FTM-USDT-SWAP", "SAND-USDT-SWAP",
         "MANA-USDT-SWAP", "EOS-USDT-SWAP", "AAVE-USDT-SWAP", "MKR-USDT-SWAP", "WIF-USDT-SWAP",
         "BONK-USDT-SWAP", "JUP-USDT-SWAP", "SEI-USDT-SWAP", "FLOW-USDT-SWAP", "CHZ-USDT-SWAP",
-        "CRV-USDT-SWAP", "LDO-USDT-SWAP", "FET-USDT-SWAP", "AGIX-USDT-SWAP", "ORDI-USDT-SWAP"
+        "CRV-USDT-SWAP", "LDO-USDT-SWAP", "FET-USDT-SWAP", "AGIX-USDT-SWAP", "ORDI-USDT-SWAP",
+        "TON-USDT-SWAP", "MATIC-USDT-SWAP", "SHIB-USDT-SWAP", "PENDLE-USDT-SWAP", "JTO-USDT-SWAP",
+        "PYTH-USDT-SWAP", "WLD-USDT-SWAP", "STRK-USDT-SWAP", "DYDX-USDT-SWAP", "GMX-USDT-SWAP",
+        "SNX-USDT-SWAP", "COMP-USDT-SWAP", "ZRX-USDT-SWAP", "YFI-USDT-SWAP", "SUSHI-USDT-SWAP",
+        "KSM-USDT-SWAP", "MINA-USDT-SWAP", "CFX-USDT-SWAP", "BLUR-USDT-SWAP", "MEME-USDT-SWAP",
+        "ENS-USDT-SWAP", "1INCH-USDT-SWAP", "BAT-USDT-SWAP", "QTUM-USDT-SWAP", "OM-USDT-SWAP",
+        "ZETA-USDT-SWAP", "AEVO-USDT-SWAP", "MAVIA-USDT-SWAP", "PIXEL-USDT-SWAP", "PORTAL-USDT-SWAP",
+        "AI-USDT-SWAP", "NFP-USDT-SWAP", "XAI-USDT-SWAP", "MANTA-USDT-SWAP", "ALT-USDT-SWAP"
     ];
-    const targetCoins = allCoins.slice(0, 60);
+    const targetCoins = allCoins.slice(0, 100);
 
     let isRunning = false;
 
@@ -127,6 +131,31 @@
         return klines.length - 2;
     }
 
+    // 前置过滤：检测过去 5 根 2H K 线是否横盘（振幅 < 1.5%）
+    function isSideways(klines) {
+        const recent = klines.slice(-5);
+        let maxH = -Infinity;
+        let minL = Infinity;
+        for (const k of recent) {
+            if (k.h > maxH) maxH = k.h;
+            if (k.l < minL) minL = k.l;
+        }
+        // 如果这 5 根的最高最低差小于 1.5%，视为横盘
+        return (maxH - minL) / minL * 100 < 1.5;
+    }
+
+    // 基础趋势解析
+    function analyzeMacro(k) {
+        if (!k) return null;
+        const chg = (k.c - k.o) / k.o * 100;
+        return {
+            chg: chg,
+            absChg: Math.abs(chg),
+            isBull: k.c > k.o,
+            isBear: k.c < k.o
+        };
+    }
+
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
@@ -143,8 +172,8 @@
         const candidates = [];
 
         try {
-            // ========== 第一轮：2H & 1H 涨跌幅 ≥ 1.5% ==========
-            updateProgress("第 1/2 步：正在寻找 2H / 1H 涨跌幅 ≥1.5% 的币...", 5);
+            // ========== 第一轮：剔除横盘 + 2H/1H 同色强共振 ==========
+            updateProgress("第 1/2 步：正在剔除横盘，寻找 2H/1H 同色强共振...", 5);
             const chunkSize = 10;
             let done1 = 0;
 
@@ -152,56 +181,48 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        const [k2h, k1h] = await Promise.all([
-                            fetchCandles(instId, '2H', 5),
-                            fetchCandles(instId, '1H', 5)
-                        ]);
-                        
-                        const cur2H = k2h[k2h.length - 1];
-                        const cur1H = k1h[k1h.length - 1];
-                        
-                        const chg2H = (cur2H.c - cur2H.o) / cur2H.o * 100;
-                        const chg1H = (cur1H.c - cur1H.o) / cur1H.o * 100;
-                        
-                        let triggerType = null;
-                        let triggerChg = 0;
-                        let triggerTF = '';
+                        // 1. 先拉 2H 数据，检查是否横盘
+                        const k2h = await fetchCandles(instId, '2H', 10);
+                        if (isSideways(k2h)) return; // 横盘直接淘汰，节省请求
 
-                        // 2H 优先判定
-                        if (Math.abs(chg2H) >= 1.5) {
-                            triggerType = chg2H > 0 ? 'LONG' : 'SHORT';
-                            triggerChg = chg2H;
-                            triggerTF = '2H';
-                        } 
-                        // 其次 1H 判定
-                        else if (Math.abs(chg1H) >= 1.5) {
-                            triggerType = chg1H > 0 ? 'LONG' : 'SHORT';
-                            triggerChg = chg1H;
-                            triggerTF = '1H';
+                        // 2. 不横盘，再拉 1H 数据
+                        const k1h = await fetchCandles(instId, '1H', 5);
+                        
+                        const m2H = analyzeMacro(k2h[k2h.length - 1]);
+                        const m1H = analyzeMacro(k1h[k1h.length - 1]);
+                        
+                        if (!m2H || !m1H) return;
+
+                        // 3. 颜色一致 + 任意一个满足 1.5%
+                        let type = null;
+                        if (m2H.isBull && m1H.isBull && (m2H.absChg >= 1.5 || m1H.absChg >= 1.5)) {
+                            type = 'LONG';
+                        } else if (m2H.isBear && m1H.isBear && (m2H.absChg >= 1.5 || m1H.absChg >= 1.5)) {
+                            type = 'SHORT';
                         }
 
-                        if (triggerType) {
+                        if (type) {
                             candidates.push({ 
                                 instId, 
-                                type: triggerType, 
-                                triggerChg, 
-                                triggerTF 
+                                type, 
+                                chg2H: m2H.chg, 
+                                chg1H: m1H.chg 
                             });
                         }
                     } catch (e) { /* ignore */ }
                     done1++;
-                    updateProgress("第 1/2 步：正在寻找 2H / 1H 涨跌幅 ≥1.5% 的币...",
+                    updateProgress("第 1/2 步：正在剔除横盘并寻找共振...",
                         5 + (done1 / targetCoins.length) * 45);
                 }));
             }
 
             if (candidates.length === 0) {
-                updateProgress("扫描完毕：当前无 2H 或 1H 涨跌幅 ≥1.5% 的标的。", 100);
+                updateProgress("扫描完毕：当前无符合条件（非横盘且双周期同色共振）的标的。", 100);
                 endScanner();
                 return;
             }
 
-            // ========== 第二轮：15M 反向 0.3% 确认 ==========
+            // ========== 第二轮：15M 反向 0.2% ~ 0.8% 确认 ==========
             updateProgress(`第 2/2 步：正在检查 ${candidates.length} 个币的 15m 反向回调...`, 50);
             let done2 = 0;
 
@@ -211,33 +232,29 @@
                     const lastIdx = getLastClosedIdx(k15);
                     if (lastIdx < 1) return;
                     
-                    const lastK = k15[lastIdx]; // 最新一根已收盘 15m K线
+                    const lastK = k15[lastIdx];
                     const chg15m = (lastK.c - lastK.o) / lastK.o * 100;
                     const abs15m = Math.abs(chg15m);
                     
-                    // 取最新价格作为参考入场价
+                    // 严格限制在 0.2% ~ 0.8% 之间
+                    if (abs15m < 0.2 || abs15m > 0.8) return;
+
                     const currentPrice = lastK.c;
 
-                    if (coin.type === 'LONG') {
-                        // 大周期多头，15m 必须收阴（反向），且跌幅 ≥ 0.3%
-                        if (lastK.c < lastK.o && chg15m <= -0.3) {
-                            longResults.push({
-                                instId: coin.instId.replace('-USDT-SWAP', ''),
-                                score: 90 + Math.min(Math.round((abs15m - 0.3) * 10), 10),
-                                price: currentPrice,
-                                reason: `${coin.triggerTF} 当前K线大涨 <span class="highlight">+${coin.triggerChg.toFixed(2)}%</span>（多头趋势）。<br>15m 最新已收盘K线反向回调，跌幅 <span class="highlight">${chg15m.toFixed(2)}%</span>（满足 ≥0.3% 的要求），属于强势中的短线砸坑，具备做多机会。`
-                            });
-                        }
-                    } else {
-                        // 大周期空头，15m 必须收阳（反向），且涨幅 ≥ 0.3%
-                        if (lastK.c > lastK.o && chg15m >= 0.3) {
-                            shortResults.push({
-                                instId: coin.instId.replace('-USDT-SWAP', ''),
-                                score: 90 + Math.min(Math.round((abs15m - 0.3) * 10), 10),
-                                price: currentPrice,
-                                reason: `${coin.triggerTF} 当前K线大跌 <span class="highlight">${coin.triggerChg.toFixed(2)}%</span>（空头趋势）。<br>15m 最新已收盘K线反向反弹，涨幅 <span class="highlight">${chg15m.toFixed(2)}%</span>（满足 ≥0.3% 的要求），属于弱势中的短线诱多，具备做空机会。`
-                            });
-                        }
+                    if (coin.type === 'LONG' && lastK.c < lastK.o) { // 做多：15m 收阴
+                        longResults.push({
+                            instId: coin.instId.replace('-USDT-SWAP', ''),
+                            score: 90 + Math.min(Math.round((abs15m - 0.2) * 20), 10),
+                            price: currentPrice,
+                            reason: `2H（<span class="highlight">+${coin.chg2H.toFixed(2)}%</span>）与 1H（<span class="highlight">+${coin.chg1H.toFixed(2)}%</span>）呈同色大阳线共振。<br>15m 最新K线反向回调，跌幅 <span class="highlight">${chg15m.toFixed(2)}%</span>（在0.2-0.8%黄金洗盘区），具备做多机会。`
+                        });
+                    } else if (coin.type === 'SHORT' && lastK.c > lastK.o) { // 做空：15m 收阳
+                        shortResults.push({
+                            instId: coin.instId.replace('-USDT-SWAP', ''),
+                            score: 90 + Math.min(Math.round((abs15m - 0.2) * 20), 10),
+                            price: currentPrice,
+                            reason: `2H（<span class="highlight">${coin.chg2H.toFixed(2)}%</span>）与 1H（<span class="highlight">${coin.chg1H.toFixed(2)}%</span>）呈同色大阴线共振。<br>15m 最新K线反向反弹，涨幅 <span class="highlight">${chg15m.toFixed(2)}%</span>（在0.2-0.8%黄金诱多区），具备做空机会。`
+                        });
                     }
                 } catch (e) { /* ignore */ }
                 
@@ -260,7 +277,6 @@
         }
     };
 
-    // 格式化价格，保留合适的小数位
     function formatPrice(p) {
         if (p >= 1000) return p.toFixed(2);
         if (p >= 10) return p.toFixed(3);
@@ -270,23 +286,18 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 2H/1H大涨跌 + 15M反向 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按要求排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        // 做多列表
-        html += `<div class="section-title long">🟢 做多 Top 3（大周期涨 + 15m 反跌）</div>`;
-        if (longs.length === 0) {
-            html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
-        }
+        html += `<div class="section-title long">🟢 做多 Top 3（2H+1H 双阳 + 15m 反跌0.2-0.8%）</div>`;
+        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
-            // 计算止盈止损 (1.5% 止损, 3.0% 止盈)
             const sl = item.price * (1 - 0.015);
             const tp = item.price * (1 + 0.03);
-
             html += `
                 <div class="card long-card">
                     <div class="card-header">
@@ -302,16 +313,11 @@
                 </div>`;
         });
 
-        // 做空列表
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（大周期跌 + 15m 反涨）</div>`;
-        if (shorts.length === 0) {
-            html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
-        }
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（2H+1H 双阴 + 15m 反涨0.2-0.8%）</div>`;
+        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
-            // 计算止盈止损 (1.5% 止损, 3.0% 止盈)
             const sl = item.price * (1 + 0.015);
             const tp = item.price * (1 - 0.03);
-
             html += `
                 <div class="card short-card">
                     <div class="card-header">
