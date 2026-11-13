@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>30大精选币 4H涨幅2-5% + 15M回调0.3%</title>
+    <title>30大精选币 4H涨幅2-5% + 5M回调幅度(≥3根)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -50,7 +50,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 4H涨幅2-5% + 15M回调0.3% 扫描</span>
+                <span id="btnText">🎯 启动 4H涨幅2-5% + 5M回调幅度 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -116,6 +116,37 @@
         return klines.length - 2;
     }
 
+    // 5M 判定：找最近 10 根的最高/最低点，算真实回撤幅度，并统计阴阳根数
+    function analyze5M(klines) {
+        const lastIdx = getLastClosedIdx(klines);
+        if (lastIdx < 10) return null;
+        
+        // 取最近 10 根已收盘 K 线
+        const recent = klines.slice(lastIdx - 9, lastIdx + 1);
+        
+        let maxHigh = -Infinity;
+        let minLow = Infinity;
+        let bearCount = 0;
+        let bullCount = 0;
+        
+        for (const k of recent) {
+            if (k.h > maxHigh) maxHigh = k.h;
+            if (k.l < minLow) minLow = k.l;
+            if (k.c < k.o) bearCount++;
+            else if (k.c > k.o) bullCount++;
+        }
+        
+        const lastClose = recent[recent.length - 1].c;
+        
+        // 从最高点回撤的幅度（做多）
+        const dropPct = (maxHigh - lastClose) / maxHigh * 100;
+        
+        // 从最低点反弹的幅度（做空）
+        const risePct = (lastClose - minLow) / minLow * 100;
+        
+        return { dropPct, risePct, bearCount, bullCount };
+    }
+
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
@@ -171,25 +202,25 @@
                 return;
             }
 
-            // ========== 第二轮：15M 前一根 K 线回调判定 ==========
-            updateProgress(`第 2/2 步：正在检查 15m 回调幅度...`, 50);
+            // ========== 第二轮：5M 回调幅度打分 ==========
+            updateProgress(`第 2/2 步：正在检查 5m 近期回调幅度...`, 50);
             
             // 处理做多候选
             await Promise.all(longCandidates.map(async (coin) => {
                 try {
-                    const k15 = await fetchCandles(coin.instId, '15m', 10);
-                    const lastIdx = getLastClosedIdx(k15);
-                    if (lastIdx < 1) return;
+                    const k5 = await fetchCandles(coin.instId, '5m', 20);
+                    const st = analyze5M(k5);
+                    if (!st) return;
                     
-                    const prevK = k15[lastIdx]; // 前一根已收盘K线
-                    
-                    // 必须是阴线，且跌幅 >= 0.3%
-                    const dropPct = (prevK.o - prevK.c) / prevK.o * 100;
-                    if (prevK.c < prevK.o && dropPct >= 0.3) {
+                    // 做多条件：回撤幅度 >= 0.3%，且至少包含 3 根阴线
+                    if (st.dropPct >= 0.3 && st.bearCount >= 3) {
+                        // 打分：基础 80 分。回撤越大分越高。每多回撤 0.1% 加 1分，最高加到 100 分。
+                        let score = 80 + Math.min(Math.round((st.dropPct - 0.3) * 10), 20);
+                        
                         longResults.push({
                             instId: coin.instId.replace('-USDT-SWAP', ''),
-                            score: 90 + Math.min(Math.round((dropPct - 0.3) * 10), 10),
-                            reason: `4H 级别涨幅 <span class="highlight">+${coin.change4H.toFixed(2)}%</span>（表现强势）。<br>15m 前一根已收盘K线收阴，跌幅 <span class="highlight">${dropPct.toFixed(2)}%</span>（满足 ≥0.3% 的回调要求），属于强势币的回调买点。`
+                            score: score,
+                            reason: `4H 级别涨幅 <span class="highlight">+${coin.change4H.toFixed(2)}%</span>（表现强势）。<br>5m 最近 10 根K线中，从最高点回撤了 <span class="highlight">${st.dropPct.toFixed(2)}%</span>（包含 ${st.bearCount} 根阴线，满足 ≥3 根要求），回调较为充分，具备反弹向上的空间。`
                         });
                     }
                 } catch (e) { /* ignore */ }
@@ -198,19 +229,18 @@
             // 处理做空候选
             await Promise.all(shortCandidates.map(async (coin) => {
                 try {
-                    const k15 = await fetchCandles(coin.instId, '15m', 10);
-                    const lastIdx = getLastClosedIdx(k15);
-                    if (lastIdx < 1) return;
+                    const k5 = await fetchCandles(coin.instId, '5m', 20);
+                    const st = analyze5M(k5);
+                    if (!st) return;
                     
-                    const prevK = k15[lastIdx];
-                    
-                    // 必须是阳线，且涨幅 >= 0.3%
-                    const risePct = (prevK.c - prevK.o) / prevK.o * 100;
-                    if (prevK.c > prevK.o && risePct >= 0.3) {
+                    // 做空条件：反弹幅度 >= 0.3%，且至少包含 3 根阳线
+                    if (st.risePct >= 0.3 && st.bullCount >= 3) {
+                        let score = 80 + Math.min(Math.round((st.risePct - 0.3) * 10), 20);
+                        
                         shortResults.push({
                             instId: coin.instId.replace('-USDT-SWAP', ''),
-                            score: 90 + Math.min(Math.round((risePct - 0.3) * 10), 10),
-                            reason: `4H 级别跌幅 <span class="highlight">${coin.change4H.toFixed(2)}%</span>（表现弱势）。<br>15m 前一根已收盘K线收阳，涨幅 <span class="highlight">${risePct.toFixed(2)}%</span>（满足 ≥0.3% 的反弹要求），属于弱势币的反弹空点。`
+                            score: score,
+                            reason: `4H 级别跌幅 <span class="highlight">${coin.change4H.toFixed(2)}%</span>（表现弱势）。<br>5m 最近 10 根K线中，从最低点反弹了 <span class="highlight">${st.risePct.toFixed(2)}%</span>（包含 ${st.bullCount} 根阳线，满足 ≥3 根要求），反弹较为充分，具备回落向下的空间。`
                         });
                     }
                 } catch (e) { /* ignore */ }
@@ -231,14 +261,14 @@
     };
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成！已按 4H涨幅2-5% + 15M回调0.3% 排出榜单。", 100);
+        updateProgress("✅ 扫描完成！已按 4H涨幅2-5% + 5M回调幅度 排出榜单。", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H 涨幅 2-5% + 15m 刚跌 0.3%）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H 涨幅 2-5% + 5m 深度回调）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
@@ -253,7 +283,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 跌幅 -2%至-5% + 15m 刚涨 0.3%）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H 跌幅 -2%至-5% + 5m 深度反弹）</div>`;
         if (shorts.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         }
