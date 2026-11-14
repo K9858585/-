@@ -55,7 +55,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 全市场三步严筛 扫描</span>
+                <span id="btnText">🎯 启动 全市场 5M三K合力 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -130,16 +130,11 @@
             totalRange += (k.h - k.l);
         }
 
-        // 1. 最近10根总振幅必须 >= 3%
         if ((maxH - minL) / minL * 100 < 3) return true;
-
-        // 2. 最近10根K线整体实体占比（总实体/总长度）必须 >= 50%
         if (totalRange > 0 && (totalBody / totalRange) < 0.5) return true;
-
         return false;
     }
 
-    // 基础趋势解析
     function analyzeMacro(k) {
         if (!k) return null;
         const chg = (k.c - k.o) / k.o * 100;
@@ -173,8 +168,7 @@
                 return;
             }
 
-            // ========== 第一 & 第二步：初筛（极值定势 + 5m三K合力） ==========
-            updateProgress(`共发现 ${targetCoins.length} 个合约。开始第一/二步筛查...`, 5);
+            updateProgress(`共发现 ${targetCoins.length} 个合约。开始筛查...`, 5);
             const chunkSize = 15;
             let done1 = 0;
 
@@ -182,7 +176,6 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 第一步：查极值定势
                         const [k2h, k1h] = await Promise.all([
                             fetchCandles(instId, '2H', 12),
                             fetchCandles(instId, '1H', 12)
@@ -208,39 +201,30 @@
 
                         if (!type) return;
 
-                        // 第二步：查 5m 最近3根合力（0.3% ~ 1.5%）
                         const k5 = await fetchCandles(instId, '5m', 30);
                         const lastIdx = getLastClosedIdx(k5);
                         if (lastIdx < 15) return;
                         
-                        // 取最近 3 根已收盘 5m K线
+                        // 最近 3 根已收盘 5m K线合力
                         const k3 = k5.slice(lastIdx - 2, lastIdx + 1); 
-                        const lastK = k3[2]; // 最新一根
-                        const firstK = k3[0]; // 3根前的第一根
+                        const lastK = k3[2]; 
+                        const firstK = k3[0]; 
 
-                        // 3根加起来的总涨跌幅（用第一根的开盘价到最后一根的收盘价）
                         const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
                         const abs3Sum = Math.abs(chg3Sum);
 
-                        // 必须反向，且幅度在区间内，且最新一根必须是反向K线
                         if (type === 'LONG') {
-                            if (chg3Sum > 0) return; // 3根合力必须为跌
-                            if (lastK.c >= lastK.o) return; // 最新一根必须是阴线
+                            if (chg3Sum > 0) return;
+                            if (lastK.c >= lastK.o) return;
                         } else {
-                            if (chg3Sum < 0) return; // 3根合力必须为涨
-                            if (lastK.c <= lastK.o) return; // 最新一根必须是阳线
+                            if (chg3Sum < 0) return;
+                            if (lastK.c <= lastK.o) return;
                         }
                         
                         if (abs3Sum < 0.3 || abs3Sum > 1.5) return;
 
-                        // 第二步通过后，放入候选
                         candidates.push({ 
-                            instId, 
-                            type, 
-                            maxChg,
-                            mainTF,
-                            k2h, k1h, 
-                            chg3Sum, abs3Sum, k5 
+                            instId, type, maxChg, mainTF, k2h, k1h, chg3Sum, abs3Sum, k5 
                         });
                     } catch (e) { /* ignore */ }
                     done1++;
@@ -255,22 +239,16 @@
                 return;
             }
 
-            // ========== 第三步：剔除横盘过滤 + 整理结果 ==========
             updateProgress(`有 ${candidates.length} 个币通过前两步。正在进行极度横盘过滤...`, 52);
             let done2 = 0;
 
             await Promise.all(candidates.map(async (coin) => {
                 try {
-                    // 第三步：剔除横盘（检查 2H 和 1H）
-                    if (isStrictSideways(coin.k2h) || isStrictSideways(coin.k1h)) {
-                        return; 
-                    }
+                    if (isStrictSideways(coin.k2h) || isStrictSideways(coin.k1h)) return;
 
-                    // 打分：基础90分，3K合力越接近1.5%分越高（最高100）
                     let score = 90 + Math.min(Math.round((coin.abs3Sum - 0.3) * 8.3), 10);
                     const currentPrice = coin.k5 ? coin.k5[getLastClosedIdx(coin.k5)].c : 0;
                     
-                    // 组装理由
                     const dirStr = coin.type === 'LONG' ? '做多' : '做空';
                     const reason = `${coin.mainTF} 当前K线呈明显${coin.type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${coin.maxChg>0?'+':''}${coin.maxChg.toFixed(2)}%</span>）。<br>5m 最近3根K线合力${coin.type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(coin.chg3Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
 
@@ -286,9 +264,7 @@
                     52 + (done2 / candidates.length) * 45);
             }));
 
-            // ========== 排序取前三 ==========
             updateProgress("正在整理最终榜单...", 98);
-
             longResults.sort((a, b) => b.score - a.score);
             shortResults.sort((a, b) => b.score - a.score);
 
