@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全市场多头扫描 + 4H定势 + 15M回调 + 综合打分</title>
+    <title>全市场多头 + 1H双阳连涨2% + 15M回调 + 综合打分</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -51,7 +51,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 全市场多头 + 综合打分 扫描</span>
+                <span id="btnText">🎯 启动 全市场多头 + 1H双阳连涨 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -132,12 +132,21 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 查 4H 极值定势 (≥ 2.0% 且 必须为阳线)
-                        const k4h = await fetchCandles(instId, '4H', 12);
-                        const cur4H = k4h[k4h.length - 1];
-                        const chg4H = (cur4H.c - cur4H.o) / cur4H.o * 100;
+                        // 1. 查 1H 连续两根 K 线
+                        const k1h = await fetchCandles(instId, '1H', 5);
+                        if (k1h.length < 3) return;
                         
-                        if (chg4H < 2.0) return;
+                        const cur1H = k1h[k1h.length - 1]; // 当前正在走
+                        const prev1H = k1h[k1h.length - 2]; // 上一根已收盘
+                        
+                        // 条件：两根必须全是阳线（收盘价 > 开盘价）
+                        if (cur1H.c <= cur1H.o || prev1H.c <= prev1H.o) return;
+                        
+                        // 计算这两根加起来的涨幅 (以 prev1H 开盘价为起点，cur1H 收盘价为终点)
+                        const chg2H = (cur1H.c - prev1H.o) / prev1H.o * 100;
+                        
+                        // 必须大涨 ≥ 2%
+                        if (chg2H < 2.0) return;
 
                         // 2. 查 15m 最近3根总和（含当前走的一根）
                         const k15 = await fetchCandles(instId, '15m', 30);
@@ -156,10 +165,10 @@
                         let score = 0;
                         let reasonDetails = [];
 
-                        // 1. 爆发力分 (最高 40 分) - 4H 涨得越猛越好，6% 封顶
-                        let powerScore = Math.min(Math.round((chg4H / 6) * 40), 40);
+                        // 1. 爆发力分 (最高 40 分) - 2小时内涨得越猛越好，6% 封顶
+                        let powerScore = Math.min(Math.round((chg2H / 6) * 40), 40);
                         score += powerScore;
-                        reasonDetails.push(`4H爆发力(<b>+${chg4H.toFixed(2)}%</b>)得 ${powerScore}分`);
+                        reasonDetails.push(`1H双阳爆发(<b>+${chg2H.toFixed(2)}%</b>)得 ${powerScore}分`);
 
                         // 2. 回调深度分 (最高 30 分) - 回调越接近 1% 越好，0.3% 为基准
                         let dipScore = Math.round(((abs3Sum - 0.3) / 0.7) * 30);
@@ -181,13 +190,12 @@
                             shapeScore += 15;
                             reasonDetails.push(`缩量小阴星(洗盘) +15分`);
                         } else if (lastK.c < lastK.o) {
-                            // 如果没有缩量，只要不是暴跌大阴线，给 5 分保底
                             shapeScore += 5;
                         }
                         score += shapeScore;
 
                         const currentPrice = lastK.c;
-                        const reason = `4H 呈现大阳线爆发（涨幅 +${chg4H.toFixed(2)}%）。<br>15m 三K合力回调 ${abs3Sum.toFixed(2)}%。<br><span class="highlight">打分细节：${reasonDetails.join('，')}。</span>`;
+                        const reason = `近2小时 1H <b>双阳连涨</b> <span class="highlight">+${chg2H.toFixed(2)}%</span>。<br>15m 三K合力回调 <span class="highlight">${abs3Sum.toFixed(2)}%</span>。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
 
@@ -227,7 +235,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H定势 + 15m回调 + 综合打分）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（1H双阳连涨≥2% + 15m回调 + 综合打分）</div>`;
         if (longs.length === 0) {
             html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         }
