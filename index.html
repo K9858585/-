@@ -20,7 +20,8 @@
         .scan-btn:active { transform: scale(0.98); }
         .scan-btn:disabled { background: #363a45; color: #848e9c; box-shadow: none; cursor: not-allowed; }
         
-        .auto-btn { background: linear-gradient(135deg, #fcd535, #f6465d); box-shadow: 0 6px 20px rgba(246,70,93,0.4); display: none; }
+        /* 修复：移除了 display: none; 让按钮显示出来 */
+        .auto-btn { background: linear-gradient(135deg, #fcd535, #f6465d); box-shadow: 0 6px 20px rgba(246,70,93,0.4); }
         .auto-btn.active { background: #2a2e39; color: var(--yellow); box-shadow: none; border: 1px solid var(--yellow); }
 
         .progress-text { font-size: 13px; color: var(--yellow); height: 20px; text-align: center; font-weight: bold; }
@@ -308,7 +309,7 @@
                         const ema5_15m = calcEMA(closes15m, 5);
                         const ema10_15m = calcEMA(closes15m, 10);
                         const ema20_15m = calcEMA(closes15m, 20);
-                        const cur15mPrice = k15[k15.length - 1].c; // 当前 15m 实时价格
+                        const cur15mPrice = k15[k15.length - 1].c; 
 
                         // ================= 2. 过滤：防插针 & 防横盘 =================
                         let maxH = -Infinity;
@@ -341,7 +342,6 @@
                         const isBullStruct = (H1 > H2 && L1 > L2);
                         const isBearStruct = (H1 < H2 && L1 < L2);
                         
-                        // 强行要求 EMA 也必须是完美多/空头排列，彻底杜绝接飞刀
                         const isBullEma = (cur15mPrice > ema20_15m && ema5_15m > ema10_15m && ema10_15m > ema20_15m);
                         const isBearEma = (cur15mPrice < ema20_15m && ema5_15m < ema10_15m && ema10_15m < ema20_15m);
 
