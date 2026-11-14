@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 15M(20根)定势 + 5M形态 (过滤插针/横盘)</title>
+    <title>前100币 15M(20根)定势 + 5M形态 (5分自动)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -78,13 +78,13 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 前100币 扫描</span>
+                <span id="btnText">🎯 立即扫描</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
             </button>
         </div>
-        <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
+        <div class="progress-text" id="progressText">准备就绪，点击右侧开启定时</div>
         <div class="progress-bar-bg" id="progressBarBg"><div class="progress-bar" id="progressBar"></div></div>
     </div>
 
@@ -123,6 +123,7 @@
         const autoBtnText = document.getElementById('autoBtnText');
 
         if (isAutoScanning) {
+            // 停止自动扫描
             isAutoScanning = false;
             clearInterval(autoScanInterval);
             clearInterval(countdownInterval);
@@ -130,10 +131,12 @@
             autoBtnText.innerText = "⏱️ 5分定时";
             updateProgress("已停止自动扫描", 0);
         } else {
+            // 开启自动扫描
             isAutoScanning = true;
             autoBtn.classList.add('active');
             autoBtnText.innerText = "🛑 停止";
             
+            // 权限请求
             if ("Notification" in window && Notification.permission !== "granted") {
                 Notification.requestPermission();
             }
@@ -143,24 +146,38 @@
                 ctx.resume();
             } catch(e) {}
             
+            // 立即扫一次
             runScanner();
             
+            // 定时器
             autoScanInterval = setInterval(() => {
                 if (!isRunning) runScanner();
             }, SCAN_INTERVAL);
 
+            // 倒计时更新
             countdownInterval = setInterval(() => {
                 if (!isRunning && nextScanTime > 0) {
                     const left = Math.max(0, nextScanTime - Date.now());
                     const m = Math.floor(left / 60000);
                     const s = Math.floor((left % 60000) / 1000);
                     if (left > 0) {
-                        updateProgress(`等待下次扫描: ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`, ((SCAN_INTERVAL - left) / SCAN_INTERVAL) * 100);
+                        updateProgress(`⏱️ 自动扫描运行中... 下次倒计时: ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`, ((SCAN_INTERVAL - left) / SCAN_INTERVAL) * 100);
                     }
                 }
             }, 1000);
         }
     }
+
+    // 【新增】监听页面切回前台的事件（防止休眠导致定时器冻结）
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && isAutoScanning) {
+            // 如果切回页面时，发现当前时间已经超过了下次扫描时间，立刻补扫一次
+            if (Date.now() > nextScanTime && !isRunning) {
+                console.log("检测到休眠结束，立刻补扫一次");
+                runScanner();
+            }
+        }
+    });
 
     function playAlert() {
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
@@ -277,20 +294,16 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 拉取 15m 和 5m 数据
                         const [k15, k5] = await Promise.all([
-                            fetchCandles(instId, '15m', 40), // 拉 40 根足够过滤
+                            fetchCandles(instId, '15m', 40),
                             fetchCandles(instId, '5m', 30)
                         ]);
                         
                         if (k15.length < 25 || k5.length < 10) return;
 
                         const closed15m = k15.slice(0, k15.length - 1);
+                        const recent20 = closed15m.slice(-20); // 20根
                         
-                        // ================= 改为 20 根 =================
-                        const recent20 = closed15m.slice(-20);
-                        
-                        // ================= 过滤 1：防插针 & 防横盘 =================
                         let maxH = -Infinity;
                         let minL = Infinity;
                         let hasExtremeSpike = false;
@@ -298,22 +311,14 @@
                         for (const k of recent20) {
                             if (k.h > maxH) maxH = k.h;
                             if (k.l < minL) minL = k.l;
-
-                            // 单根 15m 振幅若超过 8%，视为剧烈插针妖币，淘汰
                             const candleAmp = (k.h - k.l) / k.l * 100;
-                            if (candleAmp > 8) {
-                                hasExtremeSpike = true;
-                                break;
-                            }
+                            if (candleAmp > 8) { hasExtremeSpike = true; break; }
                         }
-                        
                         if (hasExtremeSpike) return;
 
-                        // 最近 20 根 15m（约5小时）的总振幅若小于 2%，视为横盘死水，淘汰 (因为根数少了，阈值可略降)
                         const totalAmp = (maxH - minL) / minL * 100;
                         if (totalAmp < 2) return;
 
-                        // ================= 2. 15m 结构判定 (20根) =================
                         let highs = [], lows = [];
                         for(let j=1; j<recent20.length-1; j++) {
                             if(recent20[j].h > recent20[j-1].h && recent20[j].h > recent20[j+1].h) highs.push(recent20[j].h);
@@ -328,11 +333,9 @@
                         const isBearTrend = (H1 < H2 && L1 < L2);
                         if (!isBullTrend && !isBearTrend) return;
 
-                        // ================= 3. 5m 形态与成交量判定 =================
                         const closed5m = k5.slice(0, k5.length - 1);
                         const lastClosed = closed5m[closed5m.length - 1];
                         
-                        // 5m 信号线本身的振幅必须 ≥ 0.5%
                         const signalAmp = (lastClosed.h - lastClosed.l) / lastClosed.l * 100;
                         if (signalAmp < 0.5) return;
 
@@ -340,12 +343,11 @@
                         const avgVol = prev5.reduce((sum, k) => sum + k.v, 0) / 5;
                         if (avgVol === 0) return;
                         const volRatio = lastClosed.v / avgVol;
-                        if (volRatio < 1.2) return; // 必须放量 1.2 倍
+                        if (volRatio < 1.2) return;
 
                         const hammer = isHammer(lastClosed);
                         const star = isShootingStar(lastClosed);
 
-                        // ================= 打分系统 =================
                         let score = 0;
                         let reasonDetails = [];
                         let type = null;
@@ -357,20 +359,15 @@
                         if (isBullTrend && hammer) {
                             type = 'LONG';
                             score += 40; reasonDetails.push(`15m多头结构(40分)`);
-                            
                             let volScore = Math.min(Math.round((volRatio - 1) * 15), 30); score += volScore;
                             let shapeScore = Math.round(wickRatio * 30); score += shapeScore;
-                            
                             reasonDetails.push(`5m锤子线(${shapeScore}分)`);
                             reasonDetails.push(`放量${volRatio.toFixed(1)}倍(${volScore}分)`);
-
                         } else if (isBearTrend && star) {
                             type = 'SHORT';
                             score += 40; reasonDetails.push(`15m空头结构(40分)`);
-                            
                             let volScore = Math.min(Math.round((volRatio - 1) * 15), 30); score += volScore;
                             let shapeScore = Math.round(wickRatio * 30); score += shapeScore;
-                            
                             reasonDetails.push(`5m流星线(${shapeScore}分)`);
                             reasonDetails.push(`放量${volRatio.toFixed(1)}倍(${volScore}分)`);
                         }
