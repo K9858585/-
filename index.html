@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>100主流币 2H/1H极值定势 + 5M三K总和反向</title>
+    <title>100主流币 2H/1H极值定势 + 15M双K总和反向</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -55,7 +55,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 100主流币 + 5M三K总和 扫描</span>
+                <span id="btnText">🎯 启动 100主流币 + 15M双K总和 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -189,31 +189,31 @@
 
                         if (!type) return;
 
-                        // 2. 查 5m 最近3根总和
-                        const k5 = await fetchCandles(instId, '5m', 30);
-                        const lastIdx = getLastClosedIdx(k5);
+                        // 2. 查 15m 最近2根总和
+                        const k15 = await fetchCandles(instId, '15m', 30);
+                        const lastIdx = getLastClosedIdx(k15);
                         if (lastIdx < 15) return;
                         
-                        const k3 = k5.slice(lastIdx - 2, lastIdx + 1); 
-                        const lastK = k3[2]; 
-                        const firstK = k3[0]; 
+                        const k2 = k15.slice(lastIdx - 1, lastIdx + 1); 
+                        const lastK = k2[1]; 
+                        const firstK = k2[0]; 
 
-                        const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
-                        const abs3Sum = Math.abs(chg3Sum);
+                        const chg2Sum = (lastK.c - firstK.o) / firstK.o * 100;
+                        const abs2Sum = Math.abs(chg2Sum);
 
-                        // 判定总幅度是否在 0.3% ~ 1.5% 且方向相反（不看中间是阴是阳）
+                        // 判定总幅度是否在 0.3% ~ 1.5% 且方向相反
                         if (type === 'LONG') {
-                            if (chg3Sum > 0 || abs3Sum < 0.3 || abs3Sum > 1.5) return;
+                            if (chg2Sum > 0 || abs2Sum < 0.3 || abs2Sum > 1.5) return;
                         } else {
-                            if (chg3Sum < 0 || abs3Sum < 0.3 || abs3Sum > 1.5) return;
+                            if (chg2Sum < 0 || abs2Sum < 0.3 || abs2Sum > 1.5) return;
                         }
 
                         // 整理结果
-                        let score = 90 + Math.min(Math.round((abs3Sum - 0.3) * 8.3), 10);
+                        let score = 90 + Math.min(Math.round((abs2Sum - 0.3) * 8.3), 10);
                         const currentPrice = lastK.c;
                         
                         const dirStr = type === 'LONG' ? '做多' : '做空';
-                        const reason = `${mainTF} 当前K线呈明显${type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${maxChg>0?'+':''}${maxChg.toFixed(2)}%</span>）。<br>5m 最近3根K线总和${type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(chg3Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
+                        const reason = `${mainTF} 当前K线呈明显${type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${maxChg>0?'+':''}${maxChg.toFixed(2)}%</span>）。<br>15m 最近2根K线总和${type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(chg2Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
 
                         if (type === 'LONG') {
                             longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
@@ -258,7 +258,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 5m三K总和回调）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 15m双K总和回调）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
@@ -278,7 +278,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 5m三K总和反弹）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 15m双K总和反弹）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.015);
