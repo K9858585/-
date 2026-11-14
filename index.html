@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>100币 5M结构(高低点) + EMA + 斐波那契 双向扫描</title>
+    <title>前50币 5M结构(30根) + 放量锤子/流星线反转</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -66,7 +66,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 5M结构+EMA+斐波那契 扫描</span>
+                <span id="btnText">🎯 启动 前50币 5M(30根)结构+放量 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -93,7 +93,7 @@
         document.getElementById('btnText').innerText = "🎯 重新扫描";
     }
 
-    async function fetchTop100Swaps() {
+    async function fetchTop50Swaps() {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 12000);
         try {
@@ -109,7 +109,7 @@
                 .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
                 .sort((a, b) => b.vol - a.vol);
 
-            return validTickers.slice(0, 100).map(t => t.instId);
+            return validTickers.slice(0, 50).map(t => t.instId);
         } finally {
             clearTimeout(timer);
         }
@@ -143,13 +143,27 @@
         return ema;
     }
 
+    function isHammer(k) {
+        const body = Math.abs(k.c - k.o);
+        const lowerWick = Math.min(k.c, k.o) - k.l;
+        const upperWick = k.h - Math.max(k.c, k.o);
+        return (lowerWick >= body * 2) && (upperWick <= body);
+    }
+
+    function isShootingStar(k) {
+        const body = Math.abs(k.c - k.o);
+        const lowerWick = Math.min(k.c, k.o) - k.l;
+        const upperWick = k.h - Math.max(k.c, k.o);
+        return (upperWick >= body * 2) && (lowerWick <= body);
+    }
+
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
 
         const btn = document.getElementById('startBtn');
         btn.disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 正在扫描5m结构...";
+        document.getElementById('btnText').innerText = "⏳ 正在扫描放量反转信号...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -158,15 +172,15 @@
         const shortResults = [];
 
         try {
-            const targetCoins = await fetchTop100Swaps();
+            const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) {
                 updateProgress("获取合约列表失败。", 100);
                 endScanner();
                 return;
             }
 
-            updateProgress(`已锁定前100活跃币，开始计算结构...`, 5);
-            const chunkSize = 20; 
+            updateProgress(`已锁定前50活跃币，正在计算...`, 5);
+            const chunkSize = 10; 
             let done = 0;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
@@ -175,100 +189,116 @@
                     try {
                         // 拉取 50 根 5m K 线
                         const k5 = await fetchCandles(instId, '5m', 50);
-                        if (k5.length < 25) return;
+                        if (k5.length < 35) return;
                         
-                        const cur5m = k5[k5.length - 1]; // 当前正在走
-                        const closedK = k5.slice(0, k5.length - 1); // 所有已收盘
+                        const closedK = k5.slice(0, k5.length - 1); // 已收盘的线
+                        const lastClosed = closedK[closedK.length - 1]; // 最新已收盘的线
+
+                        // ================= 1. 成交量放量确认 =================
+                        // 计算前 5 根的均量
+                        const prev5 = closedK.slice(-6, -1);
+                        const avgVol = prev5.reduce((sum, k) => sum + k.v, 0) / 5;
+                        if (avgVol === 0) return;
+                        const volRatio = lastClosed.v / avgVol;
+
+                        // 必须放量 1.2 倍以上
+                        if (volRatio < 1.2) return; 
+
+                        // ================= 2. 结构判定 (取最近 30 根) =================
+                        const recent30 = closedK.slice(-30);
                         
-                        // 取最近 20 根已收盘的 5m K 线，用于找高低点结构
-                        const recent20 = closedK.slice(-20);
-                        
-                        // ================= 寻找局部高低点（分型） =================
                         let highs = [];
                         let lows = [];
-                        for(let j=1; j<recent20.length-1; j++) {
-                            if(recent20[j].h > recent20[j-1].h && recent20[j].h > recent20[j+1].h) {
-                                highs.push(recent20[j].h);
-                            }
-                            if(recent20[j].l < recent20[j-1].l && recent20[j].l < recent20[j+1].l) {
-                                lows.push(recent20[j].l);
-                            }
+                        for(let j=1; j<recent30.length-1; j++) {
+                            if(recent30[j].h > recent30[j-1].h && recent30[j].h > recent30[j+1].h) highs.push(recent30[j].h);
+                            if(recent30[j].l < recent30[j-1].l && recent30[j].l < recent30[j+1].l) lows.push(recent30[j].l);
                         }
                         
-                        // 至少需要两个高点和两个低点才能判断趋势
                         if (highs.length < 2 || lows.length < 2) return;
                         
-                        const H1 = highs[highs.length - 1]; // 最近的高点
-                        const H2 = highs[highs.length - 2]; // 前一个高点
-                        const L1 = lows[lows.length - 1];   // 最近的低点
-                        const L2 = lows[lows.length - 2];   // 前一个低点
+                        const H1 = highs[highs.length - 1];
+                        const H2 = highs[highs.length - 2];
+                        const L1 = lows[lows.length - 1];
+                        const L2 = lows[lows.length - 2];
 
-                        // 结构判定
                         const isBullStruct = (H1 > H2 && L1 > L2);
                         const isBearStruct = (H1 < H2 && L1 < L2);
                         if (!isBullStruct && !isBearStruct) return;
 
-                        // ================= 均线计算 =================
+                        // ================= 3. EMA 均线 =================
                         const closes = closedK.map(k => k.c);
                         const ema5 = calcEMA(closes, 5);
                         const ema10 = calcEMA(closes, 10);
                         const ema20 = calcEMA(closes, 20);
 
-                        // EMA 趋势共振
-                        const isBullEma = (cur5m.c > ema20 && ema5 > ema10 && ema10 > ema20);
-                        const isBearEma = (cur5m.c < ema20 && ema5 < ema10 && ema10 < ema20);
+                        const isBullEma = (lastClosed.c > ema20 && ema5 > ema10 && ema10 > ema20);
+                        const isBearEma = (lastClosed.c < ema20 && ema5 < ema10 && ema10 < ema20);
 
-                        let isBull = isBullStruct && isBullEma;
-                        let isBear = isBearStruct && isBearEma;
-                        if (!isBull && !isBear) return;
+                        const isBullTrend = isBullStruct && isBullEma;
+                        const isBearTrend = isBearStruct && isBearEma;
+                        if (!isBullTrend && !isBearTrend) return;
 
-                        // ================= 斐波那契回撤 =================
-                        // 取这 20 根里的绝对最高和最低
-                        let swingHigh = -Infinity;
-                        let swingLow = Infinity;
-                        for (const k of recent20) {
-                            if (k.h > swingHigh) swingHigh = k.h;
-                            if (k.l < swingLow) swingLow = k.l;
-                        }
-                        const range = swingHigh - swingLow;
-                        if (range <= 0) return;
-
-                        let retracePct = 0;
-                        if (isBull) {
-                            retracePct = (swingHigh - cur5m.c) / range;
-                        } else {
-                            retracePct = (cur5m.c - swingLow) / range;
-                        }
-                        
-                        // 必须在黄金区间
-                        if (retracePct < 0.382 || retracePct > 0.618) return;
+                        // ================= 4. 形态判定 =================
+                        const hammer = isHammer(lastClosed);
+                        const star = isShootingStar(lastClosed);
 
                         // ================= 打分系统 =================
                         let score = 0;
                         let reasonDetails = [];
+                        let type = null;
 
-                        // 1. 结构分 (最高 40 分) - 高低点成立给满分
-                        score += 40;
-                        reasonDetails.push(`5m结构确立(${isBull ? '高低点抬高' : '高低点降低'})得 40分`);
+                        const body = Math.abs(lastClosed.c - lastClosed.o);
+                        const range = lastClosed.h - lastClosed.l;
+                        const wickRatio = range > 0 ? (range - body) / range : 0;
 
-                        // 2. 斐波那契精准度 (最高 40 分)
-                        let fibScore = 40 - Math.round(Math.abs(retracePct - 0.5) * 200);
-                        fibScore = Math.max(0, fibScore);
-                        score += fibScore;
-                        reasonDetails.push(`斐波那契回撤 <b>${(retracePct * 100).toFixed(1)}%</b> 得 ${fibScore}分`);
+                        if (isBullTrend && hammer) {
+                            type = 'LONG';
+                            score += 40; // 结构分
+                            reasonDetails.push(`5m多头结构(30根)确立(40分)`);
+                            
+                            // 均线分
+                            const distToEma = Math.min(Math.abs(lastClosed.c - ema10)/ema10, Math.abs(lastClosed.c - ema20)/ema20) * 100;
+                            if (distToEma < 0.2) score += 20;
+                            else if (distToEma < 0.5) score += 15;
+                            else score += 5;
 
-                        // 3. EMA 贴合度 (最高 20 分)
-                        let touchScore = 0;
-                        const distToEma20 = Math.abs(cur5m.c - ema20) / ema20 * 100;
-                        if (distToEma20 < 0.2) { touchScore = 20; reasonDetails.push(`精准贴合EMA20(20分)`); }
-                        else if (distToEma20 < 0.5) { touchScore = 15; reasonDetails.push(`靠近EMA20(15分)`); }
-                        else { touchScore = 5; }
-                        score += touchScore;
+                            // 放量分 (1.2倍得10分，2倍以上得20分)
+                            let volScore = Math.min(Math.round((volRatio - 1) * 10), 20);
+                            score += volScore;
+                            
+                            // 形态分
+                            let shapeScore = Math.round(wickRatio * 20);
+                            score += shapeScore;
+                            
+                            reasonDetails.push(`锤子线长下影(${(wickRatio*100).toFixed(0)}%)得${shapeScore}分`);
+                            reasonDetails.push(`放量 <b>${volRatio.toFixed(2)}倍</b> 得${volScore}分`);
 
-                        const currentPrice = cur5m.c;
-                        const reason = `5m 级别形成<b>${isBull ? '多头' : '空头'}结构</b>（两个${isBull ? '高点抬高、低点抬高' : '高点降低、低点降低'}），且EMA5、10、20呈完美${isBull ? '多头' : '空头'}排列。<br>当前价格正好回调至斐波那契 <span class="highlight">${(retracePct * 100).toFixed(1)}%</span> 的黄金区间。<br>打分细节：${reasonDetails.join('，')}。`;
+                        } else if (isBearTrend && star) {
+                            type = 'SHORT';
+                            score += 40;
+                            reasonDetails.push(`5m空头结构(30根)确立(40分)`);
 
-                        if (isBull) {
+                            const distToEma = Math.min(Math.abs(lastClosed.c - ema10)/ema10, Math.abs(lastClosed.c - ema20)/ema20) * 100;
+                            if (distToEma < 0.2) score += 20;
+                            else if (distToEma < 0.5) score += 15;
+                            else score += 5;
+
+                            let volScore = Math.min(Math.round((volRatio - 1) * 10), 20);
+                            score += volScore;
+                            
+                            let shapeScore = Math.round(wickRatio * 20);
+                            score += shapeScore;
+                            
+                            reasonDetails.push(`流星线长上影(${(wickRatio*100).toFixed(0)}%)得${shapeScore}分`);
+                            reasonDetails.push(`放量 <b>${volRatio.toFixed(2)}倍</b> 得${volScore}分`);
+                        }
+
+                        if (!type) return; // 没有对应的形态直接淘汰
+
+                        const currentPrice = lastClosed.c;
+                        const reason = `5m 级别形成${type === 'LONG' ? '多头' : '空头'}结构，且均线完美排列。<br>最新已收盘K线出现 <span class="highlight">${type === 'LONG' ? '锤子线' : '流星线'}</span> 并伴随 <b>放量</b>，表示短线动能即将反转。<br>打分细节：${reasonDetails.join('，')}。`;
+
+                        if (type === 'LONG') {
                             longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
                         } else {
                             shortResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
@@ -277,7 +307,7 @@
                     } catch (e) { /* ignore */ }
                     
                     done++;
-                    updateProgress(`正在扫描... (${done}/${targetCoins.length})`,
+                    updateProgress(`正在寻找放量反转信号... (${done}/${targetCoins.length})`,
                         5 + (done / targetCoins.length) * 90);
                 }));
             }
@@ -310,10 +340,10 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（5m多头结构 + EMA多头 + 斐波那契回调）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（5m多头结构 + 放量锤子线）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
-            const sl = item.price * (1 - 0.01); // 5m 级别止损收窄至 1%
+            const sl = item.price * (1 - 0.01); // 短打止损 1%
             const tp = item.price * (1 + 0.02); // 止盈 2%
             html += `
                 <details class="long-item">
@@ -337,7 +367,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（5m空头结构 + EMA空头 + 斐波那契反弹）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（5m空头结构 + 放量流星线）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.01);
