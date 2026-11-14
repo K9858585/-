@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全市场三步过滤 2H/1H共振 + 15M反向0.3-1.5% + 剔除横盘</title>
+    <title>全市场三步过滤 2H/1H极值定势 + 15M反向0.3-1.5% + 剔除横盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -145,9 +145,7 @@
         const chg = (k.c - k.o) / k.o * 100;
         return {
             chg: chg,
-            absChg: Math.abs(chg),
-            isBull: k.c > k.o,
-            isBear: k.c < k.o
+            absChg: Math.abs(chg)
         };
     }
 
@@ -175,7 +173,7 @@
                 return;
             }
 
-            // ========== 第一 & 第二步：初筛（共振 + 15m反向） ==========
+            // ========== 第一 & 第二步：初筛（极值定势 + 15m反向） ==========
             updateProgress(`共发现 ${targetCoins.length} 个合约。开始第一/二步筛查...`, 5);
             const chunkSize = 15;
             let done1 = 0;
@@ -184,7 +182,7 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 第一步：查共振
+                        // 第一步：查极值定势
                         const [k2h, k1h] = await Promise.all([
                             fetchCandles(instId, '2H', 12),
                             fetchCandles(instId, '1H', 12)
@@ -195,11 +193,20 @@
                         if (!m2H || !m1H) return;
 
                         let type = null;
-                        if (m2H.isBull && m1H.isBull && (m2H.absChg >= 1.5 || m1H.absChg >= 1.5)) {
-                            type = 'LONG';
-                        } else if (m2H.isBear && m1H.isBear && (m2H.absChg >= 1.5 || m1H.absChg >= 1.5)) {
-                            type = 'SHORT';
+                        let maxChg = 0;
+                        let mainTF = '';
+
+                        // 任意一个 ≥ 1.5 即可，取绝对值大的作为主导方向
+                        if (m2H.absChg >= 1.5 && m2H.absChg >= m1H.absChg) {
+                            type = m2H.chg > 0 ? 'LONG' : 'SHORT';
+                            maxChg = m2H.chg;
+                            mainTF = '2H';
+                        } else if (m1H.absChg >= 1.5) {
+                            type = m1H.chg > 0 ? 'LONG' : 'SHORT';
+                            maxChg = m1H.chg;
+                            mainTF = '1H';
                         }
+
                         if (!type) return;
 
                         // 第二步：查 15m 反向幅度（0.3% ~ 1.5%）
@@ -220,8 +227,8 @@
                         candidates.push({ 
                             instId, 
                             type, 
-                            chg2H: m2H.chg, 
-                            chg1H: m1H.chg,
+                            maxChg,
+                            mainTF,
                             k2h, k1h, 
                             chg15m, abs15m 
                         });
@@ -233,7 +240,7 @@
             }
 
             if (candidates.length === 0) {
-                updateProgress("扫描完毕：无标的通过 共振 或 15m反向 筛查。", 100);
+                updateProgress("扫描完毕：无标的通过 极值定势 或 15m反向 筛查。", 100);
                 endScanner();
                 return;
             }
@@ -255,7 +262,7 @@
                     
                     // 组装理由
                     const dirStr = coin.type === 'LONG' ? '做多' : '做空';
-                    const reason = `2H（<span class="highlight">${coin.chg2H>0?'+':''}${coin.chg2H.toFixed(2)}%</span>）与 1H（<span class="highlight">${coin.chg1H>0?'+':''}${coin.chg1H.toFixed(2)}%</span>）呈同色大K线共振。<br>15m 最新K线反向${coin.type === 'LONG' ? '回调' : '反弹'}，幅度 <span class="highlight">${Math.abs(coin.chg15m).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
+                    const reason = `${coin.mainTF} 当前K线呈明显${coin.type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${coin.maxChg>0?'+':''}${coin.maxChg.toFixed(2)}%</span>）。<br>15m 最新K线反向${coin.type === 'LONG' ? '回调' : '反弹'}，幅度 <span class="highlight">${Math.abs(coin.chg15m).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
 
                     if (coin.type === 'LONG') {
                         longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
@@ -299,7 +306,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（共振 + 反跌 + 非横盘）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 15m 反跌 + 非横盘）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
@@ -319,7 +326,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（共振 + 反涨 + 非横盘）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 15m 反涨 + 非横盘）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.015);
