@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全市场三步过滤 2H/1H共振 + 15M反向 + 剔除横盘</title>
+    <title>全市场三步过滤 2H/1H共振 + 15M反向0.3-1.5% + 剔除横盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -114,7 +114,7 @@
         return klines.length - 2;
     }
 
-    // 剔除横盘检测
+    // 第三步：严剔横盘
     function isStrictSideways(klines) {
         if (klines.length < 10) return true;
         const recent = klines.slice(-10);
@@ -202,7 +202,7 @@
                         }
                         if (!type) return;
 
-                        // 第二步：查 15m 反向幅度（0.2% ~ 0.8%）
+                        // 第二步：查 15m 反向幅度（0.3% ~ 1.5%）
                         const k15 = await fetchCandles(instId, '15m', 30);
                         const lastIdx = getLastClosedIdx(k15);
                         if (lastIdx < 15) return;
@@ -211,10 +211,10 @@
                         const chg15m = (lastK.c - lastK.o) / lastK.o * 100;
                         const abs15m = Math.abs(chg15m);
                         
-                        // 必须反向且幅度正确
+                        // 必须反向且幅度在区间内
                         if (type === 'LONG' && lastK.c >= lastK.o) return;
                         if (type === 'SHORT' && lastK.c <= lastK.o) return;
-                        if (abs15m < 0.2 || abs15m > 0.8) return;
+                        if (abs15m < 0.3 || abs15m > 1.5) return;
 
                         // 第二步通过后，放入候选
                         candidates.push({ 
@@ -249,13 +249,13 @@
                         return; 
                     }
 
-                    // 打分：基础90分，回调越接近0.8%分越高（最高100）
-                    let score = 90 + Math.min(Math.round((coin.abs15m - 0.2) * 15), 10);
+                    // 打分：基础90分，回调越接近1.5%分越高（最高100）
+                    let score = 90 + Math.min(Math.round((coin.abs15m - 0.3) * 8.3), 10);
                     const currentPrice = coin.k15 ? coin.k15[getLastClosedIdx(coin.k15)].c : 0;
                     
                     // 组装理由
                     const dirStr = coin.type === 'LONG' ? '做多' : '做空';
-                    const reason = `2H（<span class="highlight">${coin.chg2H>0?'+':''}${coin.chg2H.toFixed(2)}%</span>）与 1H（<span class="highlight">${coin.chg1H>0?'+':''}${coin.chg1H.toFixed(2)}%</span>）呈同色大K线共振。<br>15m 最新K线反向${coin.type === 'LONG' ? '回调' : '反弹'}，幅度 <span class="highlight">${Math.abs(coin.chg15m).toFixed(2)}%</span>（符合0.2-0.8%黄金区），具备${dirStr}机会。`;
+                    const reason = `2H（<span class="highlight">${coin.chg2H>0?'+':''}${coin.chg2H.toFixed(2)}%</span>）与 1H（<span class="highlight">${coin.chg1H>0?'+':''}${coin.chg1H.toFixed(2)}%</span>）呈同色大K线共振。<br>15m 最新K线反向${coin.type === 'LONG' ? '回调' : '反弹'}，幅度 <span class="highlight">${Math.abs(coin.chg15m).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
 
                     if (coin.type === 'LONG') {
                         longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
