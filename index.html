@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>100主流币 2H/1H极值定势 + 15M双K总和反向</title>
+    <title>100主流币 2H/1H极值1% + 15M双K总和反向</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -163,7 +163,7 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 查极值定势
+                        // 1. 查极值定势（门槛改为 1.0%）
                         const [k2h, k1h] = await Promise.all([
                             fetchCandles(instId, '2H', 12),
                             fetchCandles(instId, '1H', 12)
@@ -177,11 +177,12 @@
                         let maxChg = 0;
                         let mainTF = '';
 
-                        if (m2H.absChg >= 1.5 && m2H.absChg >= m1H.absChg) {
+                        // 任意一个 ≥ 1.0 即可，取大的作为主导方向
+                        if (m2H.absChg >= 1.0 && m2H.absChg >= m1H.absChg) {
                             type = m2H.chg > 0 ? 'LONG' : 'SHORT';
                             maxChg = m2H.chg;
                             mainTF = '2H';
-                        } else if (m1H.absChg >= 1.5) {
+                        } else if (m1H.absChg >= 1.0) {
                             type = m1H.chg > 0 ? 'LONG' : 'SHORT';
                             maxChg = m1H.chg;
                             mainTF = '1H';
