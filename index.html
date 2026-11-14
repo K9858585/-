@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前200币 1H双K(非十字) + 15M三K总和回调 (双向打分)</title>
+    <title>前200币 1H非十字双K + 斐波那契黄金回撤</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -55,7 +55,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 前200币 非十字双向扫描</span>
+                <span id="btnText">🎯 启动 1H非十字 + 斐波那契回撤 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -92,9 +92,7 @@
             ]);
             
             if (instRes.code !== '0' || tickerRes.code !== '0') return [];
-            
             const validInsts = new Set(instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
-            
             const validTickers = tickerRes.data
                 .filter(t => validInsts.has(t.instId))
                 .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
@@ -124,11 +122,10 @@
         }
     }
 
-    // 判断是否为十字星（实体占整根K线长度的比例 < 30%）
     function isDoji(k) {
         const body = Math.abs(k.c - k.o);
         const range = k.h - k.l;
-        if (range === 0) return true; // 绝对的平盘线
+        if (range === 0) return true;
         return (body / range) < 0.3;
     }
 
@@ -138,7 +135,7 @@
 
         const btn = document.getElementById('startBtn');
         btn.disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 正在全市场扫描多空机会...";
+        document.getElementById('btnText').innerText = "⏳ 正在全市场扫描...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -154,7 +151,7 @@
                 return;
             }
 
-            updateProgress(`已锁定前200活跃币，开始双向筛查...`, 5);
+            updateProgress(`已锁定前200活跃币，开始计算斐波那契回撤...`, 5);
             const chunkSize = 20; 
             let done = 0;
 
@@ -162,89 +159,92 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 查 1H 连续两根 K 线
+                        // 只查 1H 数据
                         const k1h = await fetchCandles(instId, '1H', 5);
                         if (k1h.length < 3) return;
                         
                         const cur1H = k1h[k1h.length - 1]; // 当前正在走
                         const prev1H = k1h[k1h.length - 2]; // 上一根已收盘
                         
-                        // 判定是否十字星
                         if (isDoji(cur1H) || isDoji(prev1H)) return;
 
                         const isBull1H = (cur1H.c > cur1H.o && prev1H.c > prev1H.o);
                         const isBear1H = (cur1H.c < cur1H.o && prev1H.c < prev1H.o);
                         
-                        if (!isBull1H && !isBear1H) return; // 颜色不统一，直接淘汰
+                        if (!isBull1H && !isBear1H) return;
 
-                        // 两段涨跌幅代数相加（用于打分）
-                        const chg2H = ((cur1H.c - cur1H.o) / cur1H.o + (prev1H.c - prev1H.o) / prev1H.o) * 100;
+                        // ================= 斐波那契回撤计算 =================
+                        let retracePct = 0;
+                        let chg2H = 0;
 
-                        // 查 15m 最近3根
-                        const k15 = await fetchCandles(instId, '15m', 30);
-                        const k3 = k15.slice(-3); 
-                        const lastK = k3[2]; 
+                        if (isBull1H) {
+                            // 做多：计算这波拉升的斐波那契
+                            const swingLow = prev1H.o; 
+                            const swingHigh = Math.max(cur1H.h, prev1H.h);
+                            const range = swingHigh - swingLow;
+                            if (range <= 0) return;
 
-                        // 三根涨跌幅代数总和
-                        let chg3Sum = 0;
-                        for(let j=0; j<3; j++) {
-                            chg3Sum += ((k3[j].c - k3[j].o) / k3[j].o) * 100;
+                            // 当前价格相对最高点的回撤比例 (0% 是最高点，100% 是起点)
+                            retracePct = (swingHigh - cur1H.c) / range;
+
+                            // 要求回撤比例严格落在 0.382 ~ 0.618 之间
+                            if (retracePct < 0.382 || retracePct > 0.618) return;
+
+                            // 计算爆发力
+                            chg2H = ((cur1H.c - cur1H.o) / cur1H.o + (prev1H.c - prev1H.o) / prev1H.o) * 100;
+                            if (chg2H <= 0) return;
+
+                        } else if (isBear1H) {
+                            // 做空：计算这波下跌的斐波那契
+                            const swingHigh = prev1H.o;
+                            const swingLow = Math.min(cur1H.l, prev1H.l);
+                            const range = swingHigh - swingLow;
+                            if (range <= 0) return;
+
+                            // 当前价格相对最低点的反弹比例
+                            retracePct = (cur1H.c - swingLow) / range;
+
+                            if (retracePct < 0.382 || retracePct > 0.618) return;
+
+                            chg2H = ((cur1H.c - cur1H.o) / cur1H.o + (prev1H.c - prev1H.o) / prev1H.o) * 100;
+                            if (chg2H >= 0) return;
                         }
-                        const abs3Sum = Math.abs(chg3Sum);
-                        if (abs3Sum < 0.3) return; // 回调幅度不足 0.3%
 
                         // ================= 打分系统 =================
                         let score = 0;
                         let reasonDetails = [];
                         
-                        // 1. 爆发力分 (最高 40 分) - 涨跌幅 6% 封顶
+                        // 1. 爆发力分 (最高 40 分) - 6% 封顶
                         let powerScore = Math.min(Math.round((Math.abs(chg2H) / 6) * 40), 40);
                         score += powerScore;
+                        
+                        // 2. 黄金分割精准度 (最高 40 分) - 越接近 50% 分越高
+                        let fibScore = 40 - Math.round(Math.abs(retracePct - 0.5) * 200);
+                        fibScore = Math.max(0, fibScore);
+                        score += fibScore;
 
-                        // 2. 回调深度分 (最高 30 分) - 3% 封顶
-                        let dipScore = Math.min(Math.round((abs3Sum / 3) * 30), 30);
-                        score += dipScore;
-
-                        // 3. 形态确认分 (最高 30 分)
+                        // 3. 形态分 (最高 20 分)
                         let shapeScore = 0;
-                        const body = Math.abs(lastK.c - lastK.o);
-                        const range = lastK.h - lastK.l;
+                        if (isBull1H && cur1H.c > cur1H.o) shapeScore += 20; // 阳线托底
+                        if (isBear1H && cur1H.c < cur1H.o) shapeScore += 20; // 阴线遇阻
+                        score += shapeScore;
+
+                        reasonDetails.push(`1H爆发力(<b>${chg2H > 0 ? '+' : ''}${chg2H.toFixed(2)}%</b>)得 ${powerScore}分`);
+                        reasonDetails.push(`斐波那契回撤 <b>${(retracePct * 100).toFixed(1)}%</b> 得 ${fibScore}分`);
+                        reasonDetails.push(`形态确认 +${shapeScore}分`);
+
+                        const reason = `1H 连续两根${isBull1H ? '大阳线' : '大阴线'}（非十字）。<br>当前价格正好回调至斐波那契 <span class="highlight">${(retracePct * 100).toFixed(1)}%</span> 的黄金区间。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         if (isBull1H) {
-                            // 做多：15m 总和为跌
-                            if (chg3Sum > 0) return;
-                            reasonDetails.push(`1H双阳合力(<b>+${chg2H.toFixed(2)}%</b>)得 ${powerScore}分`);
-                            reasonDetails.push(`15m总和回调(<b>${chg3Sum.toFixed(2)}%</b>)得 ${dipScore}分`);
-                            
-                            if (lastK.c > lastK.o) { shapeScore += 15; reasonDetails.push(`最新15m收阳(托底) +15分`); }
-                            if (range > 0 && (body / range) < 0.5 && lastK.c < lastK.o) { shapeScore += 15; reasonDetails.push(`缩量小阴星(洗盘) +15分`); }
-                            else if (lastK.c < lastK.o) { shapeScore += 5; }
-
-                            score += shapeScore;
-                            const reason = `近2小时 1H <b>双阳连涨</b>（非十字星）。<br>15m 最近3根<b>涨跌幅总和</b>为 <span class="highlight">${chg3Sum.toFixed(2)}%</span>。<br>打分细节：${reasonDetails.join('，')}。`;
-                            
-                            longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: lastK.c, reason });
-
-                        } else if (isBear1H) {
-                            // 做空：15m 总和为涨
-                            if (chg3Sum < 0) return;
-                            reasonDetails.push(`1H双阴合力(<b>${chg2H.toFixed(2)}%</b>)得 ${powerScore}分`);
-                            reasonDetails.push(`15m总和反弹(<b>+${chg3Sum.toFixed(2)}%</b>)得 ${dipScore}分`);
-
-                            if (lastK.c < lastK.o) { shapeScore += 15; reasonDetails.push(`最新15m收阴(遇阻) +15分`); }
-                            if (range > 0 && (body / range) < 0.5 && lastK.c > lastK.o) { shapeScore += 15; reasonDetails.push(`缩量小阳星(诱多) +15分`); }
-                            else if (lastK.c > lastK.o) { shapeScore += 5; }
-
-                            score += shapeScore;
-                            const reason = `近2小时 1H <b>双阴连跌</b>（非十字星）。<br>15m 最近3根<b>涨跌幅总和</b>为 <span class="highlight">+${chg3Sum.toFixed(2)}%</span>。<br>打分细节：${reasonDetails.join('，')}。`;
-                            
-                            shortResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: lastK.c, reason });
+                            longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: cur1H.c, reason });
+                        } else {
+                            shortResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: cur1H.c, reason });
                         }
 
                     } catch (e) { /* ignore */ }
                     
                     done++;
-                    updateProgress(`正在双向筛选... (${done}/${targetCoins.length})`,
+                    updateProgress(`正在扫描... (${done}/${targetCoins.length})`,
                         5 + (done / targetCoins.length) * 90);
                 }));
             }
@@ -277,7 +277,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（1H双阳非十字 + 15m总和回调≥0.3%）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（1H双阳 + 斐波那契回撤 0.382-0.618）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
@@ -297,7 +297,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（1H双阴非十字 + 15m总和反弹≥0.3%）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（1H双阴 + 斐波那契反弹 0.382-0.618）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.015);
