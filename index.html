@@ -1,1 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>全市场四步过滤 2H/1H共振 + 15M反向 + RSI打分 + 严剔横盘</title>
+    <style>
+        :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
+        body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
+        #top-bar { background: var(--panel); padding: 20px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+
+        .btn-container { width: 100%; max-width: 400px; }
+        .scan-btn {
+            background: linear-gradient(135deg, #0ecb81, #2962ff); color: #fff; border: none;
+            padding: 16px; border-radius: 8px; font-size: 18px; font-weight: bold;
+            box-shadow: 0 6px 20px rgba(41,98,255,0.4); width: 100%; cursor: pointer;
+            transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 10px;
+        }
+        .scan-btn:active { transform: scale(0.98); }
+        .scan-btn:disabled { background: #363a45; color: #848e9c; box-shadow: none; cursor: not-allowed; }
+
+        .progress-text { font-size: 13px; color: var(--yellow); height: 20px; text-align: center; font-weight: bold; }
+        .progress-bar-bg { width: 100%; height: 4px; background: #2a2e39; border-radius: 2px; overflow: hidden; display: none; }
+        .progress-bar { height: 100%; width: 0%; background: var(--blue); transition: width 0.3s; }
+
+        #result-area { flex: 1; overflow-y: auto; padding: 15px; display: none; flex-direction: column; gap: 20px; }
+
+        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .section-title.long { color: var(--up); }
+        .section-title.short { color: var(--down); }
+
+        .card { background: var(--panel); border-radius: 12px; padding: 15px; margin-bottom: 12px; position: relative; overflow: hidden; border-left: 4px solid #fff; }
+        .card.long-card { border-left-color: var(--up); box-shadow: 0 4px 15px rgba(14,203,129,0.05); }
+        .card.short-card { border-left-color: var(--down); box-shadow: 0 4px 15px rgba(246,70,93,0.05); }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .coin-name { font-size: 20px; font-weight: 900; color: #fff; }
+        .score-badge { font-size: 14px; font-weight: bold; padding: 4px 10px; border-radius: 20px; }
+        .long-card .score-badge { background: rgba(14,203,129,0.15); color: var(--up); }
+        .short-card .score-badge { background: rgba(246,70,93,0.15); color: var(--down); }
+
+        .reason-box { font-size: 13px; line-height: 1.7; color: #b2b5be; text-align: justify; background: #12161f; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+        
+        .trade-plan { display: flex; justify-content: space-between; background: #1a1f2b; border: 1px solid #2a2e39; border-radius: 8px; padding: 10px 15px; font-size: 13px; font-weight: bold; }
+        .trade-plan .tp { color: var(--up); }
+        .trade-plan .sl { color: var(--down); }
+
+        .highlight { color: var(--yellow); font-weight: bold; }
+        .empty-tip { color: #848e9c; font-size: 13px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="top-bar">
+        <div class="btn-container">
+            <button class="scan-btn" id="startBtn" onclick="runScanner()">
+                <span id="btnText">🎯 启动 全市场四步严筛 扫描</span>
+            </button>
+        </div>
+        <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
+        <div class="progress-bar-bg" id="progressBarBg"><div class="progress-bar" id="progressBar"></div></div>
+    </div>
+
+    <div id="result-area"></div>
+
+<script>
+    let isRunning = false;
+
+    function updateProgress(text, percent) {
+        document.getElementById('progressText').innerText = text;
+        if (percent !== undefined) {
+            document.getElementById('progressBarBg').style.display = 'block';
+            document.getElementById('progressBar').style.width = Math.min(100, percent) + '%';
+        }
+    }
+
+    function endScanner() {
+        isRunning = false;
+        const btn = document.getElementById('startBtn');
+        btn.disabled = false;
+        document.getElementById('btnText').innerText = "🎯 重新扫描";
+    }
+
+    // 获取全市场所有 USDT 永续合约
+    async function fetchAllSwaps() {
+        const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP').then(r => r.json());
+        if (res.code !== '0') return [];
+        return res.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId);
+    }
+
+    async function fetchCandles(instId, bar, limit) {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 12000);
+        try {
+            const res = await fetch(
+                `https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}`,
+                { signal: ctrl.signal }
+            ).then(r => r.json());
+            if (res.code !== '0' || !res.data || !res.data.length) throw new Error('no data');
+            return res.data.map(d => ({
+                t: +d[0], o: +d[1], h: +d[2], l: +d[3], c: +d[4], v: +d[5],
+                confirm: d[8] === '1'
+            })).reverse();
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+
+    function getLastClosedIdx(klines) {
+        for (let i = klines.length - 1; i >= 0; i--) {
+            if (klines[i].confirm) return i;
+        }
+        return klines.length - 2;
+    }
+
+    // 计算 RSI(14)
+    function calcRSI(closes, period = 14) {
+        if (closes.length <= period) return 50;
+        let gains = 0, losses = 0;
+        for (let i = 1; i <= period; i++) {
+            const diff = closes[i] - closes[i - 1];
+            if (diff >= 0) gains += diff;
+            else losses -= diff;
+        }
+        let avgGain = gains / period;
+        let avgLoss = losses / period;
+        
+        for (let i = period + 1; i < closes.length; i++) {
+            const diff = closes[i] - closes[i - 1];
+            let gain = diff > 0 ? diff : 0;
+            let loss = diff < 0 ? -diff : 0;
+            avgGain = (avgGain * (period - 1) + gain) / period;
+            avgLoss = (avgLoss * (period - 1) + loss) / period;
+        }
+        if (avgLoss === 0) return 100;
+        const rs = avgGain / avgLoss;
+        return 100 - (100 / (1 + rs));
+    }
+
+    // ================= 第四步：极度严格的横盘检测 =================
+    function isStrictSideways(klines) {
+        if (klines.length < 10) return true;
+        const recent = klines.slice(-10);
+        let maxH = -Infinity;
+        let minL = Infinity;
+        let totalBody = 0;
+        let totalRange = 0;
+
+        for (const k of recent) {
+            if (k.h > maxH) maxH = k.h;
+            if (k.l < minL) minL = k.l;
+            totalBody += Math.abs(k.c - k.o);
+            totalRange += (k.h - k.l);
+        }
+
+        // 1. 最近10根总振幅必须 >= 3%
+        if ((maxH - minL) / minL * 100 < 3) return true;
+
+        // 2. 最近10根K线整体实体占比（总实体/总长度）必须 >= 50%
+        // 如果全是十字星或长影线，说明多空势均力敌在磨盘，判定为横盘
+        if (totalRange > 0 && (totalBody / totalRange) < 0.5) return true;
+
+        return false;
+    }
+
+    // 基础趋势解析
+    function analyzeMacro(k) {
+        if (!k) return null;
+        const chg = (k.c - k.o) / k.o * 100;
+        return {
+            chg: chg,
+            absChg: Math.abs(chg),
+            isBull: k.c > k.o,
+            isBear: k.c < k.o
+        };
+    }
+
+    window.runScanner = async function() {
+        if (isRunning) return;
+        isRunning = true;
+
+        const btn = document.getElementById('startBtn');
+        btn.disabled = true;
+        document.getElementById('btnText').innerText = "⏳ 正在全速扫描全市场...";
+        const area = document.getElementById('result-area');
+        area.style.display = 'none';
+        area.innerHTML = '';
+
+        const longResults = [];
+        const shortResults = [];
+        const candidates = [];
+
+        try {
+            updateProgress("正在获取全市场合约列表...", 2);
+            const targetCoins = await fetchAllSwaps();
+            if (targetCoins.length === 0) {
+                updateProgress("获取合约列表失败。", 100);
+                endScanner();
+                return;
+            }
+
+            // ========== 第一 & 第二步：全市场初筛（共振 + 15m反向） ==========
+            updateProgress(`共发现 ${targetCoins.length} 个合约。开始第一/二步筛查...`, 5);
+            const chunkSize = 15;
+            let done1 = 0;
+
+            for (let i = 0; i < targetCoins.length; i += chunkSize) {
+                const chunk = targetCoins.slice(i, i + chunkSize);
+                await Promise.all(chunk.map(async (instId) => {
+                    try {
+                        // 第一步：先查共振
+                        const [k2h, k1h] = await Promise.all([
+                            fetchCandles(instId, '2H', 12),
+                            fetchCandles(instId, '1H', 12)
+                        ]);
+                        
+                        const m2H = analyzeMacro(k2h[k2h.length - 1]);
+                        const m1H = analyzeMacro(k1h[k1h.length - 1]);
+                        if (!m2H || !m1H) return;
+
+                        let type = null;
+                        if (m2H.isBull && m1H.isBull && (m2H.absChg >= 1.5 || m1H.absChg >= 1.5)) {
+                            type = 'LONG';
+                        } else if (m2H.isBear && m1H.isBear && (m2H.absChg >= 1.5 || m1H.absChg >= 1.5)) {
+                            type = 'SHORT';
+                        }
+                        if (!type) return;
+
+                        // 第二步：查 15m 反向幅度（0.2% ~ 0.8%）
+                        const k15 = await fetchCandles(instId, '15m', 30);
+                        const lastIdx = getLastClosedIdx(k15);
+                        if (lastIdx < 15) return;
+                        
+                        const lastK = k15[lastIdx];
+                        const chg15m = (lastK.c - lastK.o) / lastK.o * 100;
+                        const abs15m = Math.abs(chg15m);
+                        if (abs15m < 0.2 || abs15m > 0.8) return;
+
+                        // 第二步通过后，放入候选
+                        candidates.push({ 
+                            instId, 
+                            type, 
+                            chg2H: m2H.chg, 
+                            chg1H: m1H.chg,
+                            k2h, k1h, k15, lastIdx, chg15m, abs15m 
+                        });
+                    } catch (e) { /* ignore */ }
+                    done1++;
+                    updateProgress(`正在进行第一/二步筛查... (${done1}/${targetCoins.length})`,
+                        5 + (done1 / targetCoins.length) * 45);
+                }));
+            }
+
+            if (candidates.length === 0) {
+                updateProgress("扫描完毕：无标的通过 共振 或 15m反向 筛查。", 100);
+                endScanner();
+                return;
+            }
+
+            // ========== 第三 & 第四步：RSI打分 + 剔除横盘 ==========
+            updateProgress(`有 ${candidates.length} 个币通过前两步。正在进行 RSI 打分与极度横盘过滤...`, 52);
+            let done2 = 0;
+
+            await Promise.all(candidates.map(async (coin) => {
+                try {
+                    // 第三步：计算 RSI
+                    const closes = coin.k15.slice(0, coin.lastIdx + 1).map(k => k.c);
+                    const rsi = calcRSI(closes, 14);
+                    const currentPrice = coin.k15[coin.lastIdx].c;
+                    
+                    let score = 80;
+                    let rsiDesc = '';
+                    
+                    if (coin.type === 'LONG') {
+                        score += Math.min(Math.round((50 - rsi) * 0.5), 20);
+                        rsiDesc = `${rsi.toFixed(1)}（${rsi<30?'极度超卖':rsi<40?'超卖':'偏弱'}）`;
+                    } else {
+                        score += Math.min(Math.round((rsi - 50) * 0.5), 20);
+                        rsiDesc = `${rsi.toFixed(1)}（${rsi>70?'极度超买':rsi>60?'超买':'偏强'}）`;
+                    }
+                    if (score < 60) score = 60;
+
+                    // 第四步：剔除横盘（检查 2H 和 1H）
+                    // 严格要求：2H或1H只要呈现横盘死水形态，直接淘汰
+                    if (isStrictSideways(coin.k2h) || isStrictSideways(coin.k1h)) {
+                        return; 
+                    }
+
+                    // 组装理由
+                    const dirStr = coin.type === 'LONG' ? '做多' : '做空';
+                    const reason = `2H（<span class="highlight">${coin.chg2H>0?'+':''}${coin.chg2H.toFixed(2)}%</span>）与 1H（<span class="highlight">${coin.chg1H>0?'+':''}${coin.chg1H.toFixed(2)}%</span>）呈同色大K线共振。<br>15m 最新K线反向${coin.type === 'LONG' ? '回调' : '反弹'}，幅度 <span class="highlight">${Math.abs(coin.chg15m).toFixed(2)}%</span>（符合0.2-0.8%）。<br>15m RSI 为 <span class="highlight">${rsiDesc}</span>，具备${dirStr}机会。`;
+
+                    if (coin.type === 'LONG') {
+                        longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
+                    } else {
+                        shortResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
+                    }
+                } catch (e) { /* ignore */ }
+                
+                done2++;
+                updateProgress(`正在进行 RSI打分与剔除横盘... (${done2}/${candidates.length})`,
+                    52 + (done2 / candidates.length) * 45);
+            }));
+
+            // ========== 排序取前三 ==========
+            updateProgress("正在整理最终榜单...", 98);
+
+            longResults.sort((a, b) => b.score - a.score);
+            shortResults.sort((a, b) => b.score - a.score);
+
+            renderResults(longResults.slice(0, 3), shortResults.slice(0, 3));
+
+        } catch (err) {
+            updateProgress("推算发生错误，请检查网络后再试。", 100);
+            endScanner();
+        }
+    };
+
+    function formatPrice(p) {
+        if (p >= 1000) return p.toFixed(2);
+        if (p >= 10) return p.toFixed(3);
+        if (p >= 0.1) return p.toFixed(4);
+        if (p >= 0.001) return p.toFixed(5);
+        return p.toFixed(6);
+    }
+
+    function renderResults(longs, shorts) {
+        updateProgress("✅ 全市场四步严筛完成！已按 RSI打分 排出前三。", 100);
+        endScanner();
+
+        const area = document.getElementById('result-area');
+        area.style.display = 'flex';
+        let html = '';
+
+        html += `<div class="section-title long">🟢 做多 Top 3（共振 + 反跌 + 超卖 + 非横盘）</div>`;
+        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
+        longs.forEach((item, index) => {
+            const sl = item.price * (1 - 0.015);
+            const tp = item.price * (1 + 0.03);
+            html += `
+                <div class="card long-card">
+                    <div class="card-header">
+                        <div class="coin-name">${index + 1}. ${item.instId}</div>
+                        <div class="score-badge">信心分: ${item.score}</div>
+                    </div>
+                    <div class="reason-box">${item.reason}</div>
+                    <div class="trade-plan">
+                        <span class="sl">止损: ${formatPrice(sl)}</span>
+                        <span style="color:#fff;">参考价: ${formatPrice(item.price)}</span>
+                        <span class="tp">止盈: ${formatPrice(tp)}</span>
+                    </div>
+                </div>`;
+        });
+
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（共振 + 反涨 + 超买 + 非横盘）</div>`;
+        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
+        shorts.forEach((item, index) => {
+            const sl = item.price * (1 + 0.015);
+            const tp = item.price * (1 - 0.03);
+            html += `
+                <div class="card short-card">
+                    <div class="card-header">
+                        <div class="coin-name">${index + 1}. ${item.instId}</div>
+                        <div class="score-badge">信心分: ${item.score}</div>
+                    </div>
+                    <div class="reason-box">${item.reason}</div>
+                    <div class="trade-plan">
+                        <span class="tp">止盈: ${formatPrice(tp)}</span>
+                        <span style="color:#fff;">参考价: ${formatPrice(item.price)}</span>
+                        <span class="sl">止损: ${formatPrice(sl)}</span>
+                    </div>
+                </div>`;
+        });
+
+        area.innerHTML = html;
+    }
+</script>
+</body>
+</html>
