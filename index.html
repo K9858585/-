@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全市场三步过滤 2H/1H极值定势 + 5M三K合力反向 + 剔除横盘</title>
+    <title>100主流币 2H/1H极值定势 + 5M三K合力反向</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -55,7 +55,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 全市场 5M三K合力 扫描</span>
+                <span id="btnText">🎯 启动 100主流币 + 5M三K合力 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -65,6 +65,30 @@
     <div id="result-area"></div>
 
 <script>
+    // 精选 100 个主流及高流动性热门币种
+    const allCoins = [
+        "BTC-USDT-SWAP", "ETH-USDT-SWAP", "OKB-USDT-SWAP", "SOL-USDT-SWAP", "DOGE-USDT-SWAP",
+        "XRP-USDT-SWAP", "BCH-USDT-SWAP", "DOOD-USDT-SWAP", "ZEC-USDT-SWAP", "xNVDA-USDT-SWAP",
+        "PEPE-USDT-SWAP", "XAUT-USDT-SWAP", "xSNDK-USDT-SWAP", "UNI-USDT-SWAP", "HYPE-USDT-SWAP",
+        "TRUMP-USDT-SWAP", "BNB-USDT-SWAP", "xSOXL-USDT-SWAP", "SUI-USDT-SWAP", "FIL-USDT-SWAP",
+        "ADA-USDT-SWAP", "AVAX-USDT-SWAP", "DOT-USDT-SWAP", "LINK-USDT-SWAP", "LTC-USDT-SWAP",
+        "TRX-USDT-SWAP", "ATOM-USDT-SWAP", "NEAR-USDT-SWAP", "APT-USDT-SWAP", "ARB-USDT-SWAP",
+        "OP-USDT-SWAP", "INJ-USDT-SWAP", "TIA-USDT-SWAP", "RNDR-USDT-SWAP", "IMX-USDT-SWAP",
+        "STX-USDT-SWAP", "HBAR-USDT-SWAP", "ICP-USDT-SWAP", "ETC-USDT-SWAP", "XLM-USDT-SWAP",
+        "VET-USDT-SWAP", "GRT-USDT-SWAP", "THETA-USDT-SWAP", "FTM-USDT-SWAP", "SAND-USDT-SWAP",
+        "MANA-USDT-SWAP", "EOS-USDT-SWAP", "AAVE-USDT-SWAP", "MKR-USDT-SWAP", "WIF-USDT-SWAP",
+        "BONK-USDT-SWAP", "JUP-USDT-SWAP", "SEI-USDT-SWAP", "FLOW-USDT-SWAP", "CHZ-USDT-SWAP",
+        "CRV-USDT-SWAP", "LDO-USDT-SWAP", "FET-USDT-SWAP", "AGIX-USDT-SWAP", "ORDI-USDT-SWAP",
+        "TON-USDT-SWAP", "MATIC-USDT-SWAP", "SHIB-USDT-SWAP", "PENDLE-USDT-SWAP", "JTO-USDT-SWAP",
+        "PYTH-USDT-SWAP", "WLD-USDT-SWAP", "STRK-USDT-SWAP", "DYDX-USDT-SWAP", "GMX-USDT-SWAP",
+        "SNX-USDT-SWAP", "COMP-USDT-SWAP", "ZRX-USDT-SWAP", "YFI-USDT-SWAP", "SUSHI-USDT-SWAP",
+        "KSM-USDT-SWAP", "MINA-USDT-SWAP", "CFX-USDT-SWAP", "BLUR-USDT-SWAP", "MEME-USDT-SWAP",
+        "ENS-USDT-SWAP", "1INCH-USDT-SWAP", "BAT-USDT-SWAP", "QTUM-USDT-SWAP", "OM-USDT-SWAP",
+        "ZETA-USDT-SWAP", "AEVO-USDT-SWAP", "MAVIA-USDT-SWAP", "PIXEL-USDT-SWAP", "PORTAL-USDT-SWAP",
+        "AI-USDT-SWAP", "NFP-USDT-SWAP", "XAI-USDT-SWAP", "MANTA-USDT-SWAP", "ALT-USDT-SWAP"
+    ];
+    const targetCoins = allCoins.slice(0, 100);
+
     let isRunning = false;
 
     function updateProgress(text, percent) {
@@ -80,13 +104,6 @@
         const btn = document.getElementById('startBtn');
         btn.disabled = false;
         document.getElementById('btnText').innerText = "🎯 重新扫描";
-    }
-
-    // 获取全市场所有 USDT 永续合约
-    async function fetchAllSwaps() {
-        const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP').then(r => r.json());
-        if (res.code !== '0') return [];
-        return res.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId);
     }
 
     async function fetchCandles(instId, bar, limit) {
@@ -114,27 +131,6 @@
         return klines.length - 2;
     }
 
-    // 第三步：严剔横盘
-    function isStrictSideways(klines) {
-        if (klines.length < 10) return true;
-        const recent = klines.slice(-10);
-        let maxH = -Infinity;
-        let minL = Infinity;
-        let totalBody = 0;
-        let totalRange = 0;
-
-        for (const k of recent) {
-            if (k.h > maxH) maxH = k.h;
-            if (k.l < minL) minL = k.l;
-            totalBody += Math.abs(k.c - k.o);
-            totalRange += (k.h - k.l);
-        }
-
-        if ((maxH - minL) / minL * 100 < 3) return true;
-        if (totalRange > 0 && (totalBody / totalRange) < 0.5) return true;
-        return false;
-    }
-
     function analyzeMacro(k) {
         if (!k) return null;
         const chg = (k.c - k.o) / k.o * 100;
@@ -150,32 +146,24 @@
 
         const btn = document.getElementById('startBtn');
         btn.disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 正在全速扫描全市场...";
+        document.getElementById('btnText').innerText = "⏳ 正在全速扫描...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
 
         const longResults = [];
         const shortResults = [];
-        const candidates = [];
 
         try {
-            updateProgress("正在获取全市场合约列表...", 2);
-            const targetCoins = await fetchAllSwaps();
-            if (targetCoins.length === 0) {
-                updateProgress("获取合约列表失败。", 100);
-                endScanner();
-                return;
-            }
-
-            updateProgress(`共发现 ${targetCoins.length} 个合约。开始筛查...`, 5);
+            updateProgress(`正在扫描 ${targetCoins.length} 个精选币种...`, 5);
             const chunkSize = 15;
-            let done1 = 0;
+            let done = 0;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
+                        // 1. 查极值定势
                         const [k2h, k1h] = await Promise.all([
                             fetchCandles(instId, '2H', 12),
                             fetchCandles(instId, '1H', 12)
@@ -201,11 +189,11 @@
 
                         if (!type) return;
 
+                        // 2. 查 5m 最近3根合力
                         const k5 = await fetchCandles(instId, '5m', 30);
                         const lastIdx = getLastClosedIdx(k5);
                         if (lastIdx < 15) return;
                         
-                        // 最近 3 根已收盘 5m K线合力
                         const k3 = k5.slice(lastIdx - 2, lastIdx + 1); 
                         const lastK = k3[2]; 
                         const firstK = k3[0]; 
@@ -213,6 +201,7 @@
                         const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
                         const abs3Sum = Math.abs(chg3Sum);
 
+                        // 必须反向，且最新一根必须是反向K线，幅度在 0.3% ~ 1.5%
                         if (type === 'LONG') {
                             if (chg3Sum > 0) return;
                             if (lastK.c >= lastK.o) return;
@@ -220,50 +209,30 @@
                             if (chg3Sum < 0) return;
                             if (lastK.c <= lastK.o) return;
                         }
-                        
                         if (abs3Sum < 0.3 || abs3Sum > 1.5) return;
 
-                        candidates.push({ 
-                            instId, type, maxChg, mainTF, k2h, k1h, chg3Sum, abs3Sum, k5 
-                        });
+                        // 整理结果
+                        let score = 90 + Math.min(Math.round((abs3Sum - 0.3) * 8.3), 10);
+                        const currentPrice = lastK.c;
+                        
+                        const dirStr = type === 'LONG' ? '做多' : '做空';
+                        const reason = `${mainTF} 当前K线呈明显${type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${maxChg>0?'+':''}${maxChg.toFixed(2)}%</span>）。<br>5m 最近3根K线合力${type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(chg3Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
+
+                        if (type === 'LONG') {
+                            longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
+                        } else {
+                            shortResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
+                        }
+
                     } catch (e) { /* ignore */ }
-                    done1++;
-                    updateProgress(`正在进行第一/二步筛查... (${done1}/${targetCoins.length})`,
-                        5 + (done1 / targetCoins.length) * 45);
+                    
+                    done++;
+                    updateProgress(`正在扫描... (${done}/${targetCoins.length})`,
+                        5 + (done / targetCoins.length) * 90);
                 }));
             }
 
-            if (candidates.length === 0) {
-                updateProgress("扫描完毕：无标的通过 极值定势 或 5m三K合力 筛查。", 100);
-                endScanner();
-                return;
-            }
-
-            updateProgress(`有 ${candidates.length} 个币通过前两步。正在进行极度横盘过滤...`, 52);
-            let done2 = 0;
-
-            await Promise.all(candidates.map(async (coin) => {
-                try {
-                    if (isStrictSideways(coin.k2h) || isStrictSideways(coin.k1h)) return;
-
-                    let score = 90 + Math.min(Math.round((coin.abs3Sum - 0.3) * 8.3), 10);
-                    const currentPrice = coin.k5 ? coin.k5[getLastClosedIdx(coin.k5)].c : 0;
-                    
-                    const dirStr = coin.type === 'LONG' ? '做多' : '做空';
-                    const reason = `${coin.mainTF} 当前K线呈明显${coin.type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${coin.maxChg>0?'+':''}${coin.maxChg.toFixed(2)}%</span>）。<br>5m 最近3根K线合力${coin.type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(coin.chg3Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
-
-                    if (coin.type === 'LONG') {
-                        longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
-                    } else {
-                        shortResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
-                    }
-                } catch (e) { /* ignore */ }
-                
-                done2++;
-                updateProgress(`正在进行横盘过滤... (${done2}/${candidates.length})`,
-                    52 + (done2 / candidates.length) * 45);
-            }));
-
+            // 排序取前三
             updateProgress("正在整理最终榜单...", 98);
             longResults.sort((a, b) => b.score - a.score);
             shortResults.sort((a, b) => b.score - a.score);
@@ -285,14 +254,14 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 全市场三步严筛完成！", 100);
+        updateProgress("✅ 扫描完成！", 100);
         endScanner();
 
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 5m三K连跌 + 非横盘）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 5m三K连跌）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
@@ -312,7 +281,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 5m三K连涨 + 非横盘）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 5m三K连涨）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.015);
