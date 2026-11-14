@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 15M(EMA发散) + 5M(N字+W/M共振)</title>
+    <title>前100币 4H+1H EMA共振 + 15M回调 + 5M实体进场</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -248,17 +248,6 @@
         return ema;
     }
 
-    // 识别局部高点/低点的简单函数
-    function findSwingPoints(klines) {
-        let highs = [];
-        let lows = [];
-        for (let i = 1; i < klines.length - 1; i++) {
-            if (klines[i].h > klines[i-1].h && klines[i].h > klines[i+1].h) highs.push({ price: klines[i].h, index: i });
-            if (klines[i].l < klines[i-1].l && klines[i].l < klines[i+1].l) lows.push({ price: klines[i].l, index: i });
-        }
-        return { highs, lows };
-    }
-
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
@@ -290,130 +279,106 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        const [k15, k5] = await Promise.all([
-                            fetchCandles(instId, '15m', 30), 
-                            fetchCandles(instId, '5m', 30)
+                        // 1. 拉取 4H, 1H, 15m, 5m 数据
+                        const [k4h, k1h, k15, k5] = await Promise.all([
+                            fetchCandles(instId, '4H', 30),
+                            fetchCandles(instId, '1H', 30),
+                            fetchCandles(instId, '15m', 30),
+                            fetchCandles(instId, '5m', 10)
                         ]);
                         
-                        if (k15.length < 15 || k5.length < 10) return;
+                        if (k4h.length < 25 || k1h.length < 25 || k15.length < 10 || k5.length < 5) return;
 
-                        const closed15m = k15.slice(0, k15.length - 1);
-                        
-                        // 1. 完美 EMA 趋势判定
-                        const closes15m = closed15m.map(k => k.c);
-                        const ema5_cur = calcEMA(closes15m, 5);
-                        const ema10_cur = calcEMA(closes15m, 10);
-                        const ema20_cur = calcEMA(closes15m, 20);
+                        // 2. 4H EMA 完美发散
+                        const closes4h = k4h.slice(0, k4h.length - 1).map(k => k.c);
+                        const ema5_4h = calcEMA(closes4h, 5);
+                        const ema10_4h = calcEMA(closes4h, 10);
+                        const ema20_4h = calcEMA(closes4h, 20);
+                        const isBull4H = ema5_4h > ema10_4h && ema10_4h > ema20_4h;
+                        const isBear4H = ema5_4h < ema10_4h && ema10_4h < ema20_4h;
 
-                        const ema5_prev = calcEMA(closes15m.slice(0, -1), 5);
-                        const ema10_prev = calcEMA(closes15m.slice(0, -1), 10);
-                        const ema20_prev = calcEMA(closes15m.slice(0, -1), 20);
+                        // 3. 1H EMA 完美发散
+                        const closes1h = k1h.slice(0, k1h.length - 1).map(k => k.c);
+                        const ema5_1h = calcEMA(closes1h, 5);
+                        const ema10_1h = calcEMA(closes1h, 10);
+                        const ema20_1h = calcEMA(closes1h, 20);
+                        const isBull1H = ema5_1h > ema10_1h && ema10_1h > ema20_1h;
+                        const isBear1H = ema5_1h < ema10_1h && ema10_1h < ema20_1h;
 
-                        const isBullEma = (ema5_cur > ema10_cur && ema10_cur > ema20_cur) && 
-                                          (ema5_cur > ema5_prev && ema10_cur > ema10_prev && ema20_cur > ema20_prev);
-                        
-                        const isBearEma = (ema5_cur < ema10_cur && ema10_cur < ema20_cur) && 
-                                          (ema5_cur < ema5_prev && ema10_cur < ema10_prev && ema20_cur < ema20_prev);
-
-                        const priceAmp = (ema5_cur - ema20_cur) / ema20_cur * 100;
-                        const hasEnoughGap = Math.abs(priceAmp) > 0.2;
-
-                        const isBullTrend = isBullEma && hasEnoughGap;
-                        const isBearTrend = isBearEma && hasEnoughGap;
-
+                        // 4. 大周期共振
+                        const isBullTrend = isBull4H && isBull1H;
+                        const isBearTrend = isBear4H && isBear1H;
                         if (!isBullTrend && !isBearTrend) return;
 
-                        // 2. 过滤：防插针
-                        let hasExtremeSpike = false;
-                        const last10 = closed15m.slice(-10);
-                        for (const k of last10) {
-                            const candleAmp = (k.h - k.l) / k.l * 100;
-                            if (candleAmp > 8) { hasExtremeSpike = true; break; }
-                        }
-                        if (hasExtremeSpike) return;
+                        // 5. 15m 最近两根总和判定
+                        const closed15m = k15.slice(0, k15.length - 1);
+                        const last2 = closed15m.slice(-2);
+                        
+                        const chg1 = (last2[0].c - last2[0].o) / last2[0].o * 100;
+                        const chg2 = (last2[1].c - last2[1].o) / last2[1].o * 100;
+                        const sumChg = chg1 + chg2;
 
-                        // 3. 5m N字突破判定
+                        if (isBullTrend && sumChg > -0.3) return; // 做多要回调 >= 0.3%
+                        if (isBearTrend && sumChg < 0.3) return;  // 做空要反弹 >= 0.3%
+
+                        // 6. 5m 实体阴线/阳线判定 + 过滤插针
                         const closed5m = k5.slice(0, k5.length - 1);
-                        const currentK = k5[k5.length - 1];
-                        if (closed5m.length < 15) return;
+                        const lastClosed5m = closed5m[closed5m.length - 1];
+                        
+                        const body = Math.abs(lastClosed5m.c - lastClosed5m.o);
+                        const range = lastClosed5m.h - lastClosed5m.l;
+                        const bodyRatio = range > 0 ? body / range : 0;
+                        const candleAmp = range / lastClosed5m.o * 100; // 5m 振幅
 
-                        const { highs, lows } = findSwingPoints(closed5m.slice(-15));
-                        if (highs.length < 1 || lows.length < 2) return;
+                        // 过滤 1：振幅不能太大（超过3%说明极其剧烈，容易假信号）
+                        if (candleAmp > 3) return;
+                        // 过滤 2：实体占比必须 >= 50%（排除十字星和长影线）
+                        if (bodyRatio < 0.5) return;
 
                         let type = null;
                         let slPrice = 0;
                         let tpPrice = 0;
-                        let entryPrice = currentK.c;
+                        let entryPrice = lastClosed5m.c;
                         let riskPct = 0;
-                        let isResonance = false; // W底或M顶共振标记
+
+                        const low2 = Math.min(...last2.map(k => k.l));
+                        const high2 = Math.max(...last2.map(k => k.h));
 
                         if (isBullTrend) {
-                            const highest = highs[highs.length - 1]; 
-                            const lowsBeforeB = lows.filter(l => l.index < highest.index);
-                            if (lowsBeforeB.length >= 2) {
-                                const pointC = lowsBeforeB[lowsBeforeB.length - 1];
-                                const pointA = lowsBeforeB[lowsBeforeB.length - 2];
-                                
-                                if (pointC.price > pointA.price && currentK.c > highest.price) {
-                                    type = 'LONG';
-                                    slPrice = pointC.price * (1 - 0.002);
-                                    riskPct = (entryPrice - slPrice) / entryPrice;
-                                    
-                                    if (riskPct > 0.02) return; 
-                                    tpPrice = entryPrice + (entryPrice - slPrice) * 2;
-                                    
-                                    // 判断是否形成 W 底（A 点与 C 点距离相差极小）
-                                    if (Math.abs(pointA.price - pointC.price) / pointA.price < 0.005) {
-                                        isResonance = true;
-                                    }
-                                }
-                            }
-                        } else if (isBearTrend) {
-                            const lowest = lows[lows.length - 1];
-                            const highsBeforeB = highs.filter(h => h.index < lowest.index);
-                            if (highsBeforeB.length >= 2) {
-                                const pointC = highsBeforeB[highsBeforeB.length - 1];
-                                const pointA = highsBeforeB[highsBeforeB.length - 2];
-                                
-                                if (pointC.price < pointA.price && currentK.c < lowest.price) {
-                                    type = 'SHORT';
-                                    slPrice = pointC.price * (1 + 0.002);
-                                    riskPct = (slPrice - entryPrice) / entryPrice;
-                                    
-                                    if (riskPct > 0.02) return; 
-                                    tpPrice = entryPrice - (slPrice - entryPrice) * 2;
-                                    
-                                    // 判断是否形成 M 顶（A 点与 C 点距离相差极小）
-                                    if (Math.abs(pointA.price - pointC.price) / pointA.price < 0.005) {
-                                        isResonance = true;
-                                    }
-                                }
-                            }
+                            // 做多：5m 必须是阴线
+                            if (lastClosed5m.c >= lastClosed5m.o) return;
+                            
+                            type = 'LONG';
+                            slPrice = low2 * (1 - 0.002);
+                            riskPct = (entryPrice - slPrice) / entryPrice;
+                            
+                            if (riskPct > 0.02) return; 
+                            if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003);
+                            
+                            tpPrice = entryPrice + (entryPrice - slPrice) * 2;
+
+                        } else {
+                            // 做空：5m 必须是阳线
+                            if (lastClosed5m.c <= lastClosed5m.o) return;
+
+                            type = 'SHORT';
+                            slPrice = high2 * (1 + 0.002);
+                            riskPct = (slPrice - entryPrice) / entryPrice;
+                            
+                            if (riskPct > 0.02) return;
+                            if (riskPct < 0.003) slPrice = entryPrice * (1 + 0.003);
+                            
+                            tpPrice = entryPrice - (slPrice - entryPrice) * 2;
                         }
 
-                        if (!type) return;
+                        // 7. 打分
+                        let score = 80; 
+                        let reasonDetails = [`4H完美发散(30分)`, `1H完美发散(30分)`];
+                        let dipScore = Math.min(Math.round(Math.abs(sumChg) * 20), 20);
+                        score += dipScore;
+                        reasonDetails.push(`15m总和 <b>${sumChg.toFixed(2)}%</b> (${dipScore}分)`);
 
-                        // 成交量过滤
-                        const prev5vol = closed5m.slice(-5);
-                        const avgVol = prev5vol.reduce((sum, k) => sum + k.v, 0) / 5;
-                        const volRatio = currentK.v / avgVol;
-                        if (volRatio < 1.2) return; // 必须放量
-
-                        // 打分系统
-                        let score = 70; 
-                        let reasonDetails = [`15m EMA发散(40分)`, `5m N字突破(30分)`];
-                        
-                        if (volRatio > 1.5) {
-                            score += 10;
-                            reasonDetails.push(`放量${volRatio.toFixed(1)}倍(+10分)`);
-                        }
-                        
-                        if (isResonance) {
-                            score += 20;
-                            reasonDetails.push(`<b>${type === 'LONG' ? 'W底' : 'M顶'}共振(+20分)</b>`);
-                        }
-
-                        const reason = `15m 级别 EMA 完美${type === 'LONG' ? '多头' : '空头'}发散。<br>5m 级别走出 <span class="highlight">${type === 'LONG' ? '正N字突破' : '倒N字跌破'}</span>。<br>${isResonance ? `同时形成坚实的 <b>${type === 'LONG' ? 'W底' : 'M顶'}结构</b>。` : ''}<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `4H 与 1H 完美${type === 'LONG' ? '多头' : '空头'}发散。<br>15m 双K总和${type === 'LONG' ? '回调' : '反弹'} <b>${Math.abs(sumChg).toFixed(2)}%</b>。<br>5m 最新收盘为实体${type === 'LONG' ? '阴线' : '阳线'}，无插针现象，适合进场。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         const resObj = { 
                             instId: instId.replace('-USDT-SWAP', ''), 
@@ -436,7 +401,7 @@
             
             if (isAutoScanning && (longResults.length > 0 || shortResults.length > 0)) {
                 const hasLong = longResults.length > 0;
-                const title = hasLong ? `发现 ${longResults.length} 个做多N字` : `发现 ${shortResults.length} 个做空N字`;
+                const title = hasLong ? `发现 ${longResults.length} 个做多信号` : `发现 ${shortResults.length} 个做空信号`;
                 const topCoin = hasLong ? longResults[0].instId : shortResults[0].instId;
                 sendNotification(title, `首选币种: ${topCoin}`, hasLong ? 'LONG' : 'SHORT');
             }
@@ -465,7 +430,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（15m多头 + 5m N字突破 & W底共振）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H+1H多头 + 15m回调 + 5m实体阴线）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
@@ -485,7 +450,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m空头 + 5m 倒N字 & M顶共振）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（4H+1H空头 + 15m反弹 + 5m实体阳线）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
