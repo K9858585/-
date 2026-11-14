@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 15M(20根结构) + 5M(实体动能>0.5%)</title>
+    <title>前100币 15M(20根前后对比) + 5M(实体动能>0.5%)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -279,21 +279,19 @@
                         if (k15.length < 25 || k5.length < 10) return;
 
                         const closed15m = k15.slice(0, k15.length - 1);
-                        const recent20 = closed15m.slice(-20); // 20根定大趋势
+                        const recent20 = closed15m.slice(-20);
                         
-                        // ================= 1. 找高低点定结构 =================
-                        let highs = [], lows = [];
-                        for(let j=1; j<recent20.length-1; j++) {
-                            if(recent20[j].h > recent20[j-1].h && recent20[j].h > recent20[j+1].h) highs.push(recent20[j].h);
-                            if(recent20[j].l < recent20[j-1].l && recent20[j].l < recent20[j+1].l) lows.push(recent20[j].l);
-                        }
-                        if (highs.length < 2 || lows.length < 2) return;
-                        
-                        const H1 = highs[highs.length - 1], H2 = highs[highs.length - 2];
-                        const L1 = lows[lows.length - 1], L2 = lows[lows.length - 2];
-                        
-                        const isBullTrend = (H1 > H2 && L1 > L2);
-                        const isBearTrend = (H1 < H2 && L1 < L2);
+                        // ================= 1. 20根线前后10根对比定趋势 =================
+                        const first10 = recent20.slice(0, 10);
+                        const last10 = recent20.slice(10);
+
+                        const maxH_first = Math.max(...first10.map(k => k.h));
+                        const minL_first = Math.min(...first10.map(k => k.l));
+                        const maxH_last = Math.max(...last10.map(k => k.h));
+                        const minL_last = Math.min(...last10.map(k => k.l));
+
+                        const isBullTrend = (maxH_last > maxH_first && minL_last > minL_first);
+                        const isBearTrend = (maxH_last < maxH_first && minL_last < minL_first);
                         if (!isBullTrend && !isBearTrend) return;
 
                         // ================= 2. 过滤：防插针 & 横盘 =================
@@ -355,14 +353,14 @@
 
                         // ================= 5. 打分系统 =================
                         let score = 40; // 15m 结构分
-                        let reasonDetails = [`15m结构确立(40分)`];
+                        let reasonDetails = [`15m 20根定势(40分)`];
                         
                         // 5m 实体动能打分：0.5%起步，每多0.5%加10分，最高加60分
                         let bodyScore = Math.min(Math.round((absBodyChgPct - 0.5) / 0.5 * 10), 60);
                         score += bodyScore;
                         reasonDetails.push(`5m实体动能 <b>${absBodyChgPct.toFixed(2)}%</b> (${bodyScore}分)`);
 
-                        const reason = `15m 级别 20 根 K 线形成${type === 'LONG' ? '多头' : '空头'}结构。<br>5m 最新收盘线实体${type === 'LONG' ? '下跌' : '上涨'}幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>，动能强劲。<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `15m 级别前10根对比后10根，确认${type === 'LONG' ? '顶底抬高（多头）' : '顶底降低（空头）'}结构。<br>5m 最新收盘线实体${type === 'LONG' ? '下跌' : '上涨'}幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>，动能强劲。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         const resObj = { 
                             instId: instId.replace('-USDT-SWAP', ''), 
@@ -414,7 +412,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（15m多头 + 5m实体跌>0.5%）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（15m多头趋势 + 5m实体跌>0.5%）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
@@ -434,7 +432,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m空头 + 5m实体涨>0.5%）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m空头趋势 + 5m实体涨>0.5%）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
