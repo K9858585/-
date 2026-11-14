@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>100主流币 2H/1H极值1% + 15M双K总和反向</title>
+    <title>50主流币 4H定势2% + 15M三K对比2H回调</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -55,7 +55,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 100主流币 + 15M双K总和 扫描</span>
+                <span id="btnText">🎯 启动 4H定势 + 15M对比2H回调 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -65,29 +65,19 @@
     <div id="result-area"></div>
 
 <script>
-    // 精选 100 个主流及高流动性热门币种
+    // 精选 50 个绝对主流、高流动性的合约币种
     const allCoins = [
         "BTC-USDT-SWAP", "ETH-USDT-SWAP", "OKB-USDT-SWAP", "SOL-USDT-SWAP", "DOGE-USDT-SWAP",
-        "XRP-USDT-SWAP", "BCH-USDT-SWAP", "DOOD-USDT-SWAP", "ZEC-USDT-SWAP", "xNVDA-USDT-SWAP",
-        "PEPE-USDT-SWAP", "XAUT-USDT-SWAP", "xSNDK-USDT-SWAP", "UNI-USDT-SWAP", "HYPE-USDT-SWAP",
-        "TRUMP-USDT-SWAP", "BNB-USDT-SWAP", "xSOXL-USDT-SWAP", "SUI-USDT-SWAP", "FIL-USDT-SWAP",
-        "ADA-USDT-SWAP", "AVAX-USDT-SWAP", "DOT-USDT-SWAP", "LINK-USDT-SWAP", "LTC-USDT-SWAP",
-        "TRX-USDT-SWAP", "ATOM-USDT-SWAP", "NEAR-USDT-SWAP", "APT-USDT-SWAP", "ARB-USDT-SWAP",
-        "OP-USDT-SWAP", "INJ-USDT-SWAP", "TIA-USDT-SWAP", "RNDR-USDT-SWAP", "IMX-USDT-SWAP",
-        "STX-USDT-SWAP", "HBAR-USDT-SWAP", "ICP-USDT-SWAP", "ETC-USDT-SWAP", "XLM-USDT-SWAP",
-        "VET-USDT-SWAP", "GRT-USDT-SWAP", "THETA-USDT-SWAP", "FTM-USDT-SWAP", "SAND-USDT-SWAP",
-        "MANA-USDT-SWAP", "EOS-USDT-SWAP", "AAVE-USDT-SWAP", "MKR-USDT-SWAP", "WIF-USDT-SWAP",
-        "BONK-USDT-SWAP", "JUP-USDT-SWAP", "SEI-USDT-SWAP", "FLOW-USDT-SWAP", "CHZ-USDT-SWAP",
-        "CRV-USDT-SWAP", "LDO-USDT-SWAP", "FET-USDT-SWAP", "AGIX-USDT-SWAP", "ORDI-USDT-SWAP",
-        "TON-USDT-SWAP", "MATIC-USDT-SWAP", "SHIB-USDT-SWAP", "PENDLE-USDT-SWAP", "JTO-USDT-SWAP",
-        "PYTH-USDT-SWAP", "WLD-USDT-SWAP", "STRK-USDT-SWAP", "DYDX-USDT-SWAP", "GMX-USDT-SWAP",
-        "SNX-USDT-SWAP", "COMP-USDT-SWAP", "ZRX-USDT-SWAP", "YFI-USDT-SWAP", "SUSHI-USDT-SWAP",
-        "KSM-USDT-SWAP", "MINA-USDT-SWAP", "CFX-USDT-SWAP", "BLUR-USDT-SWAP", "MEME-USDT-SWAP",
-        "ENS-USDT-SWAP", "1INCH-USDT-SWAP", "BAT-USDT-SWAP", "QTUM-USDT-SWAP", "OM-USDT-SWAP",
-        "ZETA-USDT-SWAP", "AEVO-USDT-SWAP", "MAVIA-USDT-SWAP", "PIXEL-USDT-SWAP", "PORTAL-USDT-SWAP",
-        "AI-USDT-SWAP", "NFP-USDT-SWAP", "XAI-USDT-SWAP", "MANTA-USDT-SWAP", "ALT-USDT-SWAP"
+        "XRP-USDT-SWAP", "BCH-USDT-SWAP", "LTC-USDT-SWAP", "BNB-USDT-SWAP", "SUI-USDT-SWAP",
+        "ADA-USDT-SWAP", "AVAX-USDT-SWAP", "DOT-USDT-SWAP", "LINK-USDT-SWAP", "TRX-USDT-SWAP",
+        "ATOM-USDT-SWAP", "NEAR-USDT-SWAP", "APT-USDT-SWAP", "ARB-USDT-SWAP", "OP-USDT-SWAP",
+        "FIL-USDT-SWAP", "UNI-USDT-SWAP", "INJ-USDT-SWAP", "TIA-USDT-SWAP", "RNDR-USDT-SWAP",
+        "IMX-USDT-SWAP", "STX-USDT-SWAP", "HBAR-USDT-SWAP", "ICP-USDT-SWAP", "ETC-USDT-SWAP",
+        "XLM-USDT-SWAP", "VET-USDT-SWAP", "GRT-USDT-SWAP", "THETA-USDT-SWAP", "FTM-USDT-SWAP",
+        "SAND-USDT-SWAP", "MANA-USDT-SWAP", "EOS-USDT-SWAP", "AAVE-USDT-SWAP", "MKR-USDT-SWAP",
+        "PEPE-USDT-SWAP", "WIF-USDT-SWAP", "BONK-USDT-SWAP", "JUP-USDT-SWAP", "SEI-USDT-SWAP",
+        "ORDI-USDT-SWAP", "TON-USDT-SWAP", "MATIC-USDT-SWAP", "SHIB-USDT-SWAP", "WLD-USDT-SWAP"
     ];
-    const targetCoins = allCoins.slice(0, 100);
 
     let isRunning = false;
 
@@ -124,13 +114,6 @@
         }
     }
 
-    function getLastClosedIdx(klines) {
-        for (let i = klines.length - 1; i >= 0; i--) {
-            if (klines[i].confirm) return i;
-        }
-        return klines.length - 2;
-    }
-
     function analyzeMacro(k) {
         if (!k) return null;
         const chg = (k.c - k.o) / k.o * 100;
@@ -155,66 +138,56 @@
         const shortResults = [];
 
         try {
-            updateProgress(`正在扫描 ${targetCoins.length} 个精选币种...`, 5);
+            updateProgress(`正在扫描 ${allCoins.length} 个精选币种...`, 5);
             const chunkSize = 15;
             let done = 0;
 
-            for (let i = 0; i < targetCoins.length; i += chunkSize) {
-                const chunk = targetCoins.slice(i, i + chunkSize);
+            for (let i = 0; i < allCoins.length; i += chunkSize) {
+                const chunk = allCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 查极值定势（门槛改为 1.0%）
-                        const [k2h, k1h] = await Promise.all([
+                        // 1. 查 4H 极值定势 (≥ 2.0%)
+                        const k4h = await fetchCandles(instId, '4H', 12);
+                        const cur4H = k4h[k4h.length - 1];
+                        const m4H = analyzeMacro(cur4H);
+                        
+                        if (!m4H || m4H.absChg < 2.0) return;
+
+                        const type = m4H.chg > 0 ? 'LONG' : 'SHORT';
+
+                        // 2. 并发请求 2H 和 15m 数据
+                        const [k2h, k15] = await Promise.all([
                             fetchCandles(instId, '2H', 12),
-                            fetchCandles(instId, '1H', 12)
+                            fetchCandles(instId, '15m', 30)
                         ]);
-                        
-                        const m2H = analyzeMacro(k2h[k2h.length - 1]);
-                        const m1H = analyzeMacro(k1h[k1h.length - 1]);
-                        if (!m2H || !m1H) return;
 
-                        let type = null;
-                        let maxChg = 0;
-                        let mainTF = '';
+                        const cur2H = k2h[k2h.length - 1];
+                        const m2H = analyzeMacro(cur2H);
+                        if (!m2H) return;
 
-                        // 任意一个 ≥ 1.0 即可，取大的作为主导方向
-                        if (m2H.absChg >= 1.0 && m2H.absChg >= m1H.absChg) {
-                            type = m2H.chg > 0 ? 'LONG' : 'SHORT';
-                            maxChg = m2H.chg;
-                            mainTF = '2H';
-                        } else if (m1H.absChg >= 1.0) {
-                            type = m1H.chg > 0 ? 'LONG' : 'SHORT';
-                            maxChg = m1H.chg;
-                            mainTF = '1H';
-                        }
+                        // 3. 查 15m 最近3根总和（含当前走的一根）
+                        const k3 = k15.slice(-3); 
+                        const lastK = k3[2]; 
+                        const firstK = k3[0]; 
 
-                        if (!type) return;
+                        const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
+                        const abs3Sum = Math.abs(chg3Sum);
 
-                        // 2. 查 15m 最近2根总和
-                        const k15 = await fetchCandles(instId, '15m', 30);
-                        const lastIdx = getLastClosedIdx(k15);
-                        if (lastIdx < 15) return;
-                        
-                        const k2 = k15.slice(lastIdx - 1, lastIdx + 1); 
-                        const lastK = k2[1]; 
-                        const firstK = k2[0]; 
-
-                        const chg2Sum = (lastK.c - firstK.o) / firstK.o * 100;
-                        const abs2Sum = Math.abs(chg2Sum);
-
-                        // 判定总幅度是否在 0.3% ~ 1.5% 且方向相反
+                        // 4. 核心比较：15m回调必须与 2H 方向相反，且幅度 ≥ 2H 幅度的 15%
                         if (type === 'LONG') {
-                            if (chg2Sum > 0 || abs2Sum < 0.3 || abs2Sum > 1.5) return;
+                            if (chg3Sum > 0) return; // 必须反向（跌）
+                            if (abs3Sum < m2H.absChg * 0.15) return; // 必须满足相对幅度
                         } else {
-                            if (chg2Sum < 0 || abs2Sum < 0.3 || abs2Sum > 1.5) return;
+                            if (chg3Sum < 0) return; // 必须反向（涨）
+                            if (abs3Sum < m2H.absChg * 0.15) return; // 必须满足相对幅度
                         }
 
                         // 整理结果
-                        let score = 90 + Math.min(Math.round((abs2Sum - 0.3) * 8.3), 10);
+                        let score = 90 + Math.min(Math.round((abs3Sum - m2H.absChg * 0.15) * 5), 10);
                         const currentPrice = lastK.c;
                         
                         const dirStr = type === 'LONG' ? '做多' : '做空';
-                        const reason = `${mainTF} 当前K线呈明显${type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${maxChg>0?'+':''}${maxChg.toFixed(2)}%</span>）。<br>15m 最近2根K线总和${type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(chg2Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
+                        const reason = `4H 当前K线呈明显${type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${m4H.chg>0?'+':''}${m4H.chg.toFixed(2)}%</span>）。<br>2H 当前涨跌幅为 <span class="highlight">${m2H.chg.toFixed(2)}%</span>。<br>15m 最近3根总和${type === 'LONG' ? '回调' : '反弹'} <span class="highlight">${Math.abs(chg3Sum).toFixed(2)}%</span>（超过 2H 幅度的 15%），具备${dirStr}机会。`;
 
                         if (type === 'LONG') {
                             longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
@@ -225,8 +198,8 @@
                     } catch (e) { /* ignore */ }
                     
                     done++;
-                    updateProgress(`正在扫描... (${done}/${targetCoins.length})`,
-                        5 + (done / targetCoins.length) * 90);
+                    updateProgress(`正在扫描... (${done}/${allCoins.length})`,
+                        5 + (done / allCoins.length) * 90);
                 }));
             }
 
@@ -259,7 +232,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 15m双K总和回调）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H涨≥2% + 15m对比2H回调）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
@@ -279,7 +252,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 15m双K总和反弹）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H跌≥2% + 15m对比2H反弹）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.015);
