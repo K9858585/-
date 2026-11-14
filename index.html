@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前200币 15M(10根结构) + 5M形态 (动态止损)</title>
+    <title>前200币 15M(新3对比老3) + 5M形态 (动态止损)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -294,13 +294,14 @@
 
                         const closed15m = k15.slice(0, k15.length - 1);
                         
-                        // ================= 核心改动：取最近 10 根 =================
-                        const last10 = closed15m.slice(-10);
-                        const prev5 = last10.slice(0, 5); // 前 5 根
-                        const recent5 = last10.slice(5);  // 后 5 根（最新）
+                        // ================= 核心改动：新3根对比老3根 =================
+                        const last6 = closed15m.slice(-6);
+                        const old3 = last6.slice(0, 3);
+                        const new3 = last6.slice(3);
 
                         // 2. 过滤：防插针 & 防横盘 (用最近10根来过滤)
                         let hasExtremeSpike = false;
+                        const last10 = closed15m.slice(-10);
                         for (const k of last10) {
                             const candleAmp = (k.h - k.l) / k.l * 100;
                             if (candleAmp > 8) { hasExtremeSpike = true; break; }
@@ -312,14 +313,14 @@
                         const totalAmp = (maxH10 - minL10) / minL10 * 100;
                         if (totalAmp < 1.5) return;
 
-                        // 3. 纯结构判定：对比前后 5 根的高低点
-                        const rh = Math.max(...recent5.map(k => k.h)); // 新最高
-                        const rl = Math.min(...recent5.map(k => k.l)); // 新最低
-                        const ph = Math.max(...prev5.map(k => k.h));   // 旧最高
-                        const pl = Math.min(...prev5.map(k => k.l));   // 旧最低
+                        // 3. 纯结构判定
+                        const nh = Math.max(...new3.map(k => k.h)); // 新3根最高
+                        const nl = Math.min(...new3.map(k => k.l)); // 新3根最低
+                        const oh = Math.max(...old3.map(k => k.h)); // 老3根最高
+                        const ol = Math.min(...old3.map(k => k.l)); // 老3根最低
 
-                        const isBullTrend = (rh > ph && rl > pl); // 顶底抬高
-                        const isBearTrend = (rh < ph && rl < pl); // 顶底降低
+                        const isBullTrend = (nh > oh && nl > ol); // 顶底抬高
+                        const isBearTrend = (nh < oh && nl < ol); // 顶底降低
                         
                         if (!isBullTrend && !isBearTrend) return;
 
@@ -377,20 +378,20 @@
                         const wickRatio = range > 0 ? (range - body) / range : 0;
 
                         if (type === 'LONG') {
-                            score += 40; reasonDetails.push(`15m结构顶底抬高(40分)`);
+                            score += 40; reasonDetails.push(`15m顶底抬高(40分)`);
                             let volScore = Math.min(Math.round((volRatio - 1) * 15), 30); score += volScore;
                             let shapeScore = Math.round(wickRatio * 30); score += shapeScore;
                             reasonDetails.push(`5m锤子线(${shapeScore}分)`);
                             reasonDetails.push(`放量${volRatio.toFixed(1)}倍(${volScore}分)`);
                         } else {
-                            score += 40; reasonDetails.push(`15m结构顶底降低(40分)`);
+                            score += 40; reasonDetails.push(`15m顶底降低(40分)`);
                             let volScore = Math.min(Math.round((volRatio - 1) * 15), 30); score += volScore;
                             let shapeScore = Math.round(wickRatio * 30); score += shapeScore;
                             reasonDetails.push(`5m流星线(${shapeScore}分)`);
                             reasonDetails.push(`放量${volRatio.toFixed(1)}倍(${volScore}分)`);
                         }
 
-                        const reason = `15m 级别最近10根呈现${type === 'LONG' ? '顶底抬高' : '顶底降低'}结构。<br>5m 最新收盘出现 <span class="highlight">${type === 'LONG' ? '锤子线' : '流星线'}</span>，且放量。<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `15m 级别最近3根对比前3根呈现${type === 'LONG' ? '顶底抬高' : '顶底降低'}结构。<br>5m 最新收盘出现 <span class="highlight">${type === 'LONG' ? '锤子线' : '流星线'}</span>，且放量。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         const resObj = { 
                             instId: instId.replace('-USDT-SWAP', ''), 
