@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1H振幅前50 + 4H定势2% + 15M三K回调0.3-1%</title>
+    <title>全市场多头扫描 + 4H定势 + 15M回调 + 综合打分</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -28,17 +28,13 @@
 
         .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .section-title.long { color: var(--up); }
-        .section-title.short { color: var(--down); }
 
-        .card { background: var(--panel); border-radius: 12px; padding: 15px; margin-bottom: 12px; position: relative; overflow: hidden; border-left: 4px solid #fff; }
-        .card.long-card { border-left-color: var(--up); box-shadow: 0 4px 15px rgba(14,203,129,0.05); }
-        .card.short-card { border-left-color: var(--down); box-shadow: 0 4px 15px rgba(246,70,93,0.05); }
+        .card { background: var(--panel); border-radius: 12px; padding: 15px; margin-bottom: 12px; position: relative; overflow: hidden; border-left: 4px solid var(--up); }
+        .card.long-card { box-shadow: 0 4px 15px rgba(14,203,129,0.05); }
 
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .coin-name { font-size: 20px; font-weight: 900; color: #fff; }
-        .score-badge { font-size: 14px; font-weight: bold; padding: 4px 10px; border-radius: 20px; }
-        .long-card .score-badge { background: rgba(14,203,129,0.15); color: var(--up); }
-        .short-card .score-badge { background: rgba(246,70,93,0.15); color: var(--down); }
+        .score-badge { font-size: 14px; font-weight: bold; padding: 4px 10px; border-radius: 20px; background: rgba(14,203,129,0.15); color: var(--up); }
 
         .reason-box { font-size: 13px; line-height: 1.7; color: #b2b5be; text-align: justify; background: #12161f; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
         
@@ -55,7 +51,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 1H振幅前50 + 4H定势 + 15M回调 扫描</span>
+                <span id="btnText">🎯 启动 全市场多头 + 综合打分 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -82,6 +78,12 @@
         document.getElementById('btnText').innerText = "🎯 重新扫描";
     }
 
+    async function fetchAllSwaps() {
+        const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP').then(r => r.json());
+        if (res.code !== '0') return [];
+        return res.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId);
+    }
+
     async function fetchCandles(instId, bar, limit) {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 12000);
@@ -100,87 +102,42 @@
         }
     }
 
-    // 获取全市场 1H 振幅前 50 的币种
-    async function fetchTop50Volatile1H() {
-        const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 15000);
-        try {
-            const instRes = await fetch(`https://www.okx.com/api/v5/public/instruments?instType=SWAP`, { signal: ctrl.signal }).then(r => r.json());
-            if (instRes.code !== '0') return [];
-            const usdtSwaps = instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId);
-
-            const chunkSize = 30;
-            const results = [];
-
-            for (let i = 0; i < usdtSwaps.length; i += chunkSize) {
-                const chunk = usdtSwaps.slice(i, i + chunkSize);
-                await Promise.all(chunk.map(async (instId) => {
-                    try {
-                        const k = await fetchCandles(instId, '1H', 2);
-                        if (k.length > 0) {
-                            const cur1H = k[k.length - 1];
-                            const amp = cur1H.l > 0 ? (cur1H.h - cur1H.l) / cur1H.l * 100 : 0;
-                            results.push({ instId, amp });
-                        }
-                    } catch (e) { /* ignore */ }
-                }));
-            }
-
-            results.sort((a, b) => b.amp - a.amp);
-            return results.slice(0, 50).map(r => r.instId);
-        } finally {
-            clearTimeout(timer);
-        }
-    }
-
-    function analyzeMacro(k) {
-        if (!k) return null;
-        const chg = (k.c - k.o) / k.o * 100;
-        return {
-            chg: chg,
-            absChg: Math.abs(chg)
-        };
-    }
-
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
 
         const btn = document.getElementById('startBtn');
         btn.disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 正在计算1H振幅前50...";
+        document.getElementById('btnText').innerText = "⏳ 正在全速扫描全市场...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
 
         const longResults = [];
-        const shortResults = [];
 
         try {
-            // 第一步：选出 1H 振幅前 50
-            const targetCoins = await fetchTop50Volatile1H();
+            updateProgress("正在获取全市场合约列表...", 2);
+            const targetCoins = await fetchAllSwaps();
             if (targetCoins.length === 0) {
-                updateProgress("获取振幅排名失败。", 100);
+                updateProgress("获取合约列表失败。", 100);
                 endScanner();
                 return;
             }
 
-            updateProgress(`已锁定前50，开始对振幅前列币种进行策略筛查...`, 20);
-            const chunkSize = 10;
+            updateProgress(`共发现 ${targetCoins.length} 个合约，开始筛选多头机会...`, 5);
+            const chunkSize = 15;
             let done = 0;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 查 4H 极值定势 (≥ 2.0%)
+                        // 1. 查 4H 极值定势 (≥ 2.0% 且 必须为阳线)
                         const k4h = await fetchCandles(instId, '4H', 12);
                         const cur4H = k4h[k4h.length - 1];
-                        const m4H = analyzeMacro(cur4H);
+                        const chg4H = (cur4H.c - cur4H.o) / cur4H.o * 100;
                         
-                        if (!m4H || m4H.absChg < 2.0) return;
-
-                        const type = m4H.chg > 0 ? 'LONG' : 'SHORT';
+                        if (chg4H < 2.0) return;
 
                         // 2. 查 15m 最近3根总和（含当前走的一根）
                         const k15 = await fetchCandles(instId, '15m', 30);
@@ -191,43 +148,62 @@
                         const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
                         const abs3Sum = Math.abs(chg3Sum);
 
-                        // 3. 核心比较：15m回调必须与 4H 方向相反
-                        // 4. 绝对幅度严格限制在 0.3% - 1.0% 之间
+                        // 3. 15m 回调必须为跌，且幅度在 0.3% - 1.0% 之间
+                        if (chg3Sum > 0) return; 
                         if (abs3Sum < 0.3 || abs3Sum > 1.0) return;
 
-                        if (type === 'LONG') {
-                            if (chg3Sum > 0) return; // 必须反向（跌）
-                        } else {
-                            if (chg3Sum < 0) return; // 必须反向（涨）
-                        }
+                        // ================= 打分系统 =================
+                        let score = 0;
+                        let reasonDetails = [];
 
-                        // 整理结果
-                        let score = 90 + Math.min(Math.round((abs3Sum - 0.3) * 10), 10); // 越接近1%分越高
+                        // 1. 爆发力分 (最高 40 分) - 4H 涨得越猛越好，6% 封顶
+                        let powerScore = Math.min(Math.round((chg4H / 6) * 40), 40);
+                        score += powerScore;
+                        reasonDetails.push(`4H爆发力(<b>+${chg4H.toFixed(2)}%</b>)得 ${powerScore}分`);
+
+                        // 2. 回调深度分 (最高 30 分) - 回调越接近 1% 越好，0.3% 为基准
+                        let dipScore = Math.round(((abs3Sum - 0.3) / 0.7) * 30);
+                        dipScore = Math.max(0, Math.min(30, dipScore));
+                        score += dipScore;
+                        reasonDetails.push(`15m回调(<b>${abs3Sum.toFixed(2)}%</b>)得 ${dipScore}分`);
+
+                        // 3. 形态确认分 (最高 30 分)
+                        let shapeScore = 0;
+                        // 如果最新一根 15m 是阳线（收红/绿，代表资金托底），加 15 分
+                        if (lastK.c > lastK.o) {
+                            shapeScore += 15;
+                            reasonDetails.push(`最新15m收阳(托底) +15分`);
+                        }
+                        // 如果最新一根 15m 是缩量阴线（实体占比小），加 15 分
+                        const body = Math.abs(lastK.c - lastK.o);
+                        const range = lastK.h - lastK.l;
+                        if (range > 0 && (body / range) < 0.5 && lastK.c < lastK.o) {
+                            shapeScore += 15;
+                            reasonDetails.push(`缩量小阴星(洗盘) +15分`);
+                        } else if (lastK.c < lastK.o) {
+                            // 如果没有缩量，只要不是暴跌大阴线，给 5 分保底
+                            shapeScore += 5;
+                        }
+                        score += shapeScore;
+
                         const currentPrice = lastK.c;
-                        
-                        const dirStr = type === 'LONG' ? '做多' : '做空';
-                        const reason = `4H 当前K线呈明显${type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${m4H.chg>0?'+':''}${m4H.chg.toFixed(2)}%</span>）。<br>15m 最近3根总和${type === 'LONG' ? '回调' : '反弹'} <span class="highlight">${Math.abs(chg3Sum).toFixed(2)}%</span>（处于 0.3%-1% 黄金区间），具备${dirStr}机会。`;
+                        const reason = `4H 呈现大阳线爆发（涨幅 +${chg4H.toFixed(2)}%）。<br>15m 三K合力回调 ${abs3Sum.toFixed(2)}%。<br><span class="highlight">打分细节：${reasonDetails.join('，')}。</span>`;
 
-                        if (type === 'LONG') {
-                            longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
-                        } else {
-                            shortResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
-                        }
+                        longResults.push({ instId: instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
 
                     } catch (e) { /* ignore */ }
                     
                     done++;
-                    updateProgress(`正在扫描振幅前列币种... (${done}/${targetCoins.length})`,
-                        20 + (done / targetCoins.length) * 75);
+                    updateProgress(`正在筛选多头标的... (${done}/${targetCoins.length})`,
+                        5 + (done / targetCoins.length) * 90);
                 }));
             }
 
             // 排序取前三
             updateProgress("正在整理最终榜单...", 98);
             longResults.sort((a, b) => b.score - a.score);
-            shortResults.sort((a, b) => b.score - a.score);
 
-            renderResults(longResults.slice(0, 3), shortResults.slice(0, 3));
+            renderResults(longResults.slice(0, 3));
 
         } catch (err) {
             updateProgress("推算发生错误，请检查网络后再试。", 100);
@@ -243,7 +219,7 @@
         return p.toFixed(6);
     }
 
-    function renderResults(longs, shorts) {
+    function renderResults(longs) {
         updateProgress("✅ 扫描完成！", 100);
         endScanner();
 
@@ -251,8 +227,11 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H涨≥2% + 15m回调0.3-1%）</div>`;
-        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H定势 + 15m回调 + 综合打分）</div>`;
+        if (longs.length === 0) {
+            html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
+        }
+        
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
             const tp = item.price * (1 + 0.03);
@@ -260,33 +239,13 @@
                 <div class="card long-card">
                     <div class="card-header">
                         <div class="coin-name">${index + 1}. ${item.instId}</div>
-                        <div class="score-badge">信心分: ${item.score}</div>
+                        <div class="score-badge">综合分: ${item.score}</div>
                     </div>
                     <div class="reason-box">${item.reason}</div>
                     <div class="trade-plan">
                         <span class="sl">止损: ${formatPrice(sl)}</span>
                         <span style="color:#fff;">参考价: ${formatPrice(item.price)}</span>
                         <span class="tp">止盈: ${formatPrice(tp)}</span>
-                    </div>
-                </div>`;
-        });
-
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（4H跌≥2% + 15m反弹0.3-1%）</div>`;
-        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
-        shorts.forEach((item, index) => {
-            const sl = item.price * (1 + 0.015);
-            const tp = item.price * (1 - 0.03);
-            html += `
-                <div class="card short-card">
-                    <div class="card-header">
-                        <div class="coin-name">${index + 1}. ${item.instId}</div>
-                        <div class="score-badge">信心分: ${item.score}</div>
-                    </div>
-                    <div class="reason-box">${item.reason}</div>
-                    <div class="trade-plan">
-                        <span class="tp">止盈: ${formatPrice(tp)}</span>
-                        <span style="color:#fff;">参考价: ${formatPrice(item.price)}</span>
-                        <span class="sl">止损: ${formatPrice(sl)}</span>
                     </div>
                 </div>`;
         });
