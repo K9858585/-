@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全市场多头 + 1H双阳连涨2% + 15M回调 + 综合打分</title>
+    <title>前200币 1H双阳连涨2% + 15M回调≥0.3% + 综合打分</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -51,7 +51,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 启动 全市场多头 + 1H双阳连涨 扫描</span>
+                <span id="btnText">🎯 启动 前200币 + 1H双阳 + 综合打分 扫描</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪，点击上方按钮开始</div>
@@ -78,10 +78,32 @@
         document.getElementById('btnText').innerText = "🎯 重新扫描";
     }
 
-    async function fetchAllSwaps() {
-        const res = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP').then(r => r.json());
-        if (res.code !== '0') return [];
-        return res.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId);
+    // 获取全市场 USDT 永续合约，并按 24h 成交额排序，取前 200
+    async function fetchTop200Swaps() {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 12000);
+        try {
+            const [instRes, tickerRes] = await Promise.all([
+                fetch('https://www.okx.com/api/v5/public/instruments?instType=SWAP', { signal: ctrl.signal }).then(r => r.json()),
+                fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP', { signal: ctrl.signal }).then(r => r.json())
+            ]);
+            
+            if (instRes.code !== '0' || tickerRes.code !== '0') return [];
+            
+            // 过滤出所有 USDT 永续合约
+            const validInsts = new Set(instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
+            
+            // 筛选出这些合约的行情，并按 24h 成交额 (volCcy24h) 降序排列
+            const validTickers = tickerRes.data
+                .filter(t => validInsts.has(t.instId))
+                .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
+                .sort((a, b) => b.vol - a.vol);
+
+            // 取前 200 名
+            return validTickers.slice(0, 200).map(t => t.instId);
+        } finally {
+            clearTimeout(timer);
+        }
     }
 
     async function fetchCandles(instId, bar, limit) {
@@ -108,7 +130,7 @@
 
         const btn = document.getElementById('startBtn');
         btn.disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 正在全速扫描全市场...";
+        document.getElementById('btnText').innerText = "⏳ 正在获取前200名活跃币种...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -116,39 +138,39 @@
         const longResults = [];
 
         try {
-            updateProgress("正在获取全市场合约列表...", 2);
-            const targetCoins = await fetchAllSwaps();
+            // 1. 获取前 200 名
+            const targetCoins = await fetchTop200Swaps();
             if (targetCoins.length === 0) {
                 updateProgress("获取合约列表失败。", 100);
                 endScanner();
                 return;
             }
 
-            updateProgress(`共发现 ${targetCoins.length} 个合约，开始筛选多头机会...`, 5);
-            const chunkSize = 15;
+            updateProgress(`已锁定前200活跃币，开始筛查多头机会...`, 5);
+            const chunkSize = 20; // 并发高一点
             let done = 0;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        // 1. 查 1H 连续两根 K 线
+                        // 查 1H 连续两根 K 线
                         const k1h = await fetchCandles(instId, '1H', 5);
                         if (k1h.length < 3) return;
                         
                         const cur1H = k1h[k1h.length - 1]; // 当前正在走
                         const prev1H = k1h[k1h.length - 2]; // 上一根已收盘
                         
-                        // 条件：两根必须全是阳线（收盘价 > 开盘价）
+                        // 条件：两根必须全是阳线
                         if (cur1H.c <= cur1H.o || prev1H.c <= prev1H.o) return;
                         
-                        // 计算这两根加起来的涨幅 (以 prev1H 开盘价为起点，cur1H 收盘价为终点)
+                        // 计算这两根加起来的涨幅
                         const chg2H = (cur1H.c - prev1H.o) / prev1H.o * 100;
                         
                         // 必须大涨 ≥ 2%
                         if (chg2H < 2.0) return;
 
-                        // 2. 查 15m 最近3根总和（含当前走的一根）
+                        // 查 15m 最近3根总和（含当前走的一根）
                         const k15 = await fetchCandles(instId, '15m', 30);
                         const k3 = k15.slice(-3); 
                         const lastK = k3[2]; 
@@ -157,9 +179,9 @@
                         const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
                         const abs3Sum = Math.abs(chg3Sum);
 
-                        // 3. 15m 回调必须为跌，且幅度在 0.3% - 1.0% 之间
+                        // 3. 15m 回调必须为跌，且幅度 ≥ 0.3%（取消上限）
                         if (chg3Sum > 0) return; 
-                        if (abs3Sum < 0.3 || abs3Sum > 1.0) return;
+                        if (abs3Sum < 0.3) return;
 
                         // ================= 打分系统 =================
                         let score = 0;
@@ -170,9 +192,8 @@
                         score += powerScore;
                         reasonDetails.push(`1H双阳爆发(<b>+${chg2H.toFixed(2)}%</b>)得 ${powerScore}分`);
 
-                        // 2. 回调深度分 (最高 30 分) - 回调越接近 1% 越好，0.3% 为基准
-                        let dipScore = Math.round(((abs3Sum - 0.3) / 0.7) * 30);
-                        dipScore = Math.max(0, Math.min(30, dipScore));
+                        // 2. 回调深度分 (最高 30 分) - 取消上限后，回调越深越好，3% 跌幅给满分
+                        let dipScore = Math.min(Math.round((abs3Sum / 3) * 30), 30);
                         score += dipScore;
                         reasonDetails.push(`15m回调(<b>${abs3Sum.toFixed(2)}%</b>)得 ${dipScore}分`);
 
