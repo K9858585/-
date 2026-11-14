@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>全市场三步过滤 2H/1H极值定势 + 15M反向0.3-1.5% + 剔除横盘</title>
+    <title>全市场三步过滤 2H/1H极值定势 + 5M三K合力反向 + 剔除横盘</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -173,7 +173,7 @@
                 return;
             }
 
-            // ========== 第一 & 第二步：初筛（极值定势 + 15m反向） ==========
+            // ========== 第一 & 第二步：初筛（极值定势 + 5m三K合力） ==========
             updateProgress(`共发现 ${targetCoins.length} 个合约。开始第一/二步筛查...`, 5);
             const chunkSize = 15;
             let done1 = 0;
@@ -196,7 +196,6 @@
                         let maxChg = 0;
                         let mainTF = '';
 
-                        // 任意一个 ≥ 1.5 即可，取绝对值大的作为主导方向
                         if (m2H.absChg >= 1.5 && m2H.absChg >= m1H.absChg) {
                             type = m2H.chg > 0 ? 'LONG' : 'SHORT';
                             maxChg = m2H.chg;
@@ -209,19 +208,30 @@
 
                         if (!type) return;
 
-                        // 第二步：查 15m 反向幅度（0.3% ~ 1.5%）
-                        const k15 = await fetchCandles(instId, '15m', 30);
-                        const lastIdx = getLastClosedIdx(k15);
+                        // 第二步：查 5m 最近3根合力（0.3% ~ 1.5%）
+                        const k5 = await fetchCandles(instId, '5m', 30);
+                        const lastIdx = getLastClosedIdx(k5);
                         if (lastIdx < 15) return;
                         
-                        const lastK = k15[lastIdx];
-                        const chg15m = (lastK.c - lastK.o) / lastK.o * 100;
-                        const abs15m = Math.abs(chg15m);
+                        // 取最近 3 根已收盘 5m K线
+                        const k3 = k5.slice(lastIdx - 2, lastIdx + 1); 
+                        const lastK = k3[2]; // 最新一根
+                        const firstK = k3[0]; // 3根前的第一根
+
+                        // 3根加起来的总涨跌幅（用第一根的开盘价到最后一根的收盘价）
+                        const chg3Sum = (lastK.c - firstK.o) / firstK.o * 100;
+                        const abs3Sum = Math.abs(chg3Sum);
+
+                        // 必须反向，且幅度在区间内，且最新一根必须是反向K线
+                        if (type === 'LONG') {
+                            if (chg3Sum > 0) return; // 3根合力必须为跌
+                            if (lastK.c >= lastK.o) return; // 最新一根必须是阴线
+                        } else {
+                            if (chg3Sum < 0) return; // 3根合力必须为涨
+                            if (lastK.c <= lastK.o) return; // 最新一根必须是阳线
+                        }
                         
-                        // 必须反向且幅度在区间内
-                        if (type === 'LONG' && lastK.c >= lastK.o) return;
-                        if (type === 'SHORT' && lastK.c <= lastK.o) return;
-                        if (abs15m < 0.3 || abs15m > 1.5) return;
+                        if (abs3Sum < 0.3 || abs3Sum > 1.5) return;
 
                         // 第二步通过后，放入候选
                         candidates.push({ 
@@ -230,7 +240,7 @@
                             maxChg,
                             mainTF,
                             k2h, k1h, 
-                            chg15m, abs15m 
+                            chg3Sum, abs3Sum, k5 
                         });
                     } catch (e) { /* ignore */ }
                     done1++;
@@ -240,7 +250,7 @@
             }
 
             if (candidates.length === 0) {
-                updateProgress("扫描完毕：无标的通过 极值定势 或 15m反向 筛查。", 100);
+                updateProgress("扫描完毕：无标的通过 极值定势 或 5m三K合力 筛查。", 100);
                 endScanner();
                 return;
             }
@@ -256,13 +266,13 @@
                         return; 
                     }
 
-                    // 打分：基础90分，回调越接近1.5%分越高（最高100）
-                    let score = 90 + Math.min(Math.round((coin.abs15m - 0.3) * 8.3), 10);
-                    const currentPrice = coin.k15 ? coin.k15[getLastClosedIdx(coin.k15)].c : 0;
+                    // 打分：基础90分，3K合力越接近1.5%分越高（最高100）
+                    let score = 90 + Math.min(Math.round((coin.abs3Sum - 0.3) * 8.3), 10);
+                    const currentPrice = coin.k5 ? coin.k5[getLastClosedIdx(coin.k5)].c : 0;
                     
                     // 组装理由
                     const dirStr = coin.type === 'LONG' ? '做多' : '做空';
-                    const reason = `${coin.mainTF} 当前K线呈明显${coin.type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${coin.maxChg>0?'+':''}${coin.maxChg.toFixed(2)}%</span>）。<br>15m 最新K线反向${coin.type === 'LONG' ? '回调' : '反弹'}，幅度 <span class="highlight">${Math.abs(coin.chg15m).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
+                    const reason = `${coin.mainTF} 当前K线呈明显${coin.type === 'LONG' ? '多头' : '空头'}趋势（涨跌幅 <span class="highlight">${coin.maxChg>0?'+':''}${coin.maxChg.toFixed(2)}%</span>）。<br>5m 最近3根K线合力${coin.type === 'LONG' ? '回调' : '反弹'}，总幅度 <span class="highlight">${Math.abs(coin.chg3Sum).toFixed(2)}%</span>（符合0.3-1.5%），具备${dirStr}机会。`;
 
                     if (coin.type === 'LONG') {
                         longResults.push({ instId: coin.instId.replace('-USDT-SWAP', ''), score, price: currentPrice, reason });
@@ -306,7 +316,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 15m 反跌 + 非横盘）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（极值多头 + 5m三K连跌 + 非横盘）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             const sl = item.price * (1 - 0.015);
@@ -326,7 +336,7 @@
                 </div>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 15m 反涨 + 非横盘）</div>`;
+        html += `<div class="section-title short" style="margin-top:10px;">🔴 做空 Top 3（极值空头 + 5m三K连涨 + 非横盘）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             const sl = item.price * (1 + 0.015);
