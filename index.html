@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前20币 未来1小时多空预测 + 指标打分</title>
+    <title>前20币 未来1小时预测 (防接飞刀终极版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
-        /* 修复：移除 body 的 overflow: hidden，改为允许页面自然滚动 */
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
 
         #top-bar { background: var(--panel); padding: 20px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10; }
@@ -28,7 +27,6 @@
         .progress-bar-bg { width: 100%; height: 4px; background: #2a2e39; border-radius: 2px; overflow: hidden; display: none; }
         .progress-bar { height: 100%; width: 0%; background: var(--blue); transition: width 0.3s; }
 
-        /* 修复：增加底部 padding，确保滑动到底部时不会被手机导航栏遮挡 */
         #result-area { flex: 1; padding: 15px; padding-bottom: 100px; display: none; flex-direction: column; gap: 15px; }
 
         .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
@@ -179,10 +177,12 @@
         return { upper: sma + mult * stdDev, mid: sma, lower: sma - mult * stdDev };
     }
 
-    // ================= 核心打分引擎 =================
+    // ================= 核心打分引擎 (防飞刀版) =================
     function evaluateCoin(k15, k5, chgToday) {
         const closed15m = k15.slice(0, -1);
         const closes15m = closed15m.map(k => k.c);
+        const last15m = closed15m[closed15m.length - 1];
+        const cur15m = k15[k15.length - 1]; // 当前正在走的15m
         
         const closed5m = k5.slice(0, -1);
         const closes5m = closed5m.map(k => k.c);
@@ -209,40 +209,60 @@
         let shortScore = 0;
         let shortReasons = [];
 
-        // ===== 1. 15m 基础趋势 =====
-        if (closes15m[closes15m.length-1] > ema20_15[ema20_15.length-1]) { longScore += 10; longReasons.push("15m价格在EMA20上"); }
-        if (closes15m[closes15m.length-1] < ema20_15[ema20_15.length-1]) { shortScore += 10; shortReasons.push("15m价格在EMA20下"); }
-        
-        if (macd15 > 0) { longScore += 10; longReasons.push("15m MACD多头"); }
-        if (macd15 < 0) { shortScore += 10; shortReasons.push("15m MACD空头"); }
+        // ================= 🚨 一票否决区（防接飞刀） =================
+        // 1. 15m 极速下跌：当前15m正在走大阴线，跌幅超 0.8%，绝对禁止做多
+        const cur15mDrop = (cur15m.o - cur15m.c) / cur15m.o * 100;
+        if (cur15mDrop > 0.8) {
+            longScore = -999; 
+        }
+        // 2. 5m 极速下跌：最新5m收盘是实体大阴线，跌幅超 0.8%，绝对禁止做多
+        const last5mDrop = (lastK5.o - lastK5.c) / lastK5.o * 100;
+        if (last5mDrop > 0.8) {
+            longScore = -999;
+        }
+        // 3. 光脚阴线：最新5m是阴线且没有下影线，说明还要跌
+        if (lastK5.c < lastK5.o && lowerWick5 < body5 * 0.2) {
+            longScore = -999;
+        }
 
-        if (closes15m[closes15m.length-1] > boll15.mid) { longScore += 10; longReasons.push("15m运行于中轨上"); }
-        if (closes15m[closes15m.length-1] < boll15.mid) { shortScore += 10; shortReasons.push("15m运行于中轨下"); }
+        // 做空的一票否决区
+        const cur15mRise = (cur15m.c - cur15m.o) / cur15m.o * 100;
+        if (cur15mRise > 0.8) shortScore = -999;
+        const last5mRise = (lastK5.c - lastK5.o) / lastK5.o * 100;
+        if (last5mRise > 0.8) shortScore = -999;
+        if (lastK5.c > lastK5.o && upperWick5 < body5 * 0.2) shortScore = -999;
 
-        // ===== 2. 5m 动能 =====
-        if (macd5 > 0) { longScore += 10; longReasons.push("5m MACD多头"); }
-        if (macd5 < 0) { shortScore += 10; shortReasons.push("5m MACD空头"); }
 
-        if (lastK5.c > boll5.mid) { longScore += 10; longReasons.push("5m价格在中轨上"); }
-        if (lastK5.c < boll5.mid) { shortScore += 10; shortReasons.push("5m价格在中轨下"); }
+        // ================= 做多打分逻辑 =================
+        if (longScore > -999) {
+            if (closes15m[closes15m.length-1] > ema20_15[ema20_15.length-1]) { longScore += 10; longReasons.push("15m价格在EMA20上"); }
+            if (macd15 > 0) { longScore += 10; longReasons.push("15m MACD多头"); }
+            if (closes15m[closes15m.length-1] > boll15.mid) { longScore += 10; longReasons.push("15m运行于中轨上"); }
+            if (macd5 > 0) { longScore += 10; longReasons.push("5m MACD多头"); }
+            if (lastK5.c > boll5.mid) { longScore += 10; longReasons.push("5m价格在中轨上"); }
 
-        // ===== 3. 极值与形态（反转/动能） =====
-        if (rsi5 < 40) { longScore += 15; longReasons.push(`5m RSI超卖(${rsi5.toFixed(1)})`); }
-        if (rsi5 > 60) { shortScore += 15; shortReasons.push(`5m RSI超买(${rsi5.toFixed(1)})`); }
+            // 只有企稳反转才加分
+            if (rsi5 < 40 && lastK5.c > lastK5.o) { longScore += 15; longReasons.push(`5m RSI超卖且收阳`); }
+            if (lowerWick5 > body5 * 1.5 && lastK5.c > lastK5.o) { longScore += 15; longReasons.push("5m长下影探底回升"); }
 
-        if (lowerWick5 > body5 * 1.5) { longScore += 15; longReasons.push("5m长下影线(探底)"); }
-        if (upperWick5 > body5 * 1.5) { shortScore += 15; shortReasons.push("5m长上影线(遇阻)"); }
+            if (volRatio > 1.5 && lastK5.c > lastK5.o) { longScore += 10; longReasons.push("5m放量阳线"); }
+            if (chgToday < -8) { longScore += 10; longReasons.push(`今日大跌${chgToday.toFixed(1)}%`); }
+        }
 
-        if (lastK5.c > lastK5.o) { longScore += 5; longReasons.push("5m收阳线"); } 
-        if (lastK5.c < lastK5.o) { shortScore += 5; shortReasons.push("5m收阴线"); } 
+        // ================= 做空打分逻辑 =================
+        if (shortScore > -999) {
+            if (closes15m[closes15m.length-1] < ema20_15[ema20_15.length-1]) { shortScore += 10; shortReasons.push("15m价格在EMA20下"); }
+            if (macd15 < 0) { shortScore += 10; shortReasons.push("15m MACD空头"); }
+            if (closes15m[closes15m.length-1] < boll15.mid) { shortScore += 10; shortReasons.push("15m运行于中轨下"); }
+            if (macd5 < 0) { shortScore += 10; shortReasons.push("5m MACD空头"); }
+            if (lastK5.c < boll5.mid) { shortScore += 10; shortReasons.push("5m价格在中轨下"); }
 
-        // ===== 4. 量价配合与宏观 =====
-        if (volRatio > 1.5 && lastK5.c > lastK5.o) { longScore += 10; longReasons.push("5m放量阳线"); }
-        if (volRatio > 1.5 && lastK5.c < lastK5.o) { shortScore += 10; shortReasons.push("5m放量阴线"); }
+            if (rsi5 > 60 && lastK5.c < lastK5.o) { shortScore += 15; shortReasons.push(`5m RSI超买且收阴`); }
+            if (upperWick5 > body5 * 1.5 && lastK5.c < lastK5.o) { shortScore += 15; shortReasons.push("5m长上影冲高回落"); }
 
-        // 日线超跌/超涨修正
-        if (chgToday < -8) { longScore += 10; longReasons.push(`今日大跌${chgToday.toFixed(1)}% (超跌)`); }
-        if (chgToday > 8) { shortScore += 10; shortReasons.push(`今日大涨${chgToday.toFixed(1)}% (超涨)`); }
+            if (volRatio > 1.5 && lastK5.c < lastK5.o) { shortScore += 10; shortReasons.push("5m放量阴线"); }
+            if (chgToday > 8) { shortScore += 10; shortReasons.push(`今日大涨${chgToday.toFixed(1)}%`); }
+        }
 
         return { 
             longScore: Math.min(100, longScore), longReasons,
@@ -271,7 +291,7 @@
                     const todayOpen = +t.sodUtc8 || +t.open24h; 
                     return { instId: t.instId, vol: +t.volCcy24h || 0, chgToday: todayOpen > 0 ? (last - todayOpen) / todayOpen * 100 : 0 };
                 })
-                .sort((a, b) => b.vol - a.vol).slice(0, 20); // 只取前20名
+                .sort((a, b) => b.vol - a.vol).slice(0, 20); 
         } finally { clearTimeout(timer); }
     }
 
@@ -315,6 +335,7 @@
                     const result = evaluateCoin(k15, k5, coin.chgToday);
                     const currentPrice = k5[k5.length - 1].c;
 
+                    // 只有大于 0 分且没有被一票否决，才进入榜单
                     if (result.longScore >= 50) {
                         longResults.push({ ...coin, ...result, price: currentPrice });
                     }
@@ -352,7 +373,7 @@
 
         // --- 做多榜 ---
         html += `<div class="section-title long">🟢 未来1小时 做多潜力 Top 3</div>`;
-        if (longs.length === 0) html += `<div class="empty-tip">当前市场无明显做多指标共振。</div>`;
+        if (longs.length === 0) html += `<div class="empty-tip">当前市场无明显做多指标共振（或正在加速下跌，已过滤）。</div>`;
         
         longs.forEach((item, index) => {
             html += `
@@ -386,7 +407,7 @@
 
         // --- 做空榜 ---
         html += `<div class="section-title short" style="margin-top:20px;">🔴 未来1小时 做空潜力 Top 3</div>`;
-        if (shorts.length === 0) html += `<div class="empty-tip">当前市场无明显做空指标共振。</div>`;
+        if (shorts.length === 0) html += `<div class="empty-tip">当前市场无明显做空指标共振（或正在加速拉升，已过滤）。</div>`;
         
         shorts.forEach((item, index) => {
             html += `
