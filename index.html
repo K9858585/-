@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50高流通币 最佳进场点预测 (强力防插针版)</title>
+    <title>前50币 暴涨捕捉器 (极速突破版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
@@ -12,9 +12,9 @@
 
         .btn-container { width: 100%; max-width: 400px; display: flex; gap: 10px; }
         .scan-btn {
-            background: linear-gradient(135deg, #0ecb81, #2962ff); color: #fff; border: none;
+            background: linear-gradient(135deg, #f6465d, #b31b35); color: #fff; border: none;
             padding: 16px; border-radius: 8px; font-size: 16px; font-weight: bold;
-            box-shadow: 0 6px 20px rgba(41,98,255,0.4); flex: 1; cursor: pointer;
+            box-shadow: 0 6px 20px rgba(246,70,93,0.4); flex: 1; cursor: pointer;
             transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;
         }
         .scan-btn:active { transform: scale(0.98); }
@@ -32,19 +32,15 @@
         /* 黄金推荐卡片 */
         .best-pick-card {
             background: linear-gradient(145deg, #1a2333, #12161f);
-            border: 2px solid var(--yellow);
+            border: 2px solid var(--up);
             border-radius: 16px; padding: 20px; margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(252,213,53,0.15); position: relative; overflow: hidden;
+            box-shadow: 0 10px 30px rgba(14,203,129,0.15); position: relative; overflow: hidden;
         }
-        .best-pick-card.long { border-color: var(--up); box-shadow: 0 10px 30px rgba(14,203,129,0.15); }
-        .best-pick-card.short { border-color: var(--down); box-shadow: 0 10px 30px rgba(246,70,93,0.15); }
         
-        .best-title { font-size: 16px; font-weight: bold; color: var(--yellow); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
-        .best-title .badge { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: rgba(252,213,53,0.2); }
+        .best-title { font-size: 16px; font-weight: bold; color: var(--up); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
+        .best-title .badge { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: rgba(14,203,129,0.2); }
         .best-coin { font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;}
-        .best-coin .dir { font-size: 16px; padding: 4px 12px; border-radius: 20px; font-weight: bold;}
-        .best-coin .dir.long { background: rgba(14,203,129,0.2); color: var(--up); }
-        .best-coin .dir.short { background: rgba(246,70,93,0.2); color: var(--down); }
+        .best-coin .dir { font-size: 16px; padding: 4px 12px; border-radius: 20px; font-weight: bold; background: rgba(14,203,129,0.2); color: var(--up); }
 
         .trade-box { display: flex; justify-content: space-between; background: #12161f; padding: 12px; border-radius: 8px; border: 1px solid #2a2e39; margin-bottom: 15px;}
         .trade-item { display: flex; flex-direction: column; align-items: center; gap: 4px;}
@@ -56,40 +52,6 @@
         .best-reasons { font-size: 13px; color: #b2b5be; line-height: 1.6; background: rgba(18,22,31,0.5); padding: 10px; border-radius: 8px;}
         .best-reasons b { color: #fff; }
 
-        /* 榜单区 */
-        .section-title { font-size: 16px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .section-title.long { color: var(--up); }
-        .section-title.short { color: var(--down); }
-
-        details { background: var(--panel); border-radius: 10px; margin-bottom: 10px; overflow: hidden; border-left: 4px solid #fff; transition: all 0.3s; }
-        details.long-item { border-left-color: var(--up); }
-        details.short-item { border-left-color: var(--down); }
-        
-        summary { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none; font-weight: bold; }
-        summary::-webkit-details-marker { display: none; }
-        
-        .summary-left { display: flex; align-items: center; gap: 10px; }
-        .coin-name { font-size: 18px; color: #fff; }
-        .summary-right { display: flex; align-items: center; gap: 10px; }
-        
-        .score-badge { font-size: 14px; font-weight: bold; padding: 4px 10px; border-radius: 20px; }
-        .long-item .score-badge { background: rgba(14,203,129,0.15); color: var(--up); }
-        .short-item .score-badge { background: rgba(246,70,93,0.15); color: var(--down); }
-        
-        .arrow-icon { font-size: 12px; color: var(--sub); transition: transform 0.2s; }
-        details[open] .arrow-icon { transform: rotate(180deg); }
-
-        .detail-content { padding: 0 15px 15px 15px; border-top: 1px solid #2a2e39; margin-top: 5px; }
-        
-        .reason-tag { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 3px; background: #12161f; border: 1px solid #2a2e39; }
-        .tag-long { color: var(--up); border-color: rgba(14,203,129,0.3); }
-        .tag-short { color: var(--down); border-color: rgba(246,70,93,0.3); }
-        
-        .analysis-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #2a2e39; font-size: 13px; }
-        .analysis-row:last-child { border-bottom: none; }
-        .analysis-label { color: var(--sub); }
-        .analysis-value { font-weight: bold; color: #fff; text-align: right;}
-
         .empty-tip { color: #848e9c; font-size: 14px; margin: 20px 0; text-align: center; padding: 20px; border: 1px dashed #2a2e39; border-radius: 10px;}
     </style>
 </head>
@@ -98,7 +60,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 寻找前50币最佳进场点</span>
+                <span id="btnText">🚀 捕捉潜在暴涨币</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 1分定时</span>
@@ -129,7 +91,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 寻找前50币最佳进场点";
+        document.getElementById('btnText').innerText = "🚀 捕捉潜在暴涨币";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
 
@@ -171,13 +133,6 @@
         return result;
     }
 
-    function calcMACD(closes) {
-        if (closes.length < 26) return 0;
-        const ema12 = getEMAArray(closes, 12);
-        const ema26 = getEMAArray(closes, 26);
-        return ema12[ema12.length-1] - ema26[ema26.length-1];
-    }
-
     function calcRSI(closes, period = 14) {
         if (closes.length <= period) return 50;
         let gains = 0, losses = 0;
@@ -196,103 +151,49 @@
         return 100 - (100 / (1 + (avgGain / avgLoss)));
     }
 
-    function calcBOLL(closes, period = 20, mult = 2) {
-        if (closes.length < period) return { upper: 0, mid: 0, lower: 0 };
-        const slice = closes.slice(-period);
-        const sma = slice.reduce((a, b) => a + b, 0) / period;
-        const variance = slice.reduce((a, b) => a + Math.pow(b - sma, 2), 0) / period;
-        const stdDev = Math.sqrt(variance);
-        return { upper: sma + mult * stdDev, mid: sma, lower: sma - mult * stdDev };
-    }
-
-    // ================= 核心打分引擎 (防插针版) =================
-    function evaluateCoin(k15, k5, chgToday) {
+    // ================= 核心打分引擎 (暴涨专用版) =================
+    function evaluateBoom(k15, k5) {
         const closed15m = k15.slice(0, -1);
-        const closes15m = closed15m.map(k => k.c);
-        
         const closed5m = k5.slice(0, -1);
         const closes5m = closed5m.map(k => k.c);
-        const lastK5 = closed5m[closed5m.length - 1];
-        const cur15m = k15[k15.length - 1]; 
+        
+        const cur5mK = k5[k5.length - 1]; // 当前正在走的5m
+        const lastK5 = closed5m[closed5m.length - 1]; // 刚收盘的5m
+        const prevK5 = closed5m[closed5m.length - 2];
+        
+        // 1. 防插针过滤
+        const amp5m = (cur5mK.h - cur5mK.l) / cur5mK.l * 100;
+        if (amp5m > 4) return null; 
 
-        // ================= 🚨 照妖镜1：近期K线剧烈插针过滤 =================
-        for (let i = closed15m.length - 10; i < closed15m.length; i++) {
-            if (i < 0) continue;
-            const k = closed15m[i];
-            const amp = (k.h - k.l) / k.l * 100;
-            if (amp > 6) return { longScore: -999, shortScore: -999 };
-        }
-
-        // ================= 🚨 照妖镜2：当前 5m 振幅过滤 =================
-        const cur5mK = k5[k5.length - 1];
-        const cur5mAmp = (cur5mK.h - cur5mK.l) / cur5mK.l * 100;
-        if (cur5mAmp > 3) return { longScore: -999, shortScore: -999 };
-
-        const ema20_15 = getEMAArray(closes15m, 20);
-        const macd15 = calcMACD(closes15m);
-        const boll15 = calcBOLL(closes15m);
-        const macd5 = calcMACD(closes5m);
-        const boll5 = calcBOLL(closes5m);
-        const rsi5 = calcRSI(closes5m, 14);
-
-        // ================= 🚨 照妖镜3：严重乖离过滤 =================
-        const currentPrice = lastK5.c;
-        const ema20Val = ema20_15[ema20_15.length-1];
-        const deviation = Math.abs((currentPrice - ema20Val) / ema20Val) * 100;
-        if (deviation > 4) return { longScore: -999, shortScore: -999 };
-
-
+        // 2. 成交量暴涨检测
         const prev5vol = closed5m.slice(-6, -1);
         const avgVol = prev5vol.reduce((sum, k) => sum + k.v, 0) / 5;
         const volRatio = avgVol > 0 ? lastK5.v / avgVol : 1;
-
-        const body5 = Math.abs(lastK5.c - lastK5.o);
-        const lowerWick5 = Math.min(lastK5.c, lastK5.o) - lastK5.l;
-        const upperWick5 = lastK5.h - Math.max(lastK5.c, lastK5.o);
         
-        let longScore = 0;
-        let longReasons = [];
-        let shortScore = 0;
-        let shortReasons = [];
+        // 3. RSI 超卖拐头
+        const rsi5 = calcRSI(closes5m, 14);
+        const rsi5_prev = calcRSI(closes5m.slice(0, -1), 14);
 
-        // 一票否决区
-        const last5mDrop = (lastK5.o - lastK5.c) / lastK5.o * 100;
-        if (last5mDrop > 0.8 || (lastK5.c < lastK5.o && lowerWick5 < body5 * 0.2)) longScore = -999; 
-        
-        const last5mRise = (lastK5.c - lastK5.o) / lastK5.o * 100;
-        if (last5mRise > 0.8 || (lastK5.c > lastK5.o && upperWick5 < body5 * 0.2)) shortScore = -999;
+        // 4. K线形态：大阳线吞没
+        const isBigBull = lastK5.c > lastK5.o && (lastK5.c - lastK5.o) / lastK5.o * 100 > 0.8; // 实体涨幅 > 0.8%
+        const isEngulfing = lastK5.c > prevK5.o && lastK5.o < prevK5.c; // 吞没前一根
 
-        // 做多打分
-        if (longScore > -999) {
-            if (closes15m[closes15m.length-1] > ema20_15[ema20_15.length-1]) { longScore += 15; longReasons.push("15m价格在EMA20上"); }
-            if (macd15 > 0) { longScore += 15; longReasons.push("15m MACD多头"); }
-            if (closes15m[closes15m.length-1] > boll15.mid) { longScore += 10; longReasons.push("15m运行于中轨上"); }
-            if (macd5 > 0) { longScore += 10; longReasons.push("5m MACD多头"); }
-            if (lastK5.c > boll5.mid) { longScore += 10; longReasons.push("5m价格在中轨上"); }
+        let score = 0;
+        let reasons = [];
 
-            if (rsi5 < 40 && lastK5.c > lastK5.o) { longScore += 20; longReasons.push(`5m RSI超卖且收阳(绝佳买点)`); }
-            if (lowerWick5 > body5 * 1.5 && lastK5.c > lastK5.o) { longScore += 20; longReasons.push("5m长下影探底回升(绝佳买点)"); }
-            if (volRatio > 1.5 && lastK5.c > lastK5.o) { longScore += 10; longReasons.push("5m放量阳线"); }
+        // 暴涨基因打分
+        if (volRatio > 2.5) { score += 40; reasons.push(`5m爆量 ${volRatio.toFixed(1)} 倍`); }
+        if (isBigBull) { score += 20; reasons.push("5m实体大阳线"); }
+        if (isEngulfing) { score += 15; reasons.push("5m阳包阴吞没"); }
+        if (rsi5 < 35 && rsi5 > rsi5_prev) { score += 25; reasons.push(`5m RSI超卖拐头 (${rsi5.toFixed(1)})`); }
+
+        // 必须有放量，否则不叫暴涨
+        if (volRatio < 1.8) return null; 
+
+        if (score >= 60) {
+            return { score, reasons, lastK5, rsi5 };
         }
-
-        // 做空打分
-        if (shortScore > -999) {
-            if (closes15m[closes15m.length-1] < ema20_15[ema20_15.length-1]) { shortScore += 15; shortReasons.push("15m价格在EMA20下"); }
-            if (macd15 < 0) { shortScore += 15; shortReasons.push("15m MACD空头"); }
-            if (closes15m[closes15m.length-1] < boll15.mid) { shortScore += 10; shortReasons.push("15m运行于中轨下"); }
-            if (macd5 < 0) { shortScore += 10; shortReasons.push("5m MACD空头"); }
-            if (lastK5.c < boll5.mid) { shortScore += 10; shortReasons.push("5m价格在中轨下"); }
-
-            if (rsi5 > 60 && lastK5.c < lastK5.o) { shortScore += 20; shortReasons.push(`5m RSI超买且收阴(绝佳空点)`); }
-            if (upperWick5 > body5 * 1.5 && lastK5.c < lastK5.o) { shortScore += 20; shortReasons.push("5m长上影冲高回落(绝佳空点)"); }
-            if (volRatio > 1.5 && lastK5.c < lastK5.o) { shortScore += 10; shortReasons.push("5m放量阴线"); }
-        }
-
-        return { 
-            longScore: Math.min(100, longScore), longReasons,
-            shortScore: Math.min(100, shortScore), shortReasons,
-            rsi5, lastK5, boll5, ema20_15
-        };
+        return null;
     }
 
 
@@ -312,10 +213,9 @@
                 .filter(t => validInsts.has(t.instId))
                 .map(t => {
                     const last = +t.last;
-                    const todayOpen = +t.sodUtc8 || +t.open24h; 
-                    return { instId: t.instId, vol: +t.volCcy24h || 0, chgToday: todayOpen > 0 ? (last - todayOpen) / todayOpen * 100 : 0 };
+                    return { instId: t.instId, vol: +t.volCcy24h || 0 };
                 })
-                .sort((a, b) => b.vol - a.vol).slice(0, 50); // 改为前 50 名
+                .sort((a, b) => b.vol - a.vol).slice(0, 50); 
         } finally { clearTimeout(timer); }
     }
 
@@ -333,66 +233,58 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 寻找前50币黄金买点...";
+        document.getElementById('btnText').innerText = "⏳ 雷达扫描异动中...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
         
-        let longResults = [], shortResults = [];
+        let boomResults = [];
 
         try {
             const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`已锁定前50高流通币，正在过滤推演...`, 5);
+            updateProgress(`正在监控前50币的爆量异动...`, 5);
             let done = 0;
-            const chunkSize = 10; // 分批处理，防止请求过多导致卡顿
+            const chunkSize = 10; 
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
                         const [k15, k5] = await Promise.all([
-                            fetchCandles(coin.instId, '15m', 30), 
-                            fetchCandles(coin.instId, '5m', 30)
+                            fetchCandles(coin.instId, '15m', 20), 
+                            fetchCandles(coin.instId, '5m', 20)
                         ]);
                         
-                        if (k15.length < 25 || k5.length < 25) return;
+                        if (k15.length < 15 || k5.length < 15) return;
 
-                        const result = evaluateCoin(k15, k5, coin.chgToday);
-                        if (result.longScore < 0 && result.shortScore < 0) return; // 被照妖镜剔除
+                        const result = evaluateBoom(k15, k5);
+                        
+                        if (result) {
+                            const entryPrice = result.lastK5.c;
+                            // 暴涨模式，止损稍微放宽一点点，防止被毛刺扫掉，盈亏比拉到 1:4
+                            let sl = result.lastK5.l * (1 - 0.003);
+                            let risk = (entryPrice - sl) / entryPrice;
+                            if (risk > 0.025) return; // 止损超过 2.5% 说明这根线太长了，风险大，放弃
+                            
+                            let tp = entryPrice + (entryPrice - sl) * 4; 
 
-                        const entryPrice = result.lastK5.c;
-                        let sl = 0, tp = 0, risk = 0;
-
-                        if (result.longScore >= 70) {
-                            sl = result.lastK5.l * (1 - 0.002);
-                            risk = (entryPrice - sl) / entryPrice;
-                            if (risk > 0.02) return; 
-                            if (risk < 0.003) sl = entryPrice * (1 - 0.003);
-                            tp = entryPrice + (entryPrice - sl) * 2.5;
-                            longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2) });
-                        }
-
-                        if (result.shortScore >= 70) {
-                            sl = result.lastK5.h * (1 + 0.002);
-                            risk = (sl - entryPrice) / entryPrice;
-                            if (risk > 0.02) return;
-                            if (risk < 0.003) sl = entryPrice * (1 + 0.003);
-                            tp = entryPrice - (sl - entryPrice) * 2.5;
-                            shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2) });
+                            boomResults.push({ 
+                                instId: coin.instId.replace('-USDT-SWAP', ''),
+                                price: entryPrice, sl, tp, risk: (risk*100).toFixed(2),
+                                score: result.score, reasons: result.reasons
+                            });
                         }
 
                     } catch (e) {}
                     done++;
-                    updateProgress(`推演中... (${done}/${targetCoins.length})`, 5 + (done / targetCoins.length) * 90);
+                    updateProgress(`监控中... (${done}/${targetCoins.length})`, 5 + (done / targetCoins.length) * 90);
                 }));
             }
 
-            longResults.sort((a, b) => b.longScore - a.longScore);
-            shortResults.sort((a, b) => b.shortScore - a.shortScore);
-
-            renderResults(longResults, shortResults);
+            boomResults.sort((a, b) => b.score - a.score);
+            renderResults(boomResults);
 
         } catch (err) {
             updateProgress("推算发生错误，请稍后再试。", 100);
@@ -406,113 +298,58 @@
         return p.toFixed(6);
     }
 
-    function renderResults(longs, shorts) {
-        updateProgress("✅ 扫描完成，已过滤妖币", 100);
+    function renderResults(booms) {
+        updateProgress("✅ 扫描完成，已发现异动", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
 
-        let bestPick = null;
-        let bestType = '';
-        if (longs.length > 0 && shorts.length > 0) {
-            if (longs[0].longScore >= shorts[0].shortScore) { bestPick = longs[0]; bestType = 'LONG'; } 
-            else { bestPick = shorts[0]; bestType = 'SHORT'; }
-        } else if (longs.length > 0) { bestPick = longs[0]; bestType = 'LONG'; } 
-        else if (shorts.length > 0) { bestPick = shorts[0]; bestType = 'SHORT'; }
-
-        if (bestPick) {
-            const dirText = bestType === 'LONG' ? '做多' : '做空';
-            const cardClass = bestType === 'LONG' ? 'long' : 'short';
-            const dirClass = bestType === 'LONG' ? 'long' : 'short';
-            const reasons = bestType === 'LONG' ? bestPick.longReasons : bestPick.shortReasons;
-            const score = bestType === 'LONG' ? bestPick.longScore : bestPick.shortScore;
-
+        if (booms.length > 0) {
+            const bestPick = booms[0]; // 只推荐得分最高的第一名
             html += `
-                <div class="best-pick-card ${cardClass}">
+                <div class="best-pick-card">
                     <div class="best-title">
-                        <span>🏆 最佳进场时机推荐</span>
-                        <span class="badge">综合评分 ${score} 分</span>
+                        <span>🚀 暴涨异动捕捉成功</span>
+                        <span class="badge">爆发力评分 ${bestPick.score}</span>
                     </div>
                     <div class="best-coin">
-                        ${bestPick.instId.replace('-USDT-SWAP', '')} 
-                        <span class="dir ${dirClass}">${dirText}</span>
+                        ${bestPick.instId} 
+                        <span class="dir">极速做多</span>
                     </div>
                     
                     <div class="trade-box">
                         <div class="trade-item">
-                            <span class="label">参考进场价</span>
+                            <span class="label">突破买入价</span>
                             <span class="val">${formatPrice(bestPick.price)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">极窄止损</span>
+                            <span class="label">结构止损</span>
                             <span class="val sl">${formatPrice(bestPick.sl)} (-${bestPick.risk}%)</span>
                         </div>
                         <div class="trade-item">
                             <span class="label">目标止盈</span>
-                            <span class="val tp">${formatPrice(bestPick.tp)} (1:2.5)</span>
+                            <span class="val tp">${formatPrice(bestPick.tp)} (1:4)</span>
                         </div>
                     </div>
                     
                     <div class="best-reasons">
-                        <b>触发逻辑：</b><br>
-                        ${reasons.map(r => `✔ ${r}`).join('<br>')}
+                        <b>暴涨基因检测：</b><br>
+                        ${bestPick.reasons.map(r => `✔ ${r}`).join('<br>')}
+                        <br><br>
+                        <span style="color:var(--yellow); font-size:12px;">⚠️ 警告：此模式为捕捉极速拉升，动能强劲但也可能伴随急跌，切勿重仓！快进快出！</span>
                     </div>
                 </div>
             `;
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无完美进场时机<br>
-                    各项指标尚未形成共振，或微观结构未出现右侧确认。<br>
-                    <b>建议：空仓等待，切勿强行开单。</b>
+                    🕵️ 雷达扫瞄完毕，当前无异常。<br>
+                    没有发现满足“巨量突破+超卖反转”的暴涨基因。<br>
+                    <b>请耐心等待下一次主力资金异动。</b>
                 </div>
             `;
         }
-
-        html += `<div class="section-title long" style="margin-top:10px;">🟢 做多备选清单 (Top 3)</div>`;
-        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
-        longs.slice(0, 3).forEach((item, index) => {
-            html += `
-                <details class="long-item">
-                    <summary>
-                        <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
-                        <div class="summary-right"><span class="score-badge">多分: ${item.longScore}</span><span class="arrow-icon">▼</span></div>
-                    </summary>
-                    <div class="detail-content">
-                        <div class="analysis-row">
-                            <span class="analysis-label">5m RSI 极值</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.rsi5.toFixed(1)}</span>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
-                            ${item.longReasons.map(r => `<span class="reason-tag tag-long">✔ ${r}</span>`).join('')}
-                        </div>
-                    </div>
-                </details>`;
-        });
-
-        html += `<div class="section-title short" style="margin-top:20px;">🔴 做空备选清单 (Top 3)</div>`;
-        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
-        shorts.slice(0, 3).forEach((item, index) => {
-            html += `
-                <details class="short-item">
-                    <summary>
-                        <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
-                        <div class="summary-right"><span class="score-badge">空分: ${item.shortScore}</span><span class="arrow-icon">▼</span></div>
-                    </summary>
-                    <div class="detail-content">
-                        <div class="analysis-row">
-                            <span class="analysis-label">5m RSI 极值</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.rsi5.toFixed(1)}</span>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
-                            ${item.shortReasons.map(r => `<span class="reason-tag tag-short">✔ ${r}</span>`).join('')}
-                        </div>
-                    </div>
-                </details>`;
-        });
 
         area.innerHTML = html;
     }
