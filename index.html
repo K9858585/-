@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 4H趋势预测 + 剔除横盘妖币版</title>
+    <title>前100币 4H趋势预测 (放宽入场版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
@@ -61,7 +61,6 @@
         .section-title.long { color: var(--up); }
         .section-title.short { color: var(--down); }
 
-        /* 卡片样式 */
         details { 
             background: var(--panel); 
             border-radius: 10px; 
@@ -126,7 +125,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 预测4H趋势 (前100币)</span>
+                <span id="btnText">🎯 预测4H趋势 (放宽版)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -157,7 +156,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 预测4H趋势 (前100币)";
+        document.getElementById('btnText').innerText = "🎯 预测4H趋势 (放宽版)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
 
@@ -224,7 +223,7 @@
         return 100 - (100 / (1 + (avgGain / avgLoss)));
     }
 
-    // ================= 核心打分引擎 =================
+    // ================= 核心打分引擎 (放宽版) =================
     function evaluateCoin(k4h, k1h, chgToday) {
         const closed4h = k4h.slice(0, -1);
         const closes4h = closed4h.map(k => k.c);
@@ -239,10 +238,8 @@
         const minL = Math.min(...recent20_4h.map(k => k.l));
         const totalAmp = (maxH - minL) / minL * 100;
         
-        // 1. 振幅太小：死水横盘，剔除
-        if (totalAmp < 5) return null;
-        // 2. 振幅太大：超过 40%，说明是新币暴涨暴跌，极其危险，剔除
-        if (totalAmp > 40) return null;
+        if (totalAmp < 5) return null; // 横盘
+        if (totalAmp > 40) return null; // 妖币
 
         const ema20_4h = getEMAArray(closes4h, 20);
         const macd4h = calcMACD(closes4h);
@@ -260,19 +257,25 @@
         let shortScore = 0;
         let shortReasons = [];
 
+        // 做多
         if (curPrice > ema20Val && ema20_up) {
             longScore += 30; longReasons.push("4H价格在EMA20上且均线向上");
             if (macd4h > 0) { longScore += 20; longReasons.push("4H MACD零轴上"); }
             if (rsi4h > 50 && rsi4h < 75) { longScore += 10; longReasons.push(`4H RSI强势(${rsi4h.toFixed(1)})`); }
-            if (last1h.c < last1h.o || rsi1h < 45) { longScore += 20; longReasons.push("1H级别出现回调(好买点)"); }
+            
+            // 放宽1H入场条件：只要RSI不超买，且有收阴迹象
+            if (rsi1h < 50 || last1h.c < last1h.o) { longScore += 20; longReasons.push("1H级别动能放缓(买点)"); }
             if (chgToday > 0) { longScore += 10; longReasons.push("今日趋势为正"); }
         }
 
+        // 做空
         if (curPrice < ema20Val && ema20_down) {
             shortScore += 30; shortReasons.push("4H价格在EMA20下且均线向下");
             if (macd4h < 0) { shortScore += 20; shortReasons.push("4H MACD零轴下"); }
             if (rsi4h < 50 && rsi4h > 25) { shortScore += 10; shortReasons.push(`4H RSI弱势(${rsi4h.toFixed(1)})`); }
-            if (last1h.c > last1h.o || rsi1h > 55) { shortScore += 20; shortReasons.push("1H级别出现反弹(好空点)"); }
+            
+            // 放宽1H入场条件：只要RSI不超卖，且有收阳迹象
+            if (rsi1h > 50 || last1h.c > last1h.o) { shortScore += 20; shortReasons.push("1H级别动能放缓(空点)"); }
             if (chgToday < 0) { shortScore += 10; shortReasons.push("今日趋势为负"); }
         }
 
@@ -303,7 +306,7 @@
                     const todayOpen = +t.sodUtc8 || +t.open24h; 
                     return { instId: t.instId, vol: +t.volCcy24h || 0, chgToday: todayOpen > 0 ? (last - todayOpen) / todayOpen * 100 : 0 };
                 })
-                .sort((a, b) => b.vol - a.vol).slice(0, 100); // 改回 100 个币
+                .sort((a, b) => b.vol - a.vol).slice(0, 100); 
         } finally { clearTimeout(timer); }
     }
 
@@ -334,7 +337,7 @@
 
             updateProgress(`正在过滤横盘及妖币，推演100个币的4H趋势...`, 5);
             let done = 0;
-            const chunkSize = 8; // 100个币，为了防限流，每次并发8个
+            const chunkSize = 8; 
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
@@ -353,22 +356,24 @@
                         const entryPrice = result.cur4hK.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        if (result.longScore >= 70) {
+                        // 门槛降为 60 分
+                        if (result.longScore >= 60) {
                             const recent1h = k1h.slice(-5, -1);
                             const minL1h = Math.min(...recent1h.map(k => k.l));
                             sl = minL1h * (1 - 0.005); 
                             risk = (entryPrice - sl) / entryPrice;
-                            if (risk > 0.05) return; 
+                            // 止损空间放宽到 6%
+                            if (risk > 0.06) return; 
                             tp = entryPrice + (entryPrice - sl) * 3; 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2) });
                         }
 
-                        if (result.shortScore >= 70) {
+                        if (result.shortScore >= 60) {
                             const recent1h = k1h.slice(-5, -1);
                             const maxH1h = Math.max(...recent1h.map(k => k.h));
                             sl = maxH1h * (1 + 0.005);
                             risk = (sl - entryPrice) / entryPrice;
-                            if (risk > 0.05) return;
+                            if (risk > 0.06) return;
                             tp = entryPrice - (sl - entryPrice) * 3;
                             shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2) });
                         }
