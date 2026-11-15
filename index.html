@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 15M(高低点抬高) + 5M(实体动能>0.5%)</title>
+    <title>前100币 15M(10根两高两低) + 5M(实体动能>0.5%)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -287,35 +287,30 @@
                         if (k15.length < 25 || k5.length < 10) return;
 
                         const closed15m = k15.slice(0, k15.length - 1);
-                        const recent20 = closed15m.slice(-20);
+                        const recent10 = closed15m.slice(-10); // ===== 只取最近 10 根 =====
                         const cur15mPrice = k15[k15.length - 1].c;
 
-                        // ================= 1. 找出局部高低点 =================
+                        // ================= 1. 找出两高两低 =================
                         let highs = [], lows = [];
-                        for(let j=1; j<recent20.length-1; j++) {
-                            // 局部高点
-                            if(recent20[j].h > recent20[j-1].h && recent20[j].h > recent20[j+1].h) highs.push(recent20[j].h);
-                            // 局部低点
-                            if(recent20[j].l < recent20[j-1].l && recent20[j].l < recent20[j+1].l) lows.push(recent20[j].l);
+                        for(let j=1; j<recent10.length-1; j++) {
+                            // 找局部高点
+                            if(recent10[j].h > recent10[j-1].h && recent10[j].h > recent10[j+1].h) {
+                                highs.push(recent10[j].h);
+                            }
+                            // 找局部低点
+                            if(recent10[j].l < recent10[j-1].l && recent10[j].l < recent10[j+1].l) {
+                                lows.push(recent10[j].l);
+                            }
                         }
-                        
-                        // 至少需要 2 个高点 或 2 个低点才能判断
-                        let isBullStruct = false;
-                        let isBearStruct = false;
 
-                        if (highs.length >= 2) {
-                            // 新高点 > 旧高点 (顶顶抬高)
-                            if (highs[highs.length - 1] > highs[highs.length - 2]) {
-                                isBullStruct = true;
-                            }
-                        }
-                        
-                        if (lows.length >= 2) {
-                            // 新低点 < 旧低点 (底底降低)
-                            if (lows[lows.length - 1] < lows[lows.length - 2]) {
-                                isBearStruct = true;
-                            }
-                        }
+                        // 必须至少有两个高点和两个低点
+                        if (highs.length < 2 || lows.length < 2) return;
+
+                        const H1 = highs[highs.length - 1], H2 = highs[highs.length - 2];
+                        const L1 = lows[lows.length - 1], L2 = lows[lows.length - 2];
+
+                        const isBullStruct = (H1 > H2 && L1 > L2); // 顶底抬高
+                        const isBearStruct = (H1 < H2 && L1 < L2); // 顶底降低
 
                         if (!isBullStruct && !isBearStruct) return;
 
@@ -325,7 +320,6 @@
 
                         // 3. 过滤：防插针 & 横盘
                         let hasExtremeSpike = false;
-                        const recent10 = closed15m.slice(-10);
                         for (const k of recent10) {
                             const candleAmp = (k.h - k.l) / k.l * 100;
                             if (candleAmp > 8) { hasExtremeSpike = true; break; }
@@ -353,7 +347,7 @@
                         let entryPrice = lastClosed.c;
                         let riskPct = 0;
 
-                        // 做多：顶顶抬高 + 价格在EMA20之上 + 5m是阴线
+                        // 做多：两高两低抬高 + 价格在EMA20之上 + 5m是阴线
                         if (isBullStruct && cur15mPrice > ema20_15m && bodyChgPct < 0) {
                             type = 'LONG';
                             slPrice = lastClosed.l * (1 - 0.002);
@@ -365,7 +359,7 @@
                             tpPrice = entryPrice + (entryPrice - slPrice) * 2;
 
                         } 
-                        // 做空：底底降低 + 价格在EMA20之下 + 5m是阳线
+                        // 做空：两高两低降低 + 价格在EMA20之下 + 5m是阳线
                         else if (isBearStruct && cur15mPrice < ema20_15m && bodyChgPct > 0) {
                             type = 'SHORT';
                             slPrice = lastClosed.h * (1 + 0.002);
@@ -381,13 +375,13 @@
 
                         // 6. 打分系统
                         let score = 40; 
-                        let reasonDetails = [`15m高点/低点抬高(40分)`];
+                        let reasonDetails = [`15m两高两低确立(40分)`];
                         
                         let bodyScore = Math.min(Math.round((absBodyChgPct - 0.5) / 0.5 * 10), 60);
                         score += bodyScore;
                         reasonDetails.push(`5m实体动能 <b>${absBodyChgPct.toFixed(2)}%</b> (${bodyScore}分)`);
 
-                        const reason = `15m 级别最近高点${type === 'LONG' ? '抬高' : '降低'}，且价格位于 EMA20 ${type === 'LONG' ? '之上' : '之下'}。<br>5m 最新收盘线实体${type === 'LONG' ? '下跌' : '上涨'}幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>。<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `15m 最近10根 K 线呈现${type === 'LONG' ? '顶底双抬高（多头）' : '顶底双降低（空头）'}结构。<br>5m 最新收盘线实体${type === 'LONG' ? '下跌' : '上涨'}幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         const resObj = { 
                             instId: instId.replace('-USDT-SWAP', ''), 
@@ -439,7 +433,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（15m顶顶抬高 + 5m实体跌>0.5%）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（15m两高两低抬高 + 5m实体跌>0.5%）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
@@ -459,7 +453,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m底底降低 + 5m实体涨>0.5%）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m两高两低降低 + 5m实体涨>0.5%）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
