@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 4H金叉 + 15M两格内金叉 + 5M斐波那契</title>
+    <title>前100币 4H金叉 + 15M两格内金叉 + 5M极窄止损</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -240,7 +240,6 @@
         }
     }
 
-    // 计算 EMA 数组（用于判断交叉点）
     function getEMAArray(prices, period) {
         if (prices.length === 0) return [];
         let k = 2 / (period + 1);
@@ -297,11 +296,8 @@
                         const ema5_4h = getEMAArray(closes4h, 5);
                         const ema10_4h = getEMAArray(closes4h, 10);
                         
-                        const cur_ema5_4h = ema5_4h[ema5_4h.length - 1];
-                        const cur_ema10_4h = ema10_4h[ema10_4h.length - 1];
-                        
-                        const is4HBull = cur_ema5_4h > cur_ema10_4h;
-                        const is4HBear = cur_ema5_4h < cur_ema10_4h;
+                        const is4HBull = ema5_4h[ema5_4h.length - 1] > ema10_4h[ema10_4h.length - 1];
+                        const is4HBear = ema5_4h[ema5_4h.length - 1] < ema10_4h[ema10_4h.length - 1];
 
                         // ================= 2. 15m 抓金叉（前后两格子） =================
                         const closes15m = k15.slice(0, k15.length - 1).map(k => k.c);
@@ -312,28 +308,24 @@
                         let is15mCrossBull = false;
                         let is15mCrossBear = false;
 
-                        // 检查最近 2 根内是否发生金叉/死叉
                         for (let j = Math.max(1, len - 2); j < len; j++) {
-                            // 金叉
                             if (ema5_15m[j] > ema10_15m[j] && ema5_15m[j-1] <= ema10_15m[j-1]) is15mCrossBull = true;
-                            // 死叉
                             if (ema5_15m[j] < ema10_15m[j] && ema5_15m[j-1] >= ema10_15m[j-1]) is15mCrossBear = true;
                         }
 
-                        // 检查是否“即将金叉/死叉”（差值极小）
                         const diff15m = (ema5_15m[len-1] - ema10_15m[len-1]) / ema10_15m[len-1] * 100;
-                        if (diff15m > -0.1 && diff15m <= 0) is15mCrossBull = true; // 即将金叉
-                        if (diff15m < 0.1 && diff15m >= 0) is15mCrossBear = true; // 即将死叉
+                        if (diff15m > -0.1 && diff15m <= 0) is15mCrossBull = true; 
+                        if (diff15m < 0.1 && diff15m >= 0) is15mCrossBear = true; 
 
                         const is15mBull = is15mCrossBull;
                         const is15mBear = is15mCrossBear;
 
-                        // ================= 3. 综合定势 =================
+                        // 3. 综合定势
                         const isBullTrend = is4HBull && is15mBull;
                         const isBearTrend = is4HBear && is15mBear;
                         if (!isBullTrend && !isBearTrend) return;
 
-                        // ================= 4. 5m 找斐波那契入场点 =================
+                        // ================= 4. 5m 找斐波那契极窄止损入场 =================
                         const closed5m = k5.slice(0, k5.length - 1);
                         const recent20_5m = closed5m.slice(-20);
                         
@@ -347,7 +339,7 @@
                         const range = maxH - minL;
                         if (range <= 0) return;
 
-                        const entryPrice = k5[k5.length - 1].c; // 当前正在走的 5m 价格
+                        const entryPrice = k5[k5.length - 1].c; // 当前实时价格
                         let retracePct = 0;
 
                         if (isBullTrend) {
@@ -356,24 +348,27 @@
                             retracePct = (entryPrice - minL) / range;
                         }
 
-                        // 价格必须回撤在 0.382 到 0.618 之间
+                        // 回撤必须在 0.382 到 0.618 之间
                         if (retracePct < 0.382 || retracePct > 0.618) return;
 
-                        // ================= 5. 动态止损计算 =================
+                        // ================= 5. 动态止损计算（极窄） =================
                         let type = isBullTrend ? 'LONG' : 'SHORT';
                         let slPrice = 0;
                         let tpPrice = 0;
                         let riskPct = 0;
 
                         if (type === 'LONG') {
+                            // 止损放在 20 根 5m 的最低点下方 0.2%
                             slPrice = minL * (1 - 0.002); 
                             riskPct = (entryPrice - slPrice) / entryPrice;
                             
+                            // 止损太大则淘汰（说明回踩太深，结构可能坏了）
                             if (riskPct > 0.02) return; 
-                            if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003);
+                            if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003); // 防极小止损
                             
                             tpPrice = entryPrice + (entryPrice - slPrice) * 2;
                         } else {
+                            // 止损放在 20 根 5m 的最高点上方 0.2%
                             slPrice = maxH * (1 + 0.002);
                             riskPct = (slPrice - entryPrice) / entryPrice;
                             
@@ -384,15 +379,14 @@
                         }
 
                         // ================= 6. 打分系统 =================
-                        let score = 60; // 4H与15m共振基础分
-                        let reasonDetails = [`4H金叉(30分)`, `15m两格内金叉(30分)`];
+                        let score = 60; 
+                        let reasonDetails = [`4H定势(30分)`, `15m两格内交叉(30分)`];
                         
-                        // 斐波那契精准度加分（最高40分）
                         let fibScore = 40 - Math.round(Math.abs(retracePct - 0.5) * 200);
                         score += fibScore;
-                        reasonDetails.push(`斐波那契回撤 <b>${(retracePct * 100).toFixed(1)}%</b> (${fibScore}分)`);
+                        reasonDetails.push(`斐波那契 <b>${(retracePct * 100).toFixed(1)}%</b> (${fibScore}分)`);
 
-                        const reason = `4H 级别 EMA5 > EMA10 呈${type === 'LONG' ? '多头' : '空头'}趋势。<br>15m 级别 EMA5 与 EMA10 刚发生（或即将发生）<b>${type === 'LONG' ? '金叉' : '死叉'}</b>。<br>5m 当前价格回撤至斐波那契 <b>${(retracePct * 100).toFixed(1)}%</b> 黄金区间。<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `4H 呈${type === 'LONG' ? '多头' : '空头'}趋势。<br>15m 刚发生（或即将发生）<b>${type === 'LONG' ? '金叉' : '死叉'}</b>。<br>5m 价格回撤至斐波那契 <b>${(retracePct * 100).toFixed(1)}%</b> 黄金狙击位。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         const resObj = { 
                             instId: instId.replace('-USDT-SWAP', ''), 
@@ -444,7 +438,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H金叉 + 15m金叉 + 5m斐波那契）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H金叉 + 15m金叉 + 5m极窄止损）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
@@ -464,7 +458,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（4H死叉 + 15m死叉 + 5m斐波那契）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（4H死叉 + 15m死叉 + 5m极窄止损）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
