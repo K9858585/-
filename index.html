@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 15M(20根两高两低) + 5M实体动能>0.5% (5分定时)</title>
+    <title>前100币 1H定势 + 15M踩均线 + 5M放量反包 (5分定时)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -98,7 +98,7 @@
     let nextScanTime = 0;
     let isAutoScanning = false;
     
-    // 5分钟间隔
+    // 严格锁定 5 分钟自动扫描
     const SCAN_INTERVAL = 5 * 60 * 1000; 
 
     function updateProgress(text, percent) {
@@ -212,7 +212,6 @@
             
             if (instRes.code !== '0' || tickerRes.code !== '0') return [];
             const validInsts = new Set(instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
-            
             const validTickers = tickerRes.data
                 .filter(t => validInsts.has(t.instId))
                 .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
@@ -240,6 +239,16 @@
         } finally {
             clearTimeout(timer);
         }
+    }
+
+    function calcEMA(prices, period) {
+        if (prices.length < period) return prices[prices.length - 1] || 0;
+        let k = 2 / (period + 1);
+        let ema = prices[0];
+        for (let i = 1; i < prices.length; i++) {
+            ema = prices[i] * k + ema * (1 - k);
+        }
+        return ema;
     }
 
     window.runScanner = async function() {
@@ -273,92 +282,95 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (instId) => {
                     try {
-                        const [k15, k5] = await Promise.all([
+                        const [k1h, k15, k5] = await Promise.all([
+                            fetchCandles(instId, '1H', 30),
                             fetchCandles(instId, '15m', 30), 
-                            fetchCandles(instId, '5m', 30)
+                            fetchCandles(instId, '5m', 15)
                         ]);
                         
-                        if (k15.length < 25 || k5.length < 10) return;
+                        if (k1h.length < 15 || k15.length < 25 || k5.length < 10) return;
 
-                        const closed15m = k15.slice(0, k15.length - 1);
-                        const recent20 = closed15m.slice(-20);
-                        
-                        // ================= 1. 20根两高两低定势 =================
-                        let highs = [], lows = [];
-                        for(let j=1; j<recent20.length-1; j++) {
-                            if(recent20[j].h > recent20[j-1].h && recent20[j].h > recent20[j+1].h) highs.push(recent20[j].h);
-                            if(recent20[j].l < recent20[j-1].l && recent20[j].l < recent20[j+1].l) lows.push(recent20[j].l);
-                        }
-                        if (highs.length < 2 || lows.length < 2) return;
-                        
-                        const H1 = highs[highs.length - 1], H2 = highs[highs.length - 2];
-                        const L1 = lows[lows.length - 1], L2 = lows[lows.length - 2];
-                        
-                        const isBullTrend = (H1 > H2 && L1 > L2);
-                        const isBearTrend = (H1 < H2 && L1 < L2);
+                        // ================= 1. 1H 定势 =================
+                        const closes1h = k1h.slice(0, k1h.length - 1).map(k => k.c);
+                        const ema5_1h = calcEMA(closes1h, 5);
+                        const ema10_1h = calcEMA(closes1h, 10);
+                        const isBullTrend = ema5_1h > ema10_1h;
+                        const isBearTrend = ema5_1h < ema10_1h;
                         if (!isBullTrend && !isBearTrend) return;
 
-                        // ================= 2. 防插针过滤 =================
-                        let hasExtremeSpike = false;
-                        const recent10 = closed15m.slice(-10);
-                        for (const k of recent10) {
-                            const candleAmp = (k.h - k.l) / k.l * 100;
-                            if (candleAmp > 8) { hasExtremeSpike = true; break; }
-                        }
-                        if (hasExtremeSpike) return;
+                        // ================= 2. 15m 踩 EMA20 =================
+                        const closed15m = k15.slice(0, k15.length - 1);
+                        const closes15m = closed15m.map(k => k.c);
+                        const ema20_15m = calcEMA(closes15m, 20);
+                        const cur15mPrice = k15[k15.length - 1].c;
 
-                        // ================= 3. 5m 实体动能入场 =================
-                        const closed5m = k5.slice(0, k5.length - 1);
-                        const lastClosed = closed5m[closed5m.length - 1];
+                        // 距离 EMA20 的百分比
+                        const distToEma20 = Math.abs(cur15mPrice - ema20_15m) / ema20_15m * 100;
                         
-                        const bodyChgPct = (lastClosed.c - lastClosed.o) / lastClosed.o * 100;
-                        const absBodyChgPct = Math.abs(bodyChgPct);
+                        // 价格必须在 15m EMA20 附近 0.5% 内
+                        if (distToEma20 > 0.5) return;
 
-                        // 要求实体涨跌幅 >= 0.5%
-                        if (absBodyChgPct < 0.5) return;
+                        // ================= 3. 5m 放量反包 =================
+                        const closed5m = k5.slice(0, k5.length - 1);
+                        const lastK = closed5m[closed5m.length - 1]; // 最新一根
+                        const prevK = closed5m[closed5m.length - 2]; // 前一根
 
-                        // ================= 4. 动态止损计算 =================
+                        // 量能计算
+                        const prev5vol = closed5m.slice(-6, -1);
+                        const avgVol = prev5vol.reduce((sum, k) => sum + k.v, 0) / 5;
+                        const volRatio = avgVol > 0 ? lastK.v / avgVol : 1;
+
                         let type = null;
                         let slPrice = 0;
                         let tpPrice = 0;
-                        let entryPrice = lastClosed.c;
+                        let entryPrice = lastK.c;
                         let riskPct = 0;
 
-                        if (isBullTrend && bodyChgPct < 0) {
-                            // 做多：15m多头，且5m是阴线（实体跌幅>=0.5%）
-                            type = 'LONG';
-                            slPrice = lastClosed.l * (1 - 0.002);
-                            riskPct = (entryPrice - slPrice) / entryPrice;
-                            
-                            if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003);
-                            if (riskPct > 0.02) return; 
-                            
-                            tpPrice = entryPrice + (entryPrice - slPrice) * 2;
-
-                        } else if (isBearTrend && bodyChgPct > 0) {
-                            // 做空：15m空头，且5m是阳线（实体涨幅>=0.5%）
-                            type = 'SHORT';
-                            slPrice = lastClosed.h * (1 + 0.002);
-                            riskPct = (slPrice - entryPrice) / entryPrice;
-                            
-                            if (riskPct < 0.003) slPrice = entryPrice * (1 + 0.003);
-                            if (riskPct > 0.02) return;
-
-                            tpPrice = entryPrice - (slPrice - entryPrice) * 2;
+                        if (isBullTrend) {
+                            // 做多：5m 阳线，完全吞没前一根阴线，且放量 1.5 倍以上
+                            if (lastK.c > lastK.o && lastK.c > prevK.o && lastK.o < prevK.c && volRatio > 1.5) {
+                                type = 'LONG';
+                                slPrice = lastK.l * (1 - 0.002);
+                                riskPct = (entryPrice - slPrice) / entryPrice;
+                                
+                                if (riskPct > 0.02) return; 
+                                if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003);
+                                
+                                // 盈亏比 1:2.5
+                                tpPrice = entryPrice + (entryPrice - slPrice) * 2.5;
+                            }
+                        } else if (isBearTrend) {
+                            // 做空：5m 阴线，完全吞没前一根阳线，且放量 1.5 倍以上
+                            if (lastK.c < lastK.o && lastK.c < prevK.o && lastK.o > prevK.c && volRatio > 1.5) {
+                                type = 'SHORT';
+                                slPrice = lastK.h * (1 + 0.002);
+                                riskPct = (slPrice - entryPrice) / entryPrice;
+                                
+                                if (riskPct > 0.02) return;
+                                if (riskPct < 0.003) slPrice = entryPrice * (1 + 0.003);
+                                
+                                // 盈亏比 1:2.5
+                                tpPrice = entryPrice - (slPrice - entryPrice) * 2.5;
+                            }
                         }
 
                         if (!type) return;
 
-                        // ================= 5. 打分系统 =================
-                        let score = 40; 
-                        let reasonDetails = [`15m结构确立(40分)`];
+                        // ================= 4. 打分系统 =================
+                        let score = 60; 
+                        let reasonDetails = [`1H顺势(30分)`, `15m踩均线(30分)`];
                         
-                        // 实体动能打分：0.5%起步，每多0.5%加10分，最高60分
-                        let bodyScore = Math.min(Math.round((absBodyChgPct - 0.5) / 0.5 * 10), 60);
-                        score += bodyScore;
-                        reasonDetails.push(`5m实体动能 <b>${absBodyChgPct.toFixed(2)}%</b> (${bodyScore}分)`);
+                        // 量能加分
+                        let volScore = Math.min(Math.round((volRatio - 1.5) * 20), 20);
+                        score += volScore;
+                        reasonDetails.push(`5m放量 <b>${volRatio.toFixed(1)}倍</b> (${volScore}分)`);
 
-                        const reason = `15m 级别 20 根 K 线形成${type === 'LONG' ? '多头' : '空头'}结构。<br>5m 最新收盘线实体${type === 'LONG' ? '下跌' : '上涨'}幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>，动能强劲。<br>打分细节：${reasonDetails.join('，')}。`;
+                        // 距离EMA加分
+                        let emaScore = 20 - Math.round(distToEma20 * 40);
+                        score += emaScore;
+                        reasonDetails.push(`极度贴合EMA20 (${emaScore}分)`);
+
+                        const reason = `1H 级别 EMA 呈${type === 'LONG' ? '多头' : '空头'}趋势。<br>15m 价格精准回踩 EMA20（距离仅 <b>${distToEma20.toFixed(2)}%</b>）。<br>5m 最新收盘出现<b>放量反包大${type === 'LONG' ? '阳' : '阴'}线</b>（量比 ${volRatio.toFixed(1)}），确认反转。<br>打分细节：${reasonDetails.join('，')}。`;
 
                         const resObj = { 
                             instId: instId.replace('-USDT-SWAP', ''), 
@@ -413,8 +425,8 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（15m结构多头 + 5m实体跌>0.5%）</div>`;
-        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（1H多头 + 15m踩线 + 5m放量反包）</div>`;
+        if (longs.length === 0) html += `<div class="empty-tip">当前无符合高胜率结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
                 <details class="long-item">
@@ -433,8 +445,8 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m结构空头 + 5m实体涨>0.5%）</div>`;
-        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（1H空头 + 15m踩线 + 5m放量反包）</div>`;
+        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合高胜率结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
                 <details class="short-item">
