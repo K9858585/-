@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 4H金叉 + 15M两格内金叉 + 5M极窄止损</title>
+    <title>前100币 4H金叉 + 15M死叉 + 5M恐慌大阴线接多</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -31,11 +31,8 @@
 
         .section-title { font-size: 16px; font-weight: bold; margin-bottom: 5px; display: flex; align-items: center; gap: 8px; }
         .section-title.long { color: var(--up); }
-        .section-title.short { color: var(--down); }
 
-        details { background: var(--panel); border-radius: 10px; margin-bottom: 10px; overflow: hidden; border-left: 4px solid #fff; transition: all 0.3s; }
-        details.long-item { border-left-color: var(--up); }
-        details.short-item { border-left-color: var(--down); }
+        details { background: var(--panel); border-radius: 10px; margin-bottom: 10px; overflow: hidden; border-left: 4px solid var(--up); transition: all 0.3s; }
         
         summary { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none; font-weight: bold; }
         summary::-webkit-details-marker { display: none; }
@@ -44,9 +41,7 @@
         .coin-name { font-size: 18px; color: #fff; }
         .summary-right { display: flex; align-items: center; gap: 10px; }
         
-        .score-badge { font-size: 13px; padding: 4px 8px; border-radius: 6px; }
-        .long-item .score-badge { background: rgba(14,203,129,0.15); color: var(--up); }
-        .short-item .score-badge { background: rgba(246,70,93,0.15); color: var(--down); }
+        .score-badge { font-size: 13px; padding: 4px 8px; border-radius: 6px; background: rgba(14,203,129,0.15); color: var(--up); }
         
         .arrow-icon { font-size: 12px; color: var(--sub); transition: transform 0.2s; }
         details[open] .arrow-icon { transform: rotate(180deg); }
@@ -68,7 +63,6 @@
             cursor: pointer;
         }
         #toast-banner.show { top: 20px; }
-        #toast-banner.short { background: var(--down); box-shadow: 0 10px 30px rgba(246,70,93,0.5); }
     </style>
 </head>
 <body>
@@ -187,10 +181,10 @@
         } catch (e) {}
     }
 
-    function sendNotification(title, body, type) {
+    function sendNotification(title, body) {
         const banner = document.getElementById('toast-banner');
         banner.innerText = `🎯 ${title}`;
-        banner.className = type === 'LONG' ? 'show' : 'show short';
+        banner.className = 'show';
         setTimeout(() => { banner.classList.remove('show'); }, 8000);
 
         playAlert();
@@ -265,7 +259,6 @@
         area.innerHTML = '';
 
         const longResults = [];
-        const shortResults = [];
 
         try {
             const targetCoins = await fetchTop100Swaps();
@@ -291,111 +284,61 @@
                         
                         if (k4h.length < 15 || k15.length < 15 || k5.length < 25) return;
 
-                        // ================= 1. 4H 定趋势 =================
+                        // 1. 4H 定势：金叉（多头）
                         const closes4h = k4h.slice(0, k4h.length - 1).map(k => k.c);
                         const ema5_4h = getEMAArray(closes4h, 5);
                         const ema10_4h = getEMAArray(closes4h, 10);
-                        
                         const is4HBull = ema5_4h[ema5_4h.length - 1] > ema10_4h[ema10_4h.length - 1];
-                        const is4HBear = ema5_4h[ema5_4h.length - 1] < ema10_4h[ema10_4h.length - 1];
 
-                        // ================= 2. 15m 抓金叉（前后两格子） =================
+                        if (!is4HBull) return; // 只做多，非多头直接淘汰
+
+                        // 2. 15m 死叉成型（回调）
                         const closes15m = k15.slice(0, k15.length - 1).map(k => k.c);
                         const ema5_15m = getEMAArray(closes15m, 5);
                         const ema10_15m = getEMAArray(closes15m, 10);
+                        const is15mBear = ema5_15m[ema5_15m.length - 1] < ema10_15m[ema10_15m.length - 1];
 
-                        const len = ema5_15m.length;
-                        let is15mCrossBull = false;
-                        let is15mCrossBear = false;
+                        if (!is15mBear) return; // 15m必须死叉
 
-                        for (let j = Math.max(1, len - 2); j < len; j++) {
-                            if (ema5_15m[j] > ema10_15m[j] && ema5_15m[j-1] <= ema10_15m[j-1]) is15mCrossBull = true;
-                            if (ema5_15m[j] < ema10_15m[j] && ema5_15m[j-1] >= ema10_15m[j-1]) is15mCrossBear = true;
-                        }
-
-                        const diff15m = (ema5_15m[len-1] - ema10_15m[len-1]) / ema10_15m[len-1] * 100;
-                        if (diff15m > -0.1 && diff15m <= 0) is15mCrossBull = true; 
-                        if (diff15m < 0.1 && diff15m >= 0) is15mCrossBear = true; 
-
-                        const is15mBull = is15mCrossBull;
-                        const is15mBear = is15mCrossBear;
-
-                        // 3. 综合定势
-                        const isBullTrend = is4HBull && is15mBull;
-                        const isBearTrend = is4HBear && is15mBear;
-                        if (!isBullTrend && !isBearTrend) return;
-
-                        // ================= 4. 5m 找斐波那契极窄止损入场 =================
+                        // 3. 5m 恐慌大阴线判定
                         const closed5m = k5.slice(0, k5.length - 1);
-                        const recent20_5m = closed5m.slice(-20);
+                        const lastClosed = closed5m[closed5m.length - 1];
                         
-                        let maxH = -Infinity;
-                        let minL = Infinity;
-                        for (const k of recent20_5m) {
-                            if (k.h > maxH) maxH = k.h;
-                            if (k.l < minL) minL = k.l;
-                        }
+                        // 必须收阴线
+                        if (lastClosed.c >= lastClosed.o) return;
+
+                        // 实体跌幅必须 >= 0.5%
+                        const bodyChgPct = (lastClosed.o - lastClosed.c) / lastClosed.o * 100;
+                        if (bodyChgPct < 0.5) return;
+
+                        // ================= 4. 极窄止损计算 =================
+                        let entryPrice = lastClosed.c;
+                        // 止损放在这根 5m 大阴线的最低点下方 0.2%
+                        let slPrice = lastClosed.l * (1 - 0.002);
+                        let riskPct = (entryPrice - slPrice) / entryPrice;
                         
-                        const range = maxH - minL;
-                        if (range <= 0) return;
+                        // 过滤掉止损过大的情况
+                        if (riskPct > 0.02) return; 
+                        if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003); // 保底 0.3%
 
-                        const entryPrice = k5[k5.length - 1].c; // 当前实时价格
-                        let retracePct = 0;
+                        let tpPrice = entryPrice + (entryPrice - slPrice) * 2;
 
-                        if (isBullTrend) {
-                            retracePct = (maxH - entryPrice) / range;
-                        } else {
-                            retracePct = (entryPrice - minL) / range;
-                        }
-
-                        // 回撤必须在 0.382 到 0.618 之间
-                        if (retracePct < 0.382 || retracePct > 0.618) return;
-
-                        // ================= 5. 动态止损计算（极窄） =================
-                        let type = isBullTrend ? 'LONG' : 'SHORT';
-                        let slPrice = 0;
-                        let tpPrice = 0;
-                        let riskPct = 0;
-
-                        if (type === 'LONG') {
-                            // 止损放在 20 根 5m 的最低点下方 0.2%
-                            slPrice = minL * (1 - 0.002); 
-                            riskPct = (entryPrice - slPrice) / entryPrice;
-                            
-                            // 止损太大则淘汰（说明回踩太深，结构可能坏了）
-                            if (riskPct > 0.02) return; 
-                            if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003); // 防极小止损
-                            
-                            tpPrice = entryPrice + (entryPrice - slPrice) * 2;
-                        } else {
-                            // 止损放在 20 根 5m 的最高点上方 0.2%
-                            slPrice = maxH * (1 + 0.002);
-                            riskPct = (slPrice - entryPrice) / entryPrice;
-                            
-                            if (riskPct > 0.02) return;
-                            if (riskPct < 0.003) slPrice = entryPrice * (1 + 0.003);
-                            
-                            tpPrice = entryPrice - (slPrice - entryPrice) * 2;
-                        }
-
-                        // ================= 6. 打分系统 =================
-                        let score = 60; 
-                        let reasonDetails = [`4H定势(30分)`, `15m两格内交叉(30分)`];
+                        // ================= 5. 打分系统 =================
+                        let score = 80; // 4H多头 + 15m回调基础分
+                        let reasonDetails = [`4H金叉(30分)`, `15m死叉回调(30分)`];
                         
-                        let fibScore = 40 - Math.round(Math.abs(retracePct - 0.5) * 200);
-                        score += fibScore;
-                        reasonDetails.push(`斐波那契 <b>${(retracePct * 100).toFixed(1)}%</b> (${fibScore}分)`);
+                        // 5m 跌幅越大，说明恐慌盘杀得越狠，分数越高（最高20分）
+                        let dropScore = Math.min(Math.round((bodyChgPct - 0.5) * 20) + 10, 20);
+                        score += dropScore;
+                        reasonDetails.push(`5m急跌 <b>${bodyChgPct.toFixed(2)}%</b> (${dropScore}分)`);
 
-                        const reason = `4H 呈${type === 'LONG' ? '多头' : '空头'}趋势。<br>15m 刚发生（或即将发生）<b>${type === 'LONG' ? '金叉' : '死叉'}</b>。<br>5m 价格回撤至斐波那契 <b>${(retracePct * 100).toFixed(1)}%</b> 黄金狙击位。<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `4H 级别保持金叉多头趋势。<br>15m 级别死叉成型，正在深度回调。<br>5m 最新收盘线出现实体跌幅 <b>${bodyChgPct.toFixed(2)}%</b> 的恐慌大阴线，触发了深水接多信号。<br>打分细节：${reasonDetails.join('，')}。`;
 
-                        const resObj = { 
+                        longResults.push({ 
                             instId: instId.replace('-USDT-SWAP', ''), 
                             score, price: entryPrice, reason, slPrice, tpPrice,
                             riskPct: (riskPct * 100).toFixed(2)
-                        };
-
-                        if (type === 'LONG') longResults.push(resObj);
-                        else shortResults.push(resObj);
+                        });
 
                     } catch (e) { /* ignore */ }
                     
@@ -405,16 +348,14 @@
             }
 
             longResults.sort((a, b) => b.score - a.score);
-            shortResults.sort((a, b) => b.score - a.score);
             
-            if (isAutoScanning && (longResults.length > 0 || shortResults.length > 0)) {
-                const hasLong = longResults.length > 0;
-                const title = hasLong ? `发现 ${longResults.length} 个做多信号` : `发现 ${shortResults.length} 个做空信号`;
-                const topCoin = hasLong ? longResults[0].instId : shortResults[0].instId;
-                sendNotification(title, `首选币种: ${topCoin}`, hasLong ? 'LONG' : 'SHORT');
+            if (isAutoScanning && longResults.length > 0) {
+                const title = `发现 ${longResults.length} 个恐慌接多信号`;
+                const topCoin = longResults[0].instId;
+                sendNotification(title, `首选币种: ${topCoin}`);
             }
 
-            renderResults(longResults.slice(0, 3), shortResults.slice(0, 3), isAutoScanning);
+            renderResults(longResults.slice(0, 3), isAutoScanning);
 
         } catch (err) {
             updateProgress("推算发生错误，请稍后再试。", 100);
@@ -430,7 +371,7 @@
         return p.toFixed(6);
     }
 
-    function renderResults(longs, shorts, isAuto) {
+    function renderResults(longs, isAuto) {
         if (!isAuto) updateProgress("✅ 扫描完成！", 100);
         endScanner();
 
@@ -438,11 +379,14 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（4H金叉 + 15m金叉 + 5m极窄止损）</div>`;
-        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（4H金叉 + 15m死叉 + 5m大阴线接多）</div>`;
+        if (longs.length === 0) {
+            html += `<div class="empty-tip">当前无符合“深水接多”结构的做多标的。</div>`;
+        }
+        
         longs.forEach((item, index) => {
             html += `
-                <details class="long-item">
+                <details class="long-item" open>
                     <summary>
                         <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId}</span></div>
                         <div class="summary-right"><span class="score-badge">分: ${item.score}</span><span class="arrow-icon">▼</span></div>
@@ -453,26 +397,6 @@
                             <span class="sl">止损: ${formatPrice(item.slPrice)} (-${item.riskPct}%)</span>
                             <span style="color:#fff;">参考价: ${formatPrice(item.price)}</span>
                             <span class="tp">止盈: ${formatPrice(item.tpPrice)}</span>
-                        </div>
-                    </div>
-                </details>`;
-        });
-
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（4H死叉 + 15m死叉 + 5m极窄止损）</div>`;
-        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
-        shorts.forEach((item, index) => {
-            html += `
-                <details class="short-item">
-                    <summary>
-                        <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId}</span></div>
-                        <div class="summary-right"><span class="score-badge">分: ${item.score}</span><span class="arrow-icon">▼</span></div>
-                    </summary>
-                    <div class="detail-content">
-                        <div class="reason-box">${item.reason}</div>
-                        <div class="trade-plan">
-                            <span class="tp">止盈: ${formatPrice(item.tpPrice)}</span>
-                            <span style="color:#fff;">参考价: ${formatPrice(item.price)}</span>
-                            <span class="sl">止损: ${formatPrice(item.slPrice)} (+${item.riskPct}%)</span>
                         </div>
                     </div>
                 </details>`;
