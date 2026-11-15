@@ -3,24 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前100币 日线顺势 + 15M刚交叉 + 5M反向收线 (1分定时)</title>
+    <title>前100币 扫描 + 单币深度分析 (1分定时)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-        #top-bar { background: var(--panel); padding: 20px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10; }
+        #top-bar { background: var(--panel); padding: 15px 20px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; }
 
-        .btn-container { width: 100%; max-width: 400px; display: flex; gap: 10px; }
+        .search-container { width: 100%; max-width: 400px; display: flex; gap: 8px; }
+        .search-input {
+            flex: 1; background: #12161f; border: 1px solid #2a2e39; color: #fff;
+            padding: 12px; border-radius: 8px; font-size: 16px; outline: none; text-transform: uppercase;
+        }
+        .search-input::placeholder { color: #555; text-transform: none; }
+        .search-btn {
+            background: #2a2e39; color: #fff; border: none; padding: 0 16px; border-radius: 8px;
+            font-weight: bold; cursor: pointer;
+        }
+
+        .btn-container { width: 100%; max-width: 400px; display: flex; gap: 10px; margin-top: 5px; }
         .scan-btn {
             background: linear-gradient(135deg, #0ecb81, #2962ff); color: #fff; border: none;
-            padding: 16px; border-radius: 8px; font-size: 16px; font-weight: bold;
-            box-shadow: 0 6px 20px rgba(41,98,255,0.4); flex: 1; cursor: pointer;
+            padding: 14px; border-radius: 8px; font-size: 15px; font-weight: bold;
+            box-shadow: 0 4px 15px rgba(41,98,255,0.3); flex: 1; cursor: pointer;
             transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px;
         }
         .scan-btn:active { transform: scale(0.98); }
         .scan-btn:disabled { background: #363a45; color: #848e9c; box-shadow: none; cursor: not-allowed; }
         
-        .auto-btn { background: linear-gradient(135deg, #fcd535, #f6465d); box-shadow: 0 6px 20px rgba(246,70,93,0.4); }
+        .auto-btn { background: linear-gradient(135deg, #fcd535, #f6465d); box-shadow: 0 4px 15px rgba(246,70,93,0.3); }
         .auto-btn.active { background: #2a2e39; color: var(--yellow); box-shadow: none; border: 1px solid var(--yellow); }
 
         .progress-text { font-size: 13px; color: var(--yellow); height: 20px; text-align: center; font-weight: bold; }
@@ -60,6 +71,18 @@
         .highlight { color: var(--yellow); font-weight: bold; }
         .empty-tip { color: #848e9c; font-size: 13px; margin-bottom: 20px; }
 
+        /* 单币分析专用卡片样式 */
+        .analysis-card { background: var(--panel); border-radius: 12px; padding: 20px; border-left: 4px solid var(--blue); margin-bottom: 20px; }
+        .analysis-title { font-size: 22px; font-weight: 900; color: #fff; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .analysis-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #2a2e39; font-size: 14px; }
+        .analysis-row:last-child { border-bottom: none; }
+        .analysis-label { color: var(--sub); }
+        .analysis-value { font-weight: bold; color: #fff; text-align: right;}
+        .conclusion-box { margin-top: 15px; padding: 15px; border-radius: 8px; font-size: 14px; font-weight: bold; line-height: 1.6; text-align: center; }
+        .conclusion-long { background: rgba(14,203,129,0.15); color: var(--up); border: 1px solid var(--up); }
+        .conclusion-short { background: rgba(246,70,93,0.15); color: var(--down); border: 1px solid var(--down); }
+        .conclusion-wait { background: rgba(252,213,53,0.1); color: var(--yellow); border: 1px solid var(--yellow); }
+
         #toast-banner {
             position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
             background: var(--up); color: #fff; padding: 15px 30px; border-radius: 30px;
@@ -76,15 +99,20 @@
     <div id="toast-banner" onclick="window.scrollTo(0, 0); this.classList.remove('show');"></div>
 
     <div id="top-bar">
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="输入币种 (如 BTC / ETH)">
+            <button class="search-btn" onclick="analyzeSingleCoin()">分析</button>
+        </div>
+        
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 立即扫描</span>
+                <span id="btnText">🎯 批量扫描前100</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 1分定时</span>
             </button>
         </div>
-        <div class="progress-text" id="progressText">准备就绪，点击右侧开启定时</div>
+        <div class="progress-text" id="progressText">准备就绪</div>
         <div class="progress-bar-bg" id="progressBarBg"><div class="progress-bar" id="progressBar"></div></div>
     </div>
 
@@ -111,13 +139,160 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 立即扫描";
+        document.getElementById('btnText').innerText = "🎯 批量扫描前100";
         
         if (isAutoScanning) {
             nextScanTime = Date.now() + SCAN_INTERVAL;
         }
     }
 
+    // ================= 单币深度分析功能 =================
+    window.analyzeSingleCoin = async function() {
+        let input = document.getElementById('searchInput').value.trim().toUpperCase();
+        if(!input) {
+            alert("请输入币种名称，如 BTC 或 PEPE");
+            return;
+        }
+        if(!input.includes('-USDT-SWAP')) {
+            input = input + '-USDT-SWAP';
+        }
+
+        const area = document.getElementById('result-area');
+        area.style.display = 'flex';
+        area.innerHTML = `<div class="empty-tip" style="text-align:center;">正在拉取 ${input.replace('-USDT-SWAP','')} 的数据...</div>`;
+
+        try {
+            const [tickerRes, k15, k5] = await Promise.all([
+                fetch(`https://www.okx.com/api/v5/market/ticker?instId=${input}`).then(r => r.json()),
+                fetchCandles(input, '15m', 30),
+                fetchCandles(input, '5m', 15)
+            ]);
+
+            if (tickerRes.code !== '0' || !tickerRes.data || tickerRes.data.length === 0) {
+                area.innerHTML = `<div class="empty-tip">找不到该币种，请检查名称。</div>`;
+                return;
+            }
+
+            const t = tickerRes.data[0];
+            const chg24h = ((+t.last - +t.open24h) / +t.open24h) * 100;
+            const curPrice = +t.last;
+
+            if (k15.length < 25 || k5.length < 5) {
+                area.innerHTML = `<div class="empty-tip">K线数据不足。</div>`;
+                return;
+            }
+
+            // 15m 分析
+            const closed15m = k15.slice(0, k15.length - 1);
+            const closes15m = closed15m.map(k => k.c);
+            const ema5_arr = getEMAArray(closes15m, 5);
+            const ema20_arr = getEMAArray(closes15m, 20);
+            const len = closes15m.length;
+            
+            let is15mCrossBull = false;
+            let is15mCrossBear = false;
+            for (let j = Math.max(1, len - 2); j < len; j++) {
+                if (ema5_arr[j] > ema20_arr[j] && ema5_arr[j-1] <= ema20_arr[j-1]) is15mCrossBull = true;
+                if (ema5_arr[j] < ema20_arr[j] && ema5_arr[j-1] >= ema20_arr[j-1]) is15mCrossBear = true;
+            }
+            const ema20_up = ema20_arr[len-1] > ema20_arr[len-2];
+            const ema20_down = ema20_arr[len-1] < ema20_arr[len-2];
+            const ema5_vs_20 = ema5_arr[len-1] > ema20_arr[len-1] ? "金叉状态 (5在上)" : "死叉状态 (5在下)";
+            const dist15m = ((closes15m[len-1] - ema20_arr[len-1]) / ema20_arr[len-1] * 100).toFixed(2);
+
+            // 5m 分析
+            const closed5m = k5.slice(0, k5.length - 1);
+            const lastK5 = closed5m[closed5m.length - 1];
+            const body5m = ((lastK5.c - lastK5.o) / lastK5.o * 100).toFixed(2);
+            const is5mBull = lastK5.c > lastK5.o;
+            
+            // 量能
+            const prev5vol = closed5m.slice(-6, -1);
+            const avgVol = prev5vol.reduce((sum, k) => sum + k.v, 0) / 5;
+            const volRatio = (lastK5.v / avgVol).toFixed(2);
+
+            // 综合判定
+            let conclusion = "";
+            let conclusionClass = "";
+
+            const isDayBull = chg24h > 0;
+            const isDayBear = chg24h < 0;
+
+            if (is15mCrossBull && ema20_up && isDayBull && !is5mBull) {
+                conclusion = "🔥 完美做多信号：日线涨 + 15m刚金叉 + 5m收阴！";
+                conclusionClass = "conclusion-long";
+            } else if (is15mCrossBear && ema20_down && isDayBear && is5mBull) {
+                conclusion = "🔥 完美做空信号：日线跌 + 15m刚死叉 + 5m收阳！";
+                conclusionClass = "conclusion-short";
+            } else if (is15mCrossBull && ema20_up && isDayBull && is5mBull) {
+                conclusion = "⏳ 多头趋势中，但5m正在拉升(收阳)，等回调收阴再进。";
+                conclusionClass = "conclusion-wait";
+            } else if (is15mCrossBear && ema20_down && isDayBear && !is5mBull) {
+                conclusion = "⏳ 空头趋势中，但5m正在下跌(收阴)，等反弹收阳再空。";
+                conclusionClass = "conclusion-wait";
+            } else {
+                conclusion = "⚠️ 当前不符合策略：趋势未共振，或未出现刚交叉，建议观望。";
+                conclusionClass = "conclusion-wait";
+            }
+
+            // 渲染报告
+            let html = `
+                <div class="analysis-card">
+                    <div class="analysis-title">
+                        <span>${input.replace('-USDT-SWAP','')}</span>
+                        <span style="color:${chg24h >= 0 ? 'var(--up)' : 'var(--down)'};">${chg24h > 0 ? '+' : ''}${chg24h.toFixed(2)}%</span>
+                    </div>
+                    
+                    <div class="analysis-row">
+                        <span class="analysis-label">当前价格</span>
+                        <span class="analysis-value">${formatPrice(curPrice)}</span>
+                    </div>
+                    <div class="analysis-row">
+                        <span class="analysis-label">当日趋势 (24H)</span>
+                        <span class="analysis-value" style="color:${isDayBull ? 'var(--up)' : 'var(--down)'}">${isDayBull ? '上涨 (适合做多)' : '下跌 (适合做空)'}</span>
+                    </div>
+                    
+                    <div style="margin: 15px 0 5px 0; font-weight: bold; color: #fff;">15m 均线结构</div>
+                    <div class="analysis-row">
+                        <span class="analysis-label">EMA5 与 EMA20 关系</span>
+                        <span class="analysis-value">${ema5_vs_20}</span>
+                    </div>
+                    <div class="analysis-row">
+                        <span class="analysis-label">近期交叉 (2根内)</span>
+                        <span class="analysis-value" style="color:${(is15mCrossBull||is15mCrossBear) ? 'var(--yellow)' : '#fff'}">
+                            ${is15mCrossBull ? '刚发生金叉' : is15mCrossBear ? '刚发生死叉' : '无交叉'}
+                        </span>
+                    </div>
+                    <div class="analysis-row">
+                        <span class="analysis-label">EMA20 趋势方向</span>
+                        <span class="analysis-value" style="color:${ema20_up ? 'var(--up)' : 'var(--down)'}">${ema20_up ? '向上 ↗' : '向下 ↘'}</span>
+                    </div>
+
+                    <div style="margin: 15px 0 5px 0; font-weight: bold; color: #fff;">5m 微观动能</div>
+                    <div class="analysis-row">
+                        <span class="analysis-label">最新收盘 K 线</span>
+                        <span class="analysis-value" style="color:${is5mBull ? 'var(--up)' : 'var(--down)'}">${is5mBull ? '阳线' : '阴线'} (实体 ${body5m}%)</span>
+                    </div>
+                    <div class="analysis-row">
+                        <span class="analysis-label">成交量能</span>
+                        <span class="analysis-value">${volRatio > 1.5 ? '放量 ('+volRatio+'倍)' : '缩量/平量 ('+volRatio+'倍)'}</span>
+                    </div>
+
+                    <div class="conclusion-box ${conclusionClass}">
+                        ${conclusion}
+                    </div>
+                </div>
+            `;
+
+            area.innerHTML = html;
+
+        } catch (e) {
+            area.innerHTML = `<div class="empty-tip">分析出错，请检查网络或币种。</div>`;
+        }
+    };
+
+
+    // ================= 原有功能 =================
     function toggleAutoScan() {
         const autoBtn = document.getElementById('autoBtn');
         const autoBtnText = document.getElementById('autoBtnText');
@@ -289,7 +464,6 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        // 1. 日线大趋势过滤
                         const isDayBull = coin.chg24h > 0;
                         const isDayBear = coin.chg24h < 0;
                         if (!isDayBull && !isDayBear) return; 
@@ -301,7 +475,6 @@
                         
                         if (k15.length < 25 || k5.length < 5) return;
 
-                        // 2. 15m 均线判定
                         const closed15m = k15.slice(0, k15.length - 1);
                         const closes15m = closed15m.map(k => k.c);
                         
@@ -313,23 +486,17 @@
                         let is15mCrossBear = false;
 
                         for (let j = Math.max(1, len - 2); j < len; j++) {
-                            if (ema5_arr[j] > ema20_arr[j] && ema5_arr[j-1] <= ema20_arr[j-1]) {
-                                is15mCrossBull = true;
-                            }
-                            if (ema5_arr[j] < ema20_arr[j] && ema5_arr[j-1] >= ema20_arr[j-1]) {
-                                is15mCrossBear = true;
-                            }
+                            if (ema5_arr[j] > ema20_arr[j] && ema5_arr[j-1] <= ema20_arr[j-1]) is15mCrossBull = true;
+                            if (ema5_arr[j] < ema20_arr[j] && ema5_arr[j-1] >= ema20_arr[j-1]) is15mCrossBear = true;
                         }
 
                         const ema20_trend_up = ema20_arr[len-1] > ema20_arr[len-2];
                         const ema20_trend_down = ema20_arr[len-1] < ema20_arr[len-2];
 
-                        // 3. 综合定势（日线 + 15m）
                         const isBullTrend = is15mCrossBull && ema20_trend_up && isDayBull;
                         const isBearTrend = is15mCrossBear && ema20_trend_down && isDayBear;
                         if (!isBullTrend && !isBearTrend) return;
 
-                        // 4. 5m 实体回调进场（放宽条件）
                         const closed5m = k5.slice(0, k5.length - 1);
                         const lastK = closed5m[closed5m.length - 1];
                         
@@ -343,52 +510,36 @@
                         let riskPct = 0;
 
                         if (isBullTrend && lastK.c < lastK.o) {
-                            // 做多：日涨 + 15m刚金叉向上 + 5m收阴线（只需反向即可）
                             type = 'LONG';
                             slPrice = lastK.l * (1 - 0.002);
                             riskPct = (entryPrice - slPrice) / entryPrice;
-                            
                             if (riskPct > 0.02) return; 
                             if (riskPct < 0.003) slPrice = entryPrice * (1 - 0.003);
-                            
                             tpPrice = entryPrice + (entryPrice - slPrice) * 2.5;
-
                         } else if (isBearTrend && lastK.c > lastK.o) {
-                            // 做空：日跌 + 15m刚死叉向下 + 5m收阳线（只需反向即可）
                             type = 'SHORT';
                             slPrice = lastK.h * (1 + 0.002);
                             riskPct = (slPrice - entryPrice) / entryPrice;
-                            
                             if (riskPct > 0.02) return;
                             if (riskPct < 0.003) slPrice = entryPrice * (1 + 0.003);
-                            
                             tpPrice = entryPrice - (slPrice - entryPrice) * 2.5;
                         }
 
                         if (!type) return;
 
-                        // 5. 打分系统
                         let score = 60; 
                         let reasonDetails = [`日线顺势`, `15m刚交叉`];
-                        
-                        // 依据实体幅度做个简单加分
                         let bodyScore = Math.min(Math.round(absBodyChgPct * 20), 20);
                         score += bodyScore;
-                        reasonDetails.push(`5m反向线 实体 <b>${absBodyChgPct.toFixed(2)}%</b>`);
 
-                        const reason = `今日涨跌幅为 <b>${coin.chg24h > 0 ? '+' : ''}${coin.chg24h.toFixed(2)}%</b>，顺势方向。15m 级别 EMA5 与 EMA20 刚发生<b>${type === 'LONG' ? '金叉' : '死叉'}</b>，且 EMA20 趋势配合。<br>5m 最新收盘为反向实体${type === 'LONG' ? '阴线' : '阳线'}，进场顺势接${type === 'LONG' ? '多' : '空'}。`;
+                        const reason = `今日涨跌幅为 <b>${coin.chg24h > 0 ? '+' : ''}${coin.chg24h.toFixed(2)}%</b>，顺势方向。15m 级别 EMA5 与 EMA20 刚发生<b>${type === 'LONG' ? '金叉' : '死叉'}</b>。<br>5m 最新收盘为反向实体${type === 'LONG' ? '阴线' : '阳线'}。`;
 
-                        const resObj = { 
-                            instId: coin.instId.replace('-USDT-SWAP', ''), 
-                            score, price: entryPrice, reason, slPrice, tpPrice,
-                            riskPct: (riskPct * 100).toFixed(2)
-                        };
+                        const resObj = { instId: coin.instId.replace('-USDT-SWAP', ''), score, price: entryPrice, reason, slPrice, tpPrice, riskPct: (riskPct * 100).toFixed(2) };
 
                         if (type === 'LONG') longResults.push(resObj);
                         else shortResults.push(resObj);
 
                     } catch (e) { /* ignore */ }
-                    
                     done++;
                     if (!isAutoScanning) updateProgress(`正在扫描... (${done}/${targetCoins.length})`, 5 + (done / targetCoins.length) * 90);
                 }));
@@ -431,7 +582,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（日涨 + 15m刚金叉 + 5m收阴）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（日涨 + 15m金叉 + 5m收阴）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
@@ -451,7 +602,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（日跌 + 15m刚死叉 + 5m收阳）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（日跌 + 15m死叉 + 5m收阳）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
