@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50币 15M(5/20刚交叉) + 5M回调 >0.5% (1分定时)</title>
+    <title>前50币 日线顺势 + 15M刚交叉 + 5M实体回调 (1分定时)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
@@ -98,7 +98,6 @@
     let nextScanTime = 0;
     let isAutoScanning = false;
     
-    // 1分钟间隔
     const SCAN_INTERVAL = 1 * 60 * 1000; 
 
     function updateProgress(text, percent) {
@@ -212,12 +211,18 @@
             
             if (instRes.code !== '0' || tickerRes.code !== '0') return [];
             const validInsts = new Set(instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
+            
             const validTickers = tickerRes.data
                 .filter(t => validInsts.has(t.instId))
-                .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
+                .map(t => {
+                    const last = +t.last;
+                    const open24h = +t.open24h;
+                    const chg24h = open24h > 0 ? (last - open24h) / open24h * 100 : 0;
+                    return { instId: t.instId, vol: +t.volCcy24h || 0, chg24h: chg24h };
+                })
                 .sort((a, b) => b.vol - a.vol);
 
-            return validTickers.slice(0, 50).map(t => t.instId); 
+            return validTickers.slice(0, 50);
         } finally {
             clearTimeout(timer);
         }
@@ -282,16 +287,21 @@
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
-                await Promise.all(chunk.map(async (instId) => {
+                await Promise.all(chunk.map(async (coin) => {
                     try {
+                        // 1. 日线大趋势过滤
+                        const isDayBull = coin.chg24h > 0;
+                        const isDayBear = coin.chg24h < 0;
+                        if (!isDayBull && !isDayBear) return; // 极少数平盘直接跳过
+
                         const [k15, k5] = await Promise.all([
-                            fetchCandles(instId, '15m', 30), 
-                            fetchCandles(instId, '5m', 15)
+                            fetchCandles(coin.instId, '15m', 30), 
+                            fetchCandles(coin.instId, '5m', 15)
                         ]);
                         
                         if (k15.length < 25 || k5.length < 5) return;
 
-                        // ================= 1. 15m 均线判定 =================
+                        // 2. 15m 均线判定
                         const closed15m = k15.slice(0, k15.length - 1);
                         const closes15m = closed15m.map(k => k.c);
                         
@@ -304,33 +314,30 @@
 
                         // 检查最近两格子内是否发生交叉
                         for (let j = Math.max(1, len - 2); j < len; j++) {
-                            // 金叉：当前5>20，前一根5<=20
                             if (ema5_arr[j] > ema20_arr[j] && ema5_arr[j-1] <= ema20_arr[j-1]) {
                                 is15mCrossBull = true;
                             }
-                            // 死叉：当前5<20，前一根5>=20
                             if (ema5_arr[j] < ema20_arr[j] && ema5_arr[j-1] >= ema20_arr[j-1]) {
                                 is15mCrossBear = true;
                             }
                         }
 
-                        // EMA20 方向（向上或向下）
+                        // EMA20 方向
                         const ema20_trend_up = ema20_arr[len-1] > ema20_arr[len-2];
                         const ema20_trend_down = ema20_arr[len-1] < ema20_arr[len-2];
 
-                        // 综合定势
-                        const isBullTrend = is15mCrossBull && ema20_trend_up;
-                        const isBearTrend = is15mCrossBear && ema20_trend_down;
+                        // 3. 综合定势（日线 + 15m）
+                        const isBullTrend = is15mCrossBull && ema20_trend_up && isDayBull;
+                        const isBearTrend = is15mCrossBear && ema20_trend_down && isDayBear;
                         if (!isBullTrend && !isBearTrend) return;
 
-                        // ================= 2. 5m 实体回调进场 =================
+                        // 4. 5m 实体回调进场
                         const closed5m = k5.slice(0, k5.length - 1);
                         const lastK = closed5m[closed5m.length - 1];
                         
                         const bodyChgPct = (lastK.c - lastK.o) / lastK.o * 100;
                         const absBodyChgPct = Math.abs(bodyChgPct);
 
-                        // 要求实体涨跌幅 >= 0.5%
                         if (absBodyChgPct < 0.5) return;
 
                         let type = null;
@@ -340,7 +347,7 @@
                         let riskPct = 0;
 
                         if (isBullTrend && bodyChgPct < 0) {
-                            // 做多：15m刚金叉+20向上，且5m是阴线（回调>=0.5%）
+                            // 做多：日涨 + 15m刚金叉向上 + 5m是阴线回调
                             type = 'LONG';
                             slPrice = lastK.l * (1 - 0.002);
                             riskPct = (entryPrice - slPrice) / entryPrice;
@@ -351,7 +358,7 @@
                             tpPrice = entryPrice + (entryPrice - slPrice) * 2.5;
 
                         } else if (isBearTrend && bodyChgPct > 0) {
-                            // 做空：15m刚死叉+20向下，且5m是阳线（反弹>=0.5%）
+                            // 做空：日跌 + 15m刚死叉向下 + 5m是阳线反弹
                             type = 'SHORT';
                             slPrice = lastK.h * (1 + 0.002);
                             riskPct = (slPrice - entryPrice) / entryPrice;
@@ -364,19 +371,18 @@
 
                         if (!type) return;
 
-                        // ================= 3. 打分系统 =================
+                        // 5. 打分系统
                         let score = 60; 
-                        let reasonDetails = [`15m刚交叉(30分)`, `EMA20趋势(30分)`];
+                        let reasonDetails = [`日线顺势`, `15m刚交叉`];
                         
-                        // 实体回调动能加分（最高20分）
                         let bodyScore = Math.min(Math.round((absBodyChgPct - 0.5) * 20) + 10, 20);
                         score += bodyScore;
-                        reasonDetails.push(`5m回调 <b>${absBodyChgPct.toFixed(2)}%</b> (${bodyScore}分)`);
+                        reasonDetails.push(`5m回调 <b>${absBodyChgPct.toFixed(2)}%</b>`);
 
-                        const reason = `15m 级别 EMA5 与 EMA20 刚发生<b>${type === 'LONG' ? '金叉' : '死叉'}</b>，且 EMA20 方向${type === 'LONG' ? '向上' : '向下'}。<br>5m 出现深度回调的实体${type === 'LONG' ? '阴线' : '阳线'}，幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>，进场顺势接${type === 'LONG' ? '多' : '空'}。<br>打分细节：${reasonDetails.join('，')}。`;
+                        const reason = `今日涨跌幅为 <b>${coin.chg24h > 0 ? '+' : ''}${coin.chg24h.toFixed(2)}%</b>，顺势方向。15m 级别 EMA5 与 EMA20 刚发生<b>${type === 'LONG' ? '金叉' : '死叉'}</b>，且 EMA20 趋势向下。<br>5m 出现深水回调实体${type === 'LONG' ? '阴线' : '阳线'}，幅度达 <b>${absBodyChgPct.toFixed(2)}%</b>。`;
 
                         const resObj = { 
-                            instId: instId.replace('-USDT-SWAP', ''), 
+                            instId: coin.instId.replace('-USDT-SWAP', ''), 
                             score, price: entryPrice, reason, slPrice, tpPrice,
                             riskPct: (riskPct * 100).toFixed(2)
                         };
@@ -428,7 +434,7 @@
         area.style.display = 'flex';
         let html = '';
 
-        html += `<div class="section-title long">🟢 做多 Top 3（15m刚金叉+20向上 + 5m深水回调）</div>`;
+        html += `<div class="section-title long">🟢 做多 Top 3（日线涨 + 15m刚金叉 + 5m深水回调）</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.forEach((item, index) => {
             html += `
@@ -448,7 +454,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（15m刚死叉+20向下 + 5m深水反弹）</div>`;
+        html += `<div class="section-title short" style="margin-top:15px;">🔴 做空 Top 3（日线跌 + 15m刚死叉 + 5m深水反弹）</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.forEach((item, index) => {
             html += `
