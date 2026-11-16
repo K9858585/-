@@ -3,16 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50币 2H大势 + 15m动态防守 (智能盈亏比)</title>
-    <script>
-        // 自动版本控制：每次更新代码，只要把这个数字改大即可，网页会自动跳转
-        const AUTO_VERSION = '258'; 
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('v') !== AUTO_VERSION) {
-            urlParams.set('v', AUTO_VERSION);
-            window.location.search = urlParams.toString();
-        }
-    </script>
+    <title>前30币 未来1小时走势预测 (极速止盈版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
@@ -63,18 +54,11 @@
         .trade-item .val.sl { color: var(--down); }
         
         /* 杠杆高亮 */
-        .trade-item.full-width { width: 100%; border-top: 1px dashed #2a2e39; margin-top: 5px; padding-top: 12px; flex-direction: row; justify-content: space-between; align-items: center;}
-        .trade-item .val.lev { color: var(--yellow); font-size: 22px; text-shadow: 0 0 10px rgba(252,213,53,0.3); text-align: center; flex: 1;}
+        .trade-item.full-width { width: 100%; border-top: 1px dashed #2a2e39; margin-top: 5px; padding-top: 12px; flex-direction: row; justify-content: center; gap: 15px;}
+        .trade-item .val.lev { color: var(--yellow); font-size: 22px; text-shadow: 0 0 10px rgba(252,213,53,0.3);}
 
-        .best-reasons { font-size: 13px; color: #b2b5be; line-height: 1.6; background: rgba(18,22,31,0.5); padding: 10px; border-radius: 8px; margin-bottom: 10px;}
+        .best-reasons { font-size: 13px; color: #b2b5be; line-height: 1.6; background: rgba(18,22,31,0.5); padding: 10px; border-radius: 8px;}
         .best-reasons b { color: #fff; }
-
-        /* 新增：保本策略提示框 */
-        .breakeven-tip {
-            font-size: 12px; color: #12161f; background: #fcd535; 
-            padding: 8px 12px; border-radius: 6px; font-weight: bold;
-            display: flex; align-items: center; gap: 6px; margin-top: 10px;
-        }
 
         /* 备选清单区 */
         .section-title { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
@@ -143,7 +127,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 15m狙击 (智能盈亏比)</span>
+                <span id="btnText">🎯 预测未来1小时 (前30币极速版)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -174,7 +158,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 15m狙击 (智能盈亏比)";
+        document.getElementById('btnText').innerText = "🎯 预测未来1小时 (前30币极速版)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
 
@@ -241,11 +225,14 @@
         return 100 - (100 / (1 + (avgGain / avgLoss)));
     }
 
-    // ================= 核心打分引擎 (微宽防守) =================
-    function evaluateCoin(k2h, k15) {
+    // ================= 核心打分引擎 (未来1小时极速版) =================
+    function evaluateCoin(k2h, k1h, k15) {
         const closed2h = k2h.slice(0, -1);
         const closes2h = closed2h.map(k => k.c);
         
+        const closed1h = k1h.slice(0, -1);
+        const closes1h = closed1h.map(k => k.c);
+
         const closed15m = k15.slice(0, -1);
         const last15m = closed15m[closed15m.length - 1];
         const prev15m = closed15m[closed15m.length - 2];
@@ -257,35 +244,38 @@
         const totalAmp = (maxH - minL) / minL * 100;
         if (totalAmp < 5 || totalAmp > 50) return null;
 
-        // 2H 大趋势判定
+        // 大周期判定
         const ema20_2h = getEMAArray(closes2h, 20);
         const macd2h = calcMACD(closes2h);
-        const curPrice = k2h[k2h.length - 1].c;
-        const ema20Val = ema20_2h[ema20_2h.length - 1];
-        const ema20_up = ema20Val > ema20_2h[ema20_2h.length - 2];
-        const ema20_down = ema20Val < ema20_2h[ema20_2h.length - 2];
+        const curPrice2h = k2h[k2h.length - 1].c;
+        const ema20Val2h = ema20_2h[ema20_2h.length - 1];
+        const is2HBull = curPrice2h > ema20Val2h && ema20Val2h > ema20_2h[ema20_2h.length - 2] && macd2h > 0;
+        const is2HBear = curPrice2h < ema20Val2h && ema20Val2h < ema20_2h[ema20_2h.length - 2] && macd2h < 0;
 
-        let longScore = 0, longReasons = [];
-        let shortScore = 0, shortReasons = [];
+        // 1H 级别确认（要顺势）
+        const ema20_1h = getEMAArray(closes1h, 20);
+        const curPrice1h = k1h[k1h.length - 1].c;
+        const is1HBull = curPrice1h > ema20_1h[ema20_1h.length - 1];
+        const is1HBear = curPrice1h < ema20_1h[ema20_1h.length - 1];
 
-        const is2HBull = curPrice > ema20Val && ema20_up && macd2h > 0;
-        const is2HBear = curPrice < ema20Val && ema20_down && macd2h < 0;
-
-        // 15m 微观形态判定
+        // 15m 微观入场信号
         const is15mBull = last15m.c > last15m.o && (last15m.c > prev15m.o); 
         const is15mBear = last15m.c < last15m.o && (last15m.c < prev15m.o); 
         const rsi15 = calcRSI(closed15m.map(k=>k.c), 14);
 
-        if (is2HBull) {
-            longScore += 50; longReasons.push("2H大趋势看多");
-            if (is15mBull) { longScore += 30; longReasons.push("15m级别阳线反包"); }
-            if (rsi15 > 50 && rsi15 < 70) { longScore += 20; longReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
+        let longScore = 0, longReasons = [];
+        let shortScore = 0, shortReasons = [];
+
+        if (is2HBull && is1HBull) {
+            longScore += 60; longReasons.push("2H与1H多头强共振");
+            if (is15mBull) { longScore += 30; longReasons.push("15m级别出现反包入场点"); }
+            if (rsi15 > 50 && rsi15 < 70) { longScore += 10; longReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
         }
 
-        if (is2HBear) {
-            shortScore += 50; shortReasons.push("2H大趋势看空");
-            if (is15mBear) { shortScore += 30; shortReasons.push("15m级别阴线反包"); }
-            if (rsi15 < 50 && rsi15 > 30) { shortScore += 20; shortReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
+        if (is2HBear && is1HBear) {
+            shortScore += 60; shortReasons.push("2H与1H空头强共振");
+            if (is15mBear) { shortScore += 30; shortReasons.push("15m级别出现反包入场点"); }
+            if (rsi15 < 50 && rsi15 > 30) { shortScore += 10; shortReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
         }
 
         return { 
@@ -297,7 +287,7 @@
 
 
     // ================= 主流程 =================
-    async function fetchTop50Swaps() {
+    async function fetchTop30Swaps() {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 15000);
         try {
@@ -311,7 +301,7 @@
             return tickerRes.data
                 .filter(t => validInsts.has(t.instId))
                 .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
-                .sort((a, b) => b.vol - a.vol).slice(0, 50); // 【修改点】：恢复前50名
+                .sort((a, b) => b.vol - a.vol).slice(0, 30); // 锁定前30币
         } finally { clearTimeout(timer); }
     }
 
@@ -329,7 +319,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 寻找防守点...";
+        document.getElementById('btnText').innerText = "⏳ 极速推演未来1小时...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -337,10 +327,10 @@
         let longResults = [], shortResults = [];
 
         try {
-            const targetCoins = await fetchTop50Swaps(); // 【修改点】调用前50的函数
+            const targetCoins = await fetchTop30Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在智能测算盈亏比...`, 5);
+            updateProgress(`正在前30名中寻找极速狙击点...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -348,57 +338,47 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k2h, k15] = await Promise.all([
+                        const [k2h, k1h, k15] = await Promise.all([
                             fetchCandles(coin.instId, '2H', 30), 
+                            fetchCandles(coin.instId, '1H', 30),
                             fetchCandles(coin.instId, '15m', 30)
                         ]);
                         
-                        if (k2h.length < 25 || k15.length < 25) return;
+                        if (k2h.length < 25 || k1h.length < 25 || k15.length < 25) return;
 
-                        const result = evaluateCoin(k2h, k15);
+                        const result = evaluateCoin(k2h, k1h, k15);
                         if (!result) return; 
 
                         const entryPrice = result.last15m.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 止盈止损逻辑（智能动态盈亏比）
                         if (result.longScore >= 80) {
                             sl = result.last15m.l * (1 - 0.002); 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            // 止损空间限制在 0.3% ~ 1.2%
-                            if (risk > 0.012 || risk < 0.003) return; 
+                            // 【极窄过滤】：止损空间绝对不能超过 0.6%，否则无法做到极速止盈
+                            if (risk > 0.006 || risk < 0.002) return; 
                             
-                            // 智能动态盈亏比
-                            let currentRR = 3;
-                            if (risk > 0.008) currentRR = 1.5;      // 如果止损大于 0.8%，盈亏比降为 1:1.5（目标极近）
-                            else if (risk > 0.005) currentRR = 2;   // 如果止损在 0.5%~0.8%，盈亏比用 1:2
-                            
-                            tp = entryPrice + (entryPrice - sl) * currentRR; 
+                            tp = entryPrice + (entryPrice - sl) * 2; // 1:2 盈亏比
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage)); 
+                            suggestedLeverage = Math.max(3, Math.min(15, suggestedLeverage));
 
-                            longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
+                            longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage });
                         }
 
                         if (result.shortScore >= 80) {
                             sl = result.last15m.h * (1 + 0.002);
                             risk = (sl - entryPrice) / entryPrice;
                             
-                            if (risk > 0.012 || risk < 0.003) return;
+                            if (risk > 0.006 || risk < 0.002) return;
                             
-                            // 智能动态盈亏比
-                            let currentRR = 3;
-                            if (risk > 0.008) currentRR = 1.5;
-                            else if (risk > 0.005) currentRR = 2;
-
-                            tp = entryPrice - (sl - entryPrice) * currentRR; 
+                            tp = entryPrice - (sl - entryPrice) * 2;
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage));
+                            suggestedLeverage = Math.max(3, Math.min(15, suggestedLeverage));
 
-                            shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
+                            shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage });
                         }
 
                     } catch (e) {}
@@ -425,7 +405,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 狙击信号生成", 100);
+        updateProgress("✅ 未来1小时极速信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -446,19 +426,10 @@
             const reasons = bestType === 'LONG' ? bestPick.longReasons : bestPick.shortReasons;
             const score = bestType === 'LONG' ? bestPick.longScore : bestPick.shortScore;
 
-            // 计算总资金预期盈亏
-            const expectedLoss = (bestPick.leverage * bestPick.risk).toFixed(2);
-            const expectedProfit = (expectedLoss * bestPick.rr).toFixed(2);
-
-            // 计算保本触发价
-            const breakevenPrice = bestType === 'LONG' 
-                ? bestPick.price + (bestPick.price - bestPick.sl) * 1.0 
-                : bestPick.price - (bestPick.sl - bestPick.price) * 1.0;
-
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🏆 智能防守版 (1:${bestPick.rr})</span>
+                        <span>🏆 未来1小时 极速止盈推荐</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
@@ -472,29 +443,22 @@
                             <span class="val">${formatPrice(bestPick.price)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">防守止损价</span>
+                            <span class="label">极窄止损价</span>
                             <span class="val sl">${formatPrice(bestPick.sl)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">目标止盈价</span>
+                            <span class="label">极速止盈价</span>
                             <span class="val tp">${formatPrice(bestPick.tp)}</span>
                         </div>
                         
                         <div class="trade-item full-width">
-                            <span class="label" style="color:var(--down)">亏 ${expectedLoss}% (总资金)</span>
+                            <span class="label">价格波动 ${bestPick.risk}% ≈</span>
                             <span class="val lev">${bestPick.leverage} 倍杠杆</span>
-                            <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
+                            <span class="label">(极速落袋)</span>
                         </div>
-                        <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (价格波动 ${bestPick.risk}%，目标距离适中，止盈极快)
-                        </div>
-                    </div>
-
-                    <div class="breakeven-tip">
-                        🛡️ 保本策略：当价格达到 ${formatPrice(breakevenPrice)} (盈利1%) 时，将止损上移至进场价，做到进场不亏。
                     </div>
                     
-                    <div class="best-reasons" style="margin-top: 10px;">
+                    <div class="best-reasons">
                         <b>趋势触发逻辑：</b><br>
                         ${reasons.map(r => `✔ ${r}`).join('<br>')}
                     </div>
@@ -503,26 +467,25 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无符合防守比例的机会<br>
-                    (止损设定在 0.3% ~ 1.2% 之间，当前无此形态，建议空仓等待！)
+                    ⚠️ 当前无极速止盈机会<br>
+                    (为了保证未来1小时内能极速止盈，系统强制要求止损<0.6%，当前市场暂无此极窄形态，建议空仓！)
                 </div>
             `;
         }
 
-        html += `<div class="section-title long" style="margin-top:10px;">🟢 多头备选</div>`;
+        html += `<div class="section-title long" style="margin-top:10px;">🟢 极速多头备选</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合的做多标的。</div>`;
         longs.slice(0, 3).forEach((item, index) => {
-            const expLoss = (item.leverage * item.risk).toFixed(2);
             html += `
                 <details class="long-item">
                     <summary>
                         <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
-                        <div class="summary-right"><span class="score-badge">多分: ${item.longScore} (1:${item.rr})</span><span class="arrow-icon">▼</span></div>
+                        <div class="summary-right"><span class="score-badge">多分: ${item.longScore}</span><span class="arrow-icon">▼</span></div>
                     </summary>
                     <div class="detail-content">
                         <div class="analysis-row">
-                            <span class="analysis-label">价格波动 / 推荐杠杆</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b> (预期亏${expLoss}%)</span>
+                            <span class="analysis-label">止损空间 / 推荐杠杆</span>
+                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b></span>
                         </div>
                         <div>
                             <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
@@ -532,20 +495,19 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:20px;">🔴 空头备选</div>`;
+        html += `<div class="section-title short" style="margin-top:20px;">🔴 极速空头备选</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合的做空标的。</div>`;
         shorts.slice(0, 3).forEach((item, index) => {
-            const expLoss = (item.leverage * item.risk).toFixed(2);
             html += `
                 <details class="short-item">
                     <summary>
                         <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
-                        <div class="summary-right"><span class="score-badge">空分: ${item.shortScore} (1:${item.rr})</span><span class="arrow-icon">▼</span></div>
+                        <div class="summary-right"><span class="score-badge">空分: ${item.shortScore}</span><span class="arrow-icon">▼</span></div>
                     </summary>
                     <div class="detail-content">
                         <div class="analysis-row">
-                            <span class="analysis-label">价格波动 / 推荐杠杆</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b> (预期亏${expLoss}%)</span>
+                            <span class="analysis-label">止损空间 / 推荐杠杆</span>
+                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b></span>
                         </div>
                         <div>
                             <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
