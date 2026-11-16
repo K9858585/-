@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50币 2H大势 + 15m极窄防守 (20%极速版)</title>
+    <title>前100币 2H大势 + 15m极窄防守 (1:3极速版)</title>
     <script>
         // 自动版本控制：每次更新代码，只要把这个数字改大即可，网页会自动跳转
-        const AUTO_VERSION = '254'; 
+        const AUTO_VERSION = '255'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -136,7 +136,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 15m极速狙击 (20%止盈版)</span>
+                <span id="btnText">🎯 15m极速狙击 (30%止盈版)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -167,7 +167,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 15m极速狙击 (20%止盈版)";
+        document.getElementById('btnText').innerText = "🎯 15m极速狙击 (30%止盈版)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
 
@@ -290,7 +290,7 @@
 
 
     // ================= 主流程 =================
-    async function fetchTop50Swaps() {
+    async function fetchTop100Swaps() {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 15000);
         try {
@@ -304,7 +304,7 @@
             return tickerRes.data
                 .filter(t => validInsts.has(t.instId))
                 .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
-                .sort((a, b) => b.vol - a.vol).slice(0, 50); 
+                .sort((a, b) => b.vol - a.vol).slice(0, 100); // 【修改点】：改为前100名
         } finally { clearTimeout(timer); }
     }
 
@@ -330,7 +330,7 @@
         let longResults = [], shortResults = [];
 
         try {
-            const targetCoins = await fetchTop50Swaps();
+            const targetCoins = await fetchTop100Swaps(); // 【修改点】调用更新后的函数
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
             updateProgress(`正在显微镜下寻找极速狙击点...`, 5);
@@ -354,7 +354,7 @@
                         const entryPrice = result.last15m.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 止盈止损逻辑（极窄版，1:2盈亏比，目标20%收益）
+                        // 止盈止损逻辑（极窄版，目标30%收益，盈亏比1:3）
                         if (result.longScore >= 80) {
                             sl = result.last15m.l * (1 - 0.002); 
                             risk = (entryPrice - sl) / entryPrice;
@@ -362,11 +362,11 @@
                             // 【核心过滤】：将止损空间强制压缩在 0.2% ~ 0.5% 以内，让目标极近
                             if (risk > 0.005 || risk < 0.002) return; 
                             
-                            tp = entryPrice + (entryPrice - sl) * 2; // 盈亏比 1:2
+                            tp = entryPrice + (entryPrice - sl) * 3; // 【修改点】盈亏比 1:3
                             
-                            // 亏损 10% 反推杠杆。由于止损变小了，杠杆会自动变大（约20倍）
+                            // 亏损 10% 反推杠杆
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage)); // 最高上限放宽到 25 倍
+                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage)); // 最高上限 25 倍
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage });
                         }
@@ -378,7 +378,7 @@
                             // 【核心过滤】：将止损空间强制压缩在 0.2% ~ 0.5% 以内，让目标极近
                             if (risk > 0.005 || risk < 0.002) return;
                             
-                            tp = entryPrice - (sl - entryPrice) * 2;
+                            tp = entryPrice - (sl - entryPrice) * 3; // 【修改点】盈亏比 1:3
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
                             suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage));
@@ -431,14 +431,14 @@
             const reasons = bestType === 'LONG' ? bestPick.longReasons : bestPick.shortReasons;
             const score = bestType === 'LONG' ? bestPick.longScore : bestPick.shortScore;
 
-            // 计算总资金预期盈亏
+            // 计算总资金预期盈亏 (盈亏比 1:3)
             const expectedLoss = (bestPick.leverage * bestPick.risk).toFixed(2);
-            const expectedProfit = (expectedLoss * 2).toFixed(2);
+            const expectedProfit = (expectedLoss * 3).toFixed(2); // 【修改点】预期收益乘3
 
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🏆 极窄防守极速版 (单笔+20%)</span>
+                        <span>🏆 极窄防守极速版 (1:3)</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
