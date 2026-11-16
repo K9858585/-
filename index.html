@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前200币 4H趋势预测 (放宽入场版)</title>
+    <title>前200币 未来1小时预测 (右侧确认防飞刀版)</title>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
@@ -116,8 +116,6 @@
         .analysis-value { font-weight: bold; color: #fff; text-align: right;}
 
         .empty-tip { color: #848e9c; font-size: 14px; margin: 20px 0; text-align: center; padding: 20px; border: 1px dashed #2a2e39; border-radius: 10px;}
-        
-        .warning-box { background: rgba(246,70,93,0.1); border: 1px solid var(--down); padding: 15px; border-radius: 8px; font-size: 13px; color: var(--down); margin-bottom: 15px; line-height: 1.5;}
     </style>
 </head>
 <body>
@@ -125,10 +123,10 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 预测4H趋势 (前200币)</span>
+                <span id="btnText">🎯 预测未来1小时趋势</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
-                <span id="autoBtnText">⏱️ 5分定时</span>
+                <span id="autoBtnText">⏱️ 1分定时</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪</div>
@@ -143,7 +141,7 @@
     let countdownInterval = null;
     let nextScanTime = 0;
     let isAutoScanning = false;
-    const SCAN_INTERVAL = 5 * 60 * 1000; 
+    const SCAN_INTERVAL = 1 * 60 * 1000; 
 
     function updateProgress(text, percent) {
         document.getElementById('progressText').innerText = text;
@@ -156,7 +154,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 预测4H趋势 (前200币)";
+        document.getElementById('btnText').innerText = "🎯 预测未来1小时趋势";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
 
@@ -167,7 +165,7 @@
             isAutoScanning = false;
             clearInterval(autoScanInterval); clearInterval(countdownInterval);
             autoBtn.classList.remove('active');
-            autoBtnText.innerText = "⏱️ 5分定时";
+            autoBtnText.innerText = "⏱️ 1分定时";
             updateProgress("已停止自动扫描", 0);
         } else {
             isAutoScanning = true;
@@ -223,66 +221,95 @@
         return 100 - (100 / (1 + (avgGain / avgLoss)));
     }
 
-    // ================= 核心打分引擎 (放宽版) =================
-    function evaluateCoin(k4h, k1h, chgToday) {
-        const closed4h = k4h.slice(0, -1);
-        const closes4h = closed4h.map(k => k.c);
+    function calcBOLL(closes, period = 20, mult = 2) {
+        if (closes.length < period) return { upper: 0, mid: 0, lower: 0 };
+        const slice = closes.slice(-period);
+        const sma = slice.reduce((a, b) => a + b, 0) / period;
+        const variance = slice.reduce((a, b) => a + Math.pow(b - sma, 2), 0) / period;
+        const stdDev = Math.sqrt(variance);
+        return { upper: sma + mult * stdDev, mid: sma, lower: sma - mult * stdDev };
+    }
+
+    // ================= 核心打分引擎 (右侧防飞刀版) =================
+    function evaluateCoin(k15, k5) {
+        const closed15m = k15.slice(0, -1);
+        const closes15m = closed15m.map(k => k.c);
         
-        const closed1h = k1h.slice(0, -1);
-        const closes1h = closed1h.map(k => k.c);
-        const last1h = closed1h[closed1h.length - 1];
+        const closed5m = k5.slice(0, -1);
+        const closes5m = closed5m.map(k => k.c);
+        const lastK5 = closed5m[closed5m.length - 1];
+        const cur15m = k15[k15.length - 1]; 
 
-        // ================= 🚨 剔除横盘 & 妖币过滤 =================
-        const recent20_4h = closed4h.slice(-20);
-        const maxH = Math.max(...recent20_4h.map(k => k.h));
-        const minL = Math.min(...recent20_4h.map(k => k.l));
-        const totalAmp = (maxH - minL) / minL * 100;
+        // ================= 🚨 照妖镜1：近期插针过滤 =================
+        for (let i = closed15m.length - 10; i < closed15m.length; i++) {
+            if (i < 0) continue;
+            const amp = (closed15m[i].h - closed15m[i].l) / closed15m[i].l * 100;
+            if (amp > 6) return null;
+        }
+
+        // ================= 🚨 照妖镜2：当前 5m 振幅过滤 =================
+        const cur5mAmp = (k5[k5.length - 1].h - k5[k5.length - 1].l) / k5[k5.length - 1].l * 100;
+        if (cur5mAmp > 3) return null;
+
+        const ema20_15 = getEMAArray(closes15m, 20);
+        const macd15 = calcMACD(closes15m);
+        const boll15 = calcBOLL(closes15m);
+        const macd5 = calcMACD(closes5m);
+        const boll5 = calcBOLL(closes5m);
+        const rsi5 = calcRSI(closes5m, 14);
+
+        // 严重乖离过滤
+        const currentPrice = lastK5.c;
+        const ema20Val = ema20_15[ema20_15.length-1];
+        if (Math.abs((currentPrice - ema20Val) / ema20Val) * 100 > 5) return null;
+
+        const prev5vol = closed5m.slice(-6, -1);
+        const avgVol = prev5vol.reduce((sum, k) => sum + k.v, 0) / 5;
+        const volRatio = avgVol > 0 ? lastK5.v / avgVol : 1;
+
+        const body5 = Math.abs(lastK5.c - lastK5.o);
+        const lowerWick5 = Math.min(lastK5.c, lastK5.o) - lastK5.l;
+        const upperWick5 = lastK5.h - Math.max(lastK5.c, lastK5.o);
         
-        if (totalAmp < 5) return null; // 横盘
-        if (totalAmp > 40) return null; // 妖币
-
-        const ema20_4h = getEMAArray(closes4h, 20);
-        const macd4h = calcMACD(closes4h);
-        const rsi4h = calcRSI(closes4h, 14);
-        const rsi1h = calcRSI(closes1h, 14);
-
-        const curPrice = k4h[k4h.length - 1].c;
-        const ema20Val = ema20_4h[ema20_4h.length - 1];
-        
-        const ema20_up = ema20Val > ema20_4h[ema20_4h.length - 2];
-        const ema20_down = ema20Val < ema20_4h[ema20_4h.length - 2];
-
         let longScore = 0;
         let longReasons = [];
         let shortScore = 0;
         let shortReasons = [];
 
-        // 做多
-        if (curPrice > ema20Val && ema20_up) {
-            longScore += 30; longReasons.push("4H价格在EMA20上且均线向上");
-            if (macd4h > 0) { longScore += 20; longReasons.push("4H MACD零轴上"); }
-            if (rsi4h > 50 && rsi4h < 75) { longScore += 10; longReasons.push(`4H RSI强势(${rsi4h.toFixed(1)})`); }
-            
-            // 放宽1H入场条件：只要RSI不超买，且有收阴迹象
-            if (rsi1h < 50 || last1h.c < last1h.o) { longScore += 20; longReasons.push("1H级别动能放缓(买点)"); }
-            if (chgToday > 0) { longScore += 10; longReasons.push("今日趋势为正"); }
+        // 防飞刀：大阴线/大阳线拉黑
+        if ((lastK5.o - lastK5.c) / lastK5.o * 100 > 0.8) longScore = -999;
+        if ((lastK5.c - lastK5.o) / lastK5.o * 100 > 0.8) shortScore = -999;
+
+        // 做多打分
+        if (longScore > -999) {
+            if (closes15m[closes15m.length-1] > ema20_15[ema20_15.length-1]) { longScore += 15; longReasons.push("15m价格在EMA20上"); }
+            if (macd15 > 0) { longScore += 15; longReasons.push("15m MACD多头"); }
+            if (closes15m[closes15m.length-1] > boll15.mid) { longScore += 10; longReasons.push("15m运行于中轨上"); }
+            if (macd5 > 0) { longScore += 10; longReasons.push("5m MACD多头"); }
+            if (lastK5.c > boll5.mid) { longScore += 10; longReasons.push("5m价格在中轨上"); }
+
+            if (rsi5 < 40 && lastK5.c > lastK5.o) { longScore += 20; longReasons.push(`5m RSI超卖且收阳`); }
+            if (lowerWick5 > body5 * 1.5 && lastK5.c > lastK5.o) { longScore += 20; longReasons.push("5m长下影探底回升"); }
+            if (volRatio > 1.5 && lastK5.c > lastK5.o) { longScore += 10; longReasons.push("5m放量阳线"); }
         }
 
-        // 做空
-        if (curPrice < ema20Val && ema20_down) {
-            shortScore += 30; shortReasons.push("4H价格在EMA20下且均线向下");
-            if (macd4h < 0) { shortScore += 20; shortReasons.push("4H MACD零轴下"); }
-            if (rsi4h < 50 && rsi4h > 25) { shortScore += 10; shortReasons.push(`4H RSI弱势(${rsi4h.toFixed(1)})`); }
-            
-            // 放宽1H入场条件：只要RSI不超卖，且有收阳迹象
-            if (rsi1h > 50 || last1h.c > last1h.o) { shortScore += 20; shortReasons.push("1H级别动能放缓(空点)"); }
-            if (chgToday < 0) { shortScore += 10; shortReasons.push("今日趋势为负"); }
+        // 做空打分
+        if (shortScore > -999) {
+            if (closes15m[closes15m.length-1] < ema20_15[ema20_15.length-1]) { shortScore += 15; shortReasons.push("15m价格在EMA20下"); }
+            if (macd15 < 0) { shortScore += 15; shortReasons.push("15m MACD空头"); }
+            if (closes15m[closes15m.length-1] < boll15.mid) { shortScore += 10; shortReasons.push("15m运行于中轨下"); }
+            if (macd5 < 0) { shortScore += 10; shortReasons.push("5m MACD空头"); }
+            if (lastK5.c < boll5.mid) { shortScore += 10; shortReasons.push("5m价格在中轨下"); }
+
+            if (rsi5 > 60 && lastK5.c < lastK5.o) { shortScore += 20; shortReasons.push(`5m RSI超买且收阴`); }
+            if (upperWick5 > body5 * 1.5 && lastK5.c < lastK5.o) { shortScore += 20; shortReasons.push("5m长上影冲高回落"); }
+            if (volRatio > 1.5 && lastK5.c < lastK5.o) { shortScore += 10; shortReasons.push("5m放量阴线"); }
         }
 
         return { 
             longScore: Math.min(100, longScore), longReasons,
             shortScore: Math.min(100, shortScore), shortReasons,
-            rsi4h, totalAmp, cur4hK, last1h
+            rsi5, lastK5
         };
     }
 
@@ -301,12 +328,8 @@
             
             return tickerRes.data
                 .filter(t => validInsts.has(t.instId))
-                .map(t => {
-                    const last = +t.last;
-                    const todayOpen = +t.sodUtc8 || +t.open24h; 
-                    return { instId: t.instId, vol: +t.volCcy24h || 0, chgToday: todayOpen > 0 ? (last - todayOpen) / todayOpen * 100 : 0 };
-                })
-                .sort((a, b) => b.vol - a.vol).slice(0, 200); // 改回 200 个币
+                .map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 }))
+                .sort((a, b) => b.vol - a.vol).slice(0, 200); 
         } finally { clearTimeout(timer); }
     }
 
@@ -324,7 +347,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 4H趋势推演中...";
+        document.getElementById('btnText').innerText = "⏳ 寻找右侧买点中...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -335,45 +358,43 @@
             const targetCoins = await fetchTop200Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在过滤横盘及妖币，推演200个币的4H趋势...`, 5);
+            updateProgress(`正在对前200币进行防飞刀过滤...`, 5);
             let done = 0;
-            const chunkSize = 8; // 200个币，降低并发防限流
+            const chunkSize = 10;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k4h, k1h] = await Promise.all([
-                            fetchCandles(coin.instId, '4H', 30), 
-                            fetchCandles(coin.instId, '1H', 30)
+                        const [k15, k5] = await Promise.all([
+                            fetchCandles(coin.instId, '15m', 30), 
+                            fetchCandles(coin.instId, '5m', 30)
                         ]);
                         
-                        if (k4h.length < 25 || k1h.length < 25) return;
+                        if (k15.length < 25 || k5.length < 25) return;
 
-                        const result = evaluateCoin(k4h, k1h, coin.chgToday);
+                        const result = evaluateCoin(k15, k5);
                         if (!result) return; 
 
-                        const entryPrice = result.cur4hK.c;
+                        const entryPrice = result.lastK5.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 门槛 60 分
+                        // 60分门槛，1:2.5盈亏比
                         if (result.longScore >= 60) {
-                            const recent1h = k1h.slice(-5, -1);
-                            const minL1h = Math.min(...recent1h.map(k => k.l));
-                            sl = minL1h * (1 - 0.005); 
+                            sl = result.lastK5.l * (1 - 0.002);
                             risk = (entryPrice - sl) / entryPrice;
-                            if (risk > 0.06) return; 
-                            tp = entryPrice + (entryPrice - sl) * 3; 
+                            if (risk > 0.02) return; 
+                            if (risk < 0.003) sl = entryPrice * (1 - 0.003);
+                            tp = entryPrice + (entryPrice - sl) * 2.5;
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2) });
                         }
 
                         if (result.shortScore >= 60) {
-                            const recent1h = k1h.slice(-5, -1);
-                            const maxH1h = Math.max(...recent1h.map(k => k.h));
-                            sl = maxH1h * (1 + 0.005);
+                            sl = result.lastK5.h * (1 + 0.002);
                             risk = (sl - entryPrice) / entryPrice;
-                            if (risk > 0.06) return;
-                            tp = entryPrice - (sl - entryPrice) * 3;
+                            if (risk > 0.02) return;
+                            if (risk < 0.003) sl = entryPrice * (1 + 0.003);
+                            tp = entryPrice - (sl - entryPrice) * 2.5;
                             shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2) });
                         }
 
@@ -401,18 +422,11 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 200币 4H趋势推演完成", 100);
+        updateProgress("✅ 扫描完成，已过滤妖币", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
         let html = '';
-
-        html += `
-            <div class="warning-box">
-                ⚠️ <b>4H级别交易纪律：</b><br>
-                请将杠杆降至 <b>3x - 5x</b>！此策略止损空间较大，必须严格挂好止损单，切勿扛单！
-            </div>
-        `;
 
         let bestPick = null;
         let bestType = '';
@@ -432,7 +446,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🏆 4H 最佳趋势推荐</span>
+                        <span>🏆 未来1小时 黄金推荐</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
@@ -446,35 +460,33 @@
                             <span class="val">${formatPrice(bestPick.price)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">波段止损</span>
+                            <span class="label">极窄止损</span>
                             <span class="val sl">${formatPrice(bestPick.sl)} (-${bestPick.risk}%)</span>
                         </div>
                         <div class="trade-item">
                             <span class="label">目标止盈</span>
-                            <span class="val tp">${formatPrice(bestPick.tp)} (1:3)</span>
+                            <span class="val tp">${formatPrice(bestPick.tp)} (1:2.5)</span>
                         </div>
                     </div>
                     
                     <div class="best-reasons">
-                        <b>趋势触发逻辑：</b><br>
+                        <b>触发逻辑：</b><br>
                         ${reasons.map(r => `✔ ${r}`).join('<br>')}
-                        <br><br>
-                        <span style="color:var(--sub); font-size:12px;">4H振幅：${bestPick.totalAmp.toFixed(1)}% (已确认非横盘/非妖币)</span>
                     </div>
                 </div>
             `;
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无完美 4H 趋势机会<br>
-                    全市场都在横盘震荡，或指标未形成共振。<br>
-                    <b>建议：空仓等待大行情启动！</b>
+                    ⚠️ 当前无完美进场时机<br>
+                    各项指标尚未形成共振，或微观结构未出现右侧确认。<br>
+                    <b>建议：空仓等待，切勿强行开单。</b>
                 </div>
             `;
         }
 
-        html += `<div class="section-title long">🟢 4H 多头备选 (Top 3)</div>`;
-        if (longs.length === 0) html += `<div class="empty-tip">当前无符合的做多标的。</div>`;
+        html += `<div class="section-title long" style="margin-top:10px;">🟢 做多备选清单 (Top 3)</div>`;
+        if (longs.length === 0) html += `<div class="empty-tip">当前无符合结构的做多标的。</div>`;
         longs.slice(0, 3).forEach((item, index) => {
             html += `
                 <details class="long-item">
@@ -484,8 +496,8 @@
                     </summary>
                     <div class="detail-content">
                         <div class="analysis-row">
-                            <span class="analysis-label">4H RSI / 振幅</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.rsi4h.toFixed(1)} / ${item.totalAmp.toFixed(1)}%</span>
+                            <span class="analysis-label">5m RSI 极值</span>
+                            <span class="analysis-value" style="color:var(--yellow)">${item.rsi5.toFixed(1)}</span>
                         </div>
                         <div>
                             <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
@@ -495,8 +507,8 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:20px;">🔴 4H 空头备选 (Top 3)</div>`;
-        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合的做空标的。</div>`;
+        html += `<div class="section-title short" style="margin-top:20px;">🔴 做空备选清单 (Top 3)</div>`;
+        if (shorts.length === 0) html += `<div class="empty-tip">当前无符合结构的做空标的。</div>`;
         shorts.slice(0, 3).forEach((item, index) => {
             html += `
                 <details class="short-item">
@@ -506,8 +518,8 @@
                     </summary>
                     <div class="detail-content">
                         <div class="analysis-row">
-                            <span class="analysis-label">4H RSI / 振幅</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.rsi4h.toFixed(1)} / ${item.totalAmp.toFixed(1)}%</span>
+                            <span class="analysis-label">5m RSI 极值</span>
+                            <span class="analysis-value" style="color:var(--yellow)">${item.rsi5.toFixed(1)}</span>
                         </div>
                         <div>
                             <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
