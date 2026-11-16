@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>5m纯裸K - 大K回踩信号 (前100币)</title>
+    <title>15m 纯形态 - 6K容错回踩 (前100币)</title>
     <script>
-        const AUTO_VERSION = '268'; 
+        const AUTO_VERSION = '270'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -87,10 +87,10 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🔨 5m回踩信号 (前100币)</span>
+                <span id="btnText">🔨 15m 容错洗盘形态</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
-                <span id="autoBtnText">⏱️ 5分定时</span>
+                <span id="autoBtnText">⏱️ 15分定时</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪</div>
@@ -104,7 +104,7 @@
     let countdownInterval = null;
     let nextScanTime = 0;
     let isAutoScanning = false;
-    const SCAN_INTERVAL = 5 * 60 * 1000; 
+    const SCAN_INTERVAL = 15 * 60 * 1000; 
 
     function updateProgress(text, percent) {
         document.getElementById('progressText').innerText = text;
@@ -116,7 +116,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🔨 5m回踩信号 (前100币)";
+        document.getElementById('btnText').innerText = "🔨 15m 容错洗盘形态";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -126,7 +126,7 @@
             isAutoScanning = false;
             clearInterval(autoScanInterval); clearInterval(countdownInterval);
             autoBtn.classList.remove('active');
-            autoBtnText.innerText = "⏱️ 5分定时";
+            autoBtnText.innerText = "⏱️ 15分定时";
             updateProgress("已停止自动扫描", 0);
         } else {
             isAutoScanning = true;
@@ -144,73 +144,88 @@
         }
     }
 
-    // ================= 核心打分引擎 (纯 5m 极简回踩) =================
-    function evaluateCoin(k5) {
-        const closed5m = k5.slice(0, -1);
-        const last5m = closed5m[closed5m.length - 1];
-        const prev5m = closed5m[closed5m.length - 2];
+    // ================= 核心打分引擎 (15m 容错回踩) =================
+    function evaluateCoin(k15) {
+        const closed15m = k15.slice(0, -1);
+        if (closed15m.length < 6) return null;
         
-        // 计算最近 20 根的平均实体大小
-        const bodies = closed5m.slice(-20).map(k => Math.abs(k.c - k.o));
-        const avgBody = bodies.reduce((a, b) => a + b, 0) / bodies.length;
+        const recent6 = closed15m.slice(-6);
+        const lastK = recent6[5]; // 最新闭合的信号K线
         
-        // 信号 K 线形态
-        const lastBody = Math.abs(last5m.c - last5m.o);
-        const upperWick = last5m.h - Math.max(last5m.o, last5m.c);
-        const lowerWick = Math.min(last5m.o, last5m.c) - last5m.l;
+        // 计算前 5 根的平均实体和平均成交量
+        let totalBody = 0, totalVol = 0;
+        for(let i=0; i<5; i++) {
+            totalBody += Math.abs(recent6[i].c - recent6[i].o);
+            totalVol += recent6[i].v;
+        }
+        const avgBody = totalBody / 5;
+        const avgVol = totalVol / 5;
         
-        // 流星线 (做空信号)
-        const isShootingStar = upperWick > lastBody * 1.5 && last5m.c <= last5m.o + (lastBody * 0.3); 
-        // 锤子线 (做多信号)
-        const isHammer = lowerWick > lastBody * 1.5 && last5m.c >= last5m.o - (lastBody * 0.3);
+        // 判定信号K线 (锤子/流星，不分颜色)
+        const lastBody = Math.abs(lastK.c - lastK.o);
+        const upperWick = lastK.h - Math.max(lastK.o, lastK.c);
+        const lowerWick = Math.min(lastK.o, lastK.c) - lastK.l;
+        
+        const isHammer = (lowerWick > lastBody * 2 && upperWick < lastBody) || (lowerWick > (lastK.h - lastK.l) * 0.6);
+        const isShootingStar = (upperWick > lastBody * 2 && lowerWick < lastBody) || (upperWick > (lastK.h - lastK.l) * 0.6);
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
-        
-        // 往回找“大阴/大阳线”
-        for (let i = 2; i <= 8; i++) {
-            if (closed5m.length <= i) break;
-            const k = closed5m[closed5m.length - 1 - i]; // 定海神针
-            const body = Math.abs(k.c - k.o);
+
+        for (let i = 0; i < 5; i++) {
+            const anchorK = recent6[i];
+            const body = Math.abs(anchorK.c - anchorK.o);
+            const range = anchorK.h - anchorK.l; // 大K线的总高度
             
-            // ---- 找做空机会 (大阴线 -> 绿线回踩 -> 流星线) ----
-            if (shortScore === 0 && k.c < k.o && body > avgBody * 1.8) {
-                // 检查回踩过程：这期间不能突破大阴线的最高点
-                let isValidPullback = true;
-                for (let j = i - 1; j >= 1; j--) {
-                    const midK = closed5m[closed5m.length - 1 - j];
-                    if (midK.h > k.o) { isValidPullback = false; break; } // 反弹超过了开盘价就不算弱势回踩
+            // ---- 寻找做多机会 ----
+            // 条件：大阳线 (放量) + 后续跌破不超2倍 + 锤子线
+            if (longScore === 0 && anchorK.c > anchorK.o && body > avgBody * 1.5 && anchorK.v > avgVol * 1.5) {
+                let lowestSinceAnchor = lastK.l;
+                for (let j = i + 1; j < 6; j++) {
+                    if (recent6[j].l < lowestSinceAnchor) lowestSinceAnchor = recent6[j].l;
                 }
                 
-                // 如果满足：有回踩 + 收出流星线 + 没破大阴线高点
-                if (isValidPullback && isShootingStar && last5m.h < k.h) {
-                    shortScore = 100;
-                    shortReasons.push(`前方第 ${i+1} 根为放量大阴线 (空头基调)`);
-                    shortReasons.push("反弹未突破大阴线开盘价");
-                    shortReasons.push("当前收出流星线，确认多头无力");
+                // 容错机制：最低点不能低于 (大阳线最低点 - 大阳线高度*2)
+                const toleranceBottom = anchorK.l - (range * 2);
+                
+                if (lowestSinceAnchor > toleranceBottom && isHammer) {
+                    longScore = 100;
+                    longReasons.push(`前第 ${6-i} 根为放量大阳线 (定基调)`);
+                    if (lowestSinceAnchor < anchorK.l) {
+                        longReasons.push(`回踩出现假跌破，未超过2倍高度 (容错洗盘)`);
+                    } else {
+                        longReasons.push(`回踩未破大阳线最低点`);
+                    }
+                    longReasons.push(`最新收出锤子线/长下影信号`);
                 }
             }
             
-            // ---- 找做多机会 (大阳线 -> 红线回踩 -> 锤子线) ----
-            if (longScore === 0 && k.c > k.o && body > avgBody * 1.8) {
-                let isValidPullback = true;
-                for (let j = i - 1; j >= 1; j--) {
-                    const midK = closed5m[closed5m.length - 1 - j];
-                    if (midK.l < k.o) { isValidPullback = false; break; } // 回撤跌破了开盘价就不算强势回踩
+            // ---- 寻找做空机会 ----
+            // 条件：大阴线 (放量) + 后续突破不超2倍 + 流星线
+            if (shortScore === 0 && anchorK.c < anchorK.o && body > avgBody * 1.5 && anchorK.v > avgVol * 1.5) {
+                let highestSinceAnchor = lastK.h;
+                for (let j = i + 1; j < 6; j++) {
+                    if (recent6[j].h > highestSinceAnchor) highestSinceAnchor = recent6[j].h;
                 }
                 
-                // 如果满足：有回踩 + 收出锤子线 + 没破大阳线低点
-                if (isValidPullback && isHammer && last5m.l > k.l) {
-                    longScore = 100;
-                    longReasons.push(`前方第 ${i+1} 根为放量大阳线 (多头基调)`);
-                    longReasons.push("回调未跌破大阳线开盘价");
-                    longReasons.push("当前收出锤子线，确认空头衰竭");
+                // 容错机制：最高点不能高于 (大阴线最高点 + 大阴线高度*2)
+                const toleranceTop = anchorK.h + (range * 2);
+                
+                if (highestSinceAnchor < toleranceTop && isShootingStar) {
+                    shortScore = 100;
+                    shortReasons.push(`前第 ${6-i} 根为放量大阴线 (定基调)`);
+                    if (highestSinceAnchor > anchorK.h) {
+                        shortReasons.push(`反抽出现假突破，未超过2倍高度 (容错诱多)`);
+                    } else {
+                        shortReasons.push(`反抽未破大阴线最高点`);
+                    }
+                    shortReasons.push(`最新收出流星线/长上影信号`);
                 }
             }
         }
 
         return { 
-            longScore, longReasons, shortScore, shortReasons, last5m
+            longScore, longReasons, shortScore, shortReasons, lastK
         };
     }
 
@@ -250,7 +265,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 扫描 5m 大K回踩...";
+        document.getElementById('btnText').innerText = "⏳ 扫描容错形态...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -261,7 +276,7 @@
             const targetCoins = await fetchTop100Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在显微镜下找形态...`, 5);
+            updateProgress(`寻找15m洗盘反转形态...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -269,25 +284,28 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k5, realMaxLever] = await Promise.all([
-                            fetchCandles(coin.instId, '5m', 30),
+                        const [k15, realMaxLever] = await Promise.all([
+                            fetchCandles(coin.instId, '15m', 30),
                             fetchMaxLever(coin.instId)
                         ]);
                         
-                        if (k5.length < 25) return;
+                        if (k15.length < 25) return;
 
-                        const result = evaluateCoin(k5);
-                        const entryPrice = result.last5m.c;
+                        const result = evaluateCoin(k15);
+                        if (!result) return;
+
+                        const entryPrice = result.lastK.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 做多入场 (锤子线最低点下方0.1%止损)
+                        // 做多入场
                         if (result.longScore === 100) {
-                            sl = result.last5m.l * 0.999; 
+                            // 止损设在最新锤子线的最低点下方 0.1%
+                            sl = result.lastK.l * 0.999; 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            if (risk > 0.03 || risk < 0.002) return; // 止损太小防插针，太大不划算
+                            if (risk > 0.03 || risk < 0.002) return; 
                             
-                            let currentRR = 3; // 盈亏比 1:3
+                            let currentRR = 3; 
                             tp = entryPrice + (entryPrice - sl) * currentRR; 
                             
                             let suggestedLeverage = Math.round(30 / (risk * 100));
@@ -297,9 +315,9 @@
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
-                        // 做空入场 (流星线最高点上方0.1%止损)
+                        // 做空入场
                         if (result.shortScore === 100) {
-                            sl = result.last5m.h * 1.001;
+                            sl = result.lastK.h * 1.001;
                             risk = (sl - entryPrice) / entryPrice;
                             
                             if (risk > 0.03 || risk < 0.002) return;
@@ -320,7 +338,7 @@
                 }));
             }
 
-            longResults.sort((a, b) => a.risk - b.risk); // 止损越窄越靠前
+            longResults.sort((a, b) => a.risk - b.risk); 
             shortResults.sort((a, b) => a.risk - b.risk);
 
             renderResults(longResults, shortResults);
@@ -338,7 +356,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 完美形态信号生成", 100);
+        updateProgress("✅ 容错形态信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -364,7 +382,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🔨 大K回踩确认 (1:${bestPick.rr})</span>
+                        <span>🔨 容错洗盘确认 (1:${bestPick.rr})</span>
                         <span class="badge">形态满分</span>
                     </div>
                     <div class="best-coin">
@@ -392,7 +410,7 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (纯形态：止损仅 ${bestPick.risk}%，跌破影线即认错)
+                            (允许假跌破，容错空间大，止损设在信号K线影线)
                         </div>
                     </div>
                     
@@ -405,8 +423,8 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无 5m 裸K回踩机会<br>
-                    (条件：先有大实体K线，后收锤子/流星线，当前暂未出现，空仓等待！)
+                    ⚠️ 当前无 15m 容错回踩机会<br>
+                    (要求近6根内：放量大K + 回踩未超2倍 + 现收锤子/流星，暂未出现)
                 </div>
             `;
         }
