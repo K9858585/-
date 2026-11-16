@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>半小时精准切入 - 5m共振突破 (v262)</title>
+    <title>4H大势 + 5m回踩确认 (30%止损/绝不接飞刀)</title>
     <script>
-        const AUTO_VERSION = '262'; 
+        const AUTO_VERSION = '265'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -15,7 +15,6 @@
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
-
         #top-bar { background: var(--panel); padding: 20px; border-bottom: 1px solid #2a2e39; display: flex; flex-direction: column; align-items: center; gap: 15px; z-index: 10; }
         .btn-container { width: 100%; max-width: 400px; display: flex; gap: 10px; }
         .scan-btn {
@@ -28,12 +27,10 @@
         .scan-btn:disabled { background: #363a45; color: #848e9c; box-shadow: none; cursor: not-allowed; }
         .auto-btn { background: linear-gradient(135deg, #fcd535, #f6465d); box-shadow: 0 6px 20px rgba(246,70,93,0.4); }
         .auto-btn.active { background: #2a2e39; color: var(--yellow); box-shadow: none; border: 1px solid var(--yellow); }
-
         .progress-text { font-size: 13px; color: var(--yellow); height: 20px; text-align: center; font-weight: bold; }
         .progress-bar-bg { width: 100%; height: 4px; background: #2a2e39; border-radius: 2px; overflow: hidden; display: none; }
         .progress-bar { height: 100%; width: 0%; background: var(--blue); transition: width 0.3s; }
         #result-area { flex: 1; padding: 15px; padding-bottom: 100px; display: none; flex-direction: column; gap: 15px; }
-
         .best-pick-card {
             background: linear-gradient(145deg, #1a2333, #12161f);
             border: 2px solid var(--yellow);
@@ -42,36 +39,25 @@
         }
         .best-pick-card.long { border-color: var(--up); box-shadow: 0 10px 30px rgba(14,203,129,0.15); }
         .best-pick-card.short { border-color: var(--down); box-shadow: 0 10px 30px rgba(246,70,93,0.15); }
-        
         .best-title { font-size: 16px; font-weight: bold; color: var(--yellow); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;}
         .best-title .badge { font-size: 12px; padding: 2px 8px; border-radius: 4px; background: rgba(252,213,53,0.2); }
         .best-coin { font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;}
         .best-coin .dir { font-size: 16px; padding: 4px 12px; border-radius: 20px; font-weight: bold;}
         .best-coin .dir.long { background: rgba(14,203,129,0.2); color: var(--up); }
         .best-coin .dir.short { background: rgba(246,70,93,0.2); color: var(--down); }
-
         .trade-box { display: flex; justify-content: space-between; background: #12161f; padding: 15px 12px; border-radius: 8px; border: 1px solid #2a2e39; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;}
         .trade-item { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 30%;}
         .trade-item .label { font-size: 12px; color: var(--sub); }
         .trade-item .val { font-size: 15px; font-weight: bold; color: #fff;}
         .trade-item .val.tp { color: var(--up); }
         .trade-item .val.sl { color: var(--down); }
-        
         .trade-item.full-width { width: 100%; border-top: 1px dashed #2a2e39; margin-top: 5px; padding-top: 12px; flex-direction: row; justify-content: space-between; align-items: center;}
         .trade-item .val.lev { color: var(--yellow); font-size: 22px; text-shadow: 0 0 10px rgba(252,213,53,0.3); text-align: center; flex: 1;}
-
         .best-reasons { font-size: 13px; color: #b2b5be; line-height: 1.6; background: rgba(18,22,31,0.5); padding: 10px; border-radius: 8px; margin-bottom: 10px;}
         .best-reasons b { color: #fff; }
-
-        .breakeven-tip {
-            font-size: 12px; color: #12161f; background: #fcd535; 
-            padding: 8px 12px; border-radius: 6px; font-weight: bold;
-            display: flex; align-items: center; gap: 6px; margin-top: 10px;
-        }
         .section-title { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .section-title.long { color: var(--up); }
         .section-title.short { color: var(--down); }
-
         details { background: var(--panel); border-radius: 10px; margin-bottom: 12px; overflow: hidden; border: 1px solid #2a2e39; border-left-width: 4px; transition: all 0.3s; }
         details.long-item { border-left-color: var(--up); }
         details.short-item { border-left-color: var(--down); }
@@ -101,7 +87,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">⚡ 5m均线突破 (半小时极速版)</span>
+                <span id="btnText">🎯 4H顺势 + 5m回踩确认</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -130,7 +116,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "⚡ 5m均线突破 (半小时极速版)";
+        document.getElementById('btnText').innerText = "🎯 4H顺势 + 5m回踩确认";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -167,10 +153,10 @@
         return result;
     }
 
-    // ================= 核心打分引擎 (均线共振突破) =================
-    function evaluateCoin(k1h, k15, k5) {
-        const closed1h = k1h.slice(0, -1);
-        const closes1h = closed1h.map(k => k.c);
+    // ================= 核心打分引擎 (回踩确认版) =================
+    function evaluateCoin(k4h, k15, k5) {
+        const closed4h = k4h.slice(0, -1);
+        const closes4h = closed4h.map(k => k.c);
         
         const closed15m = k15.slice(0, -1);
         const closes15m = closed15m.map(k => k.c);
@@ -178,51 +164,72 @@
         const closed5m = k5.slice(0, -1);
         const last5m = closed5m[closed5m.length - 1];
         
-        // 1. 1H 大势过滤 (绝不逆势接飞刀)
-        const ema20_1h = getEMAArray(closes1h, 20);
-        const ema20Val = ema20_1h[ema20_1h.length - 1];
-        const is1HBull = closes1h[closes1h.length-1] > ema20Val;
-        const is1HBear = closes1h[closes1h.length-1] < ema20Val;
+        // 1. 4H 大趋势绝对过滤
+        const ema20_4h = getEMAArray(closes4h, 20);
+        const is4HBull = closes4h[closes4h.length-1] > ema20_4h[ema20_4h.length - 1];
+        const is4HBear = closes4h[closes4h.length-1] < ema20_4h[ema20_4h.length - 1];
 
-        // 2. 15m 短期均线排列 (必须有短期趋势)
+        // 2. 15m 均线发散排列
         const ema10_15m = getEMAArray(closes15m, 10);
         const ema20_15m = getEMAArray(closes15m, 20);
-        const is15mBullTrend = ema10_15m[ema10_15m.length-1] > ema20_15m[ema20_15m.length-1];
-        const is15mBearTrend = ema10_15m[ema10_15m.length-1] < ema20_15m[ema20_15m.length-1];
+        const is15mBullAlign = ema10_15m[ema10_15m.length-1] > ema20_15m[ema20_15m.length-1];
+        const is15mBearAlign = ema10_15m[ema10_15m.length-1] < ema20_15m[ema20_15m.length-1];
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
 
-        // 3. 5m 结构突破判定
-        // 做多：当前 5m 收盘价，突破了前 3 根 5m K 线的最高点 (高点突破)
-        const prev3High5m = Math.max(...closed5m.slice(-4, -1).map(k => k.h));
-        const prev3Low5m = Math.min(...closed5m.slice(-4, -1).map(k => k.l));
-        
-        const is5mBreakoutLong = last5m.c > prev3High5m && last5m.c > last5m.o;
-        const is5mBreakoutShort = last5m.c < prev3Low5m && last5m.c < last5m.o;
+        // 3. 【防接飞刀核心】：5m 回踩确认算法
+        // 取最近 10 根 5m K 线
+        const recent5m = closed5m.slice(-10);
+        const ema20_5m = getEMAArray(closed5m, 20);
+        const curEma20_5m = ema20_5m[ema20_5m.length - 1];
 
-        // 4. 5m 放量确认 (爆发力的源泉)
-        const avgVol5 = (closed5m[closed5m.length-2].v + closed5m[closed5m.length-3].v + closed5m[closed5m.length-4].v) / 3;
-        const isVolSpike = last5m.v > avgVol5 * 1.5;
+        // 寻找“定海神针”（过去 10 根里的最大实体阳线/阴线）
+        let maxBody = 0, anchorIndex = -1, isAnchorBull = false;
+        recent5m.forEach((k, idx) => {
+            const body = Math.abs(k.c - k.o);
+            if (body > maxBody) {
+                maxBody = body;
+                anchorIndex = idx;
+                isAnchorBull = k.c > k.o;
+            }
+        });
 
-        if (is1HBull) {
-            longScore += 40; longReasons.push("1H大势看多");
-            if (is15mBullTrend) { longScore += 20; longReasons.push("15m短期均线多头"); }
-            if (is5mBreakoutLong) { longScore += 20; longReasons.push("5m突破前3K高点"); }
-            if (isVolSpike) { longScore += 20; longReasons.push("5m放量1.5倍"); }
+        const anchorK = recent5m[anchorIndex];
+
+        // 做多回踩逻辑：
+        // A. 定海神针是阳线，且发生在过去的 3-8 根 K 线之间（有足够时间回踩）
+        // B. 当前价格回踩，但没有跌破定海神针的最低点
+        // C. 当前 K 线是止跌小阳线/十字星，且靠近 5m EMA20
+        const isLongPullback = isAnchorBull && (anchorIndex > 0 && anchorIndex < 8) &&
+                                (last5m.c > anchorK.l) && 
+                                (last5m.c >= last5m.o) && // 当前收阳或十字星
+                                (last5m.l <= curEma20_5m * 1.002); // 回踩到均线附近
+
+        // 做空回踩逻辑（同理）：
+        const isShortPullback = !isAnchorBull && (anchorIndex > 0 && anchorIndex < 8) &&
+                                 (last5m.c < anchorK.h) && 
+                                 (last5m.c <= last5m.o) && 
+                                 (last5m.h >= curEma20_5m * 0.998);
+
+        if (is4HBull && is15mBullAlign) {
+            longScore += 60; longReasons.push("4H大势看多 + 15m多头排列");
+            if (isLongPullback) {
+                longScore += 40; longReasons.push("5m回踩EMA20企稳 (不接飞刀)");
+            }
         }
 
-        if (is1HBear) {
-            shortScore += 40; shortReasons.push("1H大势看空");
-            if (is15mBearTrend) { shortScore += 20; shortReasons.push("15m短期均线空头"); }
-            if (is5mBreakoutShort) { shortScore += 20; shortReasons.push("5m跌破前3K低点"); }
-            if (isVolSpike) { shortScore += 20; shortReasons.push("5m放量1.5倍"); }
+        if (is4HBear && is15mBearAlign) {
+            shortScore += 60; shortReasons.push("4H大势看空 + 15m空头排列");
+            if (isShortPullback) {
+                shortScore += 40; shortReasons.push("5m反抽EMA20遇阻 (不接飞刀)");
+            }
         }
 
         return { 
             longScore: Math.min(100, longScore), longReasons,
             shortScore: Math.min(100, shortScore), shortReasons,
-            last5m
+            last5m, anchorK
         };
     }
 
@@ -262,7 +269,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 寻找精准突破点...";
+        document.getElementById('btnText').innerText = "⏳ 寻找右侧回踩确认点...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -273,7 +280,7 @@
             const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在计算 5m 突破动能...`, 5);
+            updateProgress(`正在精准测算 30% 止损杠杆...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -281,52 +288,48 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k1h, k15, k5, realMaxLever] = await Promise.all([
-                            fetchCandles(coin.instId, '1H', 30), 
+                        const [k4h, k15, k5, realMaxLever] = await Promise.all([
+                            fetchCandles(coin.instId, '4H', 30), 
                             fetchCandles(coin.instId, '15m', 30),
                             fetchCandles(coin.instId, '5m', 30),
                             fetchMaxLever(coin.instId)
                         ]);
                         
-                        if (k1h.length < 25 || k15.length < 25 || k5.length < 25) return;
+                        if (k4h.length < 25 || k15.length < 25 || k5.length < 25) return;
 
-                        const result = evaluateCoin(k1h, k15, k5);
+                        const result = evaluateCoin(k4h, k15, k5);
                         if (!result) return; 
 
                         const entryPrice = result.last5m.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        if (result.longScore >= 80) {
-                            // 止损：设在前 3 根 5m K 线的最低点下方
-                            const prev3Low = Math.min(...k5.slice(-4, -1).map(k => k.l));
-                            sl = prev3Low * 0.999; // 加一点缓冲
+                        if (result.longScore >= 100) { // 必须100分满分才推荐
+                            // 止损：设在当前回踩K线的最低点，或者定海神针的最低点(取较高者，防守更窄)
+                            sl = Math.max(result.last5m.l, result.anchorK.l) * 0.999; 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            // 半小时打法，止损限制在 0.3% ~ 0.8%
-                            if (risk > 0.008 || risk < 0.003) return; 
+                            if (risk > 0.03 || risk < 0.003) return; 
                             
-                            // 极速盈亏比：1:2
-                            let currentRR = 2;
+                            let currentRR = 3; // 1:3 盈亏比
                             tp = entryPrice + (entryPrice - sl) * currentRR; 
                             
-                            let suggestedLeverage = Math.round(10 / (risk * 100));
+                            let suggestedLeverage = Math.round(30 / (risk * 100));
                             suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
                             suggestedLeverage = Math.max(3, suggestedLeverage);
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
-                        if (result.shortScore >= 80) {
-                            const prev3High = Math.max(...k5.slice(-4, -1).map(k => k.h));
-                            sl = prev3High * 1.001;
+                        if (result.shortScore >= 100) {
+                            sl = Math.min(result.last5m.h, result.anchorK.h) * 1.001;
                             risk = (sl - entryPrice) / entryPrice;
                             
-                            if (risk > 0.008 || risk < 0.003) return;
+                            if (risk > 0.03 || risk < 0.003) return;
                             
-                            let currentRR = 2;
+                            let currentRR = 3;
                             tp = entryPrice - (sl - entryPrice) * currentRR; 
                             
-                            let suggestedLeverage = Math.round(10 / (risk * 100));
+                            let suggestedLeverage = Math.round(30 / (risk * 100));
                             suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
                             suggestedLeverage = Math.max(3, suggestedLeverage);
 
@@ -357,7 +360,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 突破信号生成", 100);
+        updateProgress("✅ 精准回踩信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -384,7 +387,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>⚡ 半小时突破 (1:2)</span>
+                        <span>🏆 回踩确认版 (1:${bestPick.rr})</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
@@ -394,7 +397,7 @@
                     
                     <div class="trade-box">
                         <div class="trade-item">
-                            <span class="label">市价进场</span>
+                            <span class="label">回踩进场</span>
                             <span class="val">${formatPrice(bestPick.price)}</span>
                         </div>
                         <div class="trade-item">
@@ -412,21 +415,22 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (止损极窄 ${bestPick.risk}%，如 30 分钟内未达标直接平仓)
+                            (右侧确认进场，止损仅 ${bestPick.risk}%，已按 30% 反推杠杆)
                         </div>
                     </div>
                     
                     <div class="best-reasons" style="margin-top: 10px;">
-                        <b>突破动能逻辑：</b><br>
+                        <b>进场逻辑：</b><br>
                         ${reasons.map(r => `✔ ${r}`).join('<br>')}
+                        <br>✔ 止损设在结构低点之下，绝不扛单
                     </div>
                 </div>
             `;
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无 5m 均线共振突破机会<br>
-                    (不接飞刀，必须有 1H 趋势 + 15m 排列 + 5m 放量突破，空仓等待！)
+                    ⚠️ 当前无右侧回踩确认机会<br>
+                    (必须等大阳/大阴线之后的缩量回踩确认，绝不接飞刀，空仓等待！)
                 </div>
             `;
         }
