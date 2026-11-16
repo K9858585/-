@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>15m 纯形态 - 过滤横盘 / 收盘确认 (前50币)</title>
+    <title>15m 纯形态 - 强制洗盘过滤 (前50币)</title>
     <script>
-        const AUTO_VERSION = '271'; 
+        const AUTO_VERSION = '272'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -87,7 +87,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🔨 15m 纯形态 (过滤横盘)</span>
+                <span id="btnText">🔨 15m 强制洗盘形态</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 15分定时</span>
@@ -116,7 +116,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🔨 15m 纯形态 (过滤横盘)";
+        document.getElementById('btnText').innerText = "🔨 15m 强制洗盘形态";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -144,22 +144,22 @@
         }
     }
 
-    // ================= 核心打分引擎 (过滤横盘 + 容错回踩) =================
+    // ================= 核心打分引擎 (强制洗盘过滤) =================
     function evaluateCoin(k15) {
-        const closed15m = k15.slice(0, -1); // 必须剔除最新未收盘的一根，只看已收盘定型的
+        const closed15m = k15.slice(0, -1); 
         if (closed15m.length < 20) return null;
         
         const recent20 = closed15m.slice(-20);
         const recent6 = closed15m.slice(-6);
-        const lastK = recent6[5]; // 最新的一根收盘K线（信号K线）
+        const lastK = recent6[5]; 
         
-        // 1. 【过滤横盘】：最近 20 根的振幅如果小于 2.5%，说明是死水，直接抛弃
+        // 1. 【过滤死水横盘】
         const maxH = Math.max(...recent20.map(k => k.h));
         const minL = Math.min(...recent20.map(k => k.l));
         const totalAmp = (maxH - minL) / minL * 100;
         if (totalAmp < 2.5) return null;
 
-        // 计算前 5 根的平均实体和平均成交量
+        // 计算前 5 根的均实体和均量
         let totalBody = 0, totalVol = 0;
         for(let i=0; i<5; i++) {
             totalBody += Math.abs(recent6[i].c - recent6[i].o);
@@ -168,63 +168,88 @@
         const avgBody = totalBody / 5;
         const avgVol = totalVol / 5;
         
-        // 2. 判定信号K线 (锤子/流星，不分颜色，要求有长影线)
+        // 2. 判定信号K线 (锤子/流星)
         const lastBody = Math.abs(lastK.c - lastK.o);
         const upperWick = lastK.h - Math.max(lastK.o, lastK.c);
         const lowerWick = Math.min(lastK.o, lastK.c) - lastK.l;
         
-        // 锤子线（下影极长） / 流星线（上影极长）
         const isHammer = (lowerWick > lastBody * 2 && upperWick < lastBody) || (lowerWick > (lastK.h - lastK.l) * 0.6);
         const isShootingStar = (upperWick > lastBody * 2 && lowerWick < lastBody) || (upperWick > (lastK.h - lastK.l) * 0.6);
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
 
-        // 3. 在前 5 根中寻找“定海神针”（大实体 + 放量）
+        // 3. 寻找大K线及随后的强制洗盘
         for (let i = 0; i < 5; i++) {
             const anchorK = recent6[i];
             const body = Math.abs(anchorK.c - anchorK.o);
             const range = anchorK.h - anchorK.l; 
             
             // ---- 寻找做多机会 ----
-            if (longScore === 0 && anchorK.c > anchorK.o && body > avgBody * 1.5 && anchorK.v > avgVol * 1.2) {
+            // 要求：定海神针实体大于均实体 2 倍且放量
+            if (longScore === 0 && anchorK.c > anchorK.o && body > avgBody * 2.0 && anchorK.v > avgVol * 1.2) {
+                
                 let lowestSinceAnchor = lastK.l;
+                let hasStrongPullback = false; // 【新增】：是否出现较大阴线洗盘
+
+                // 检查大阳线之后的 K 线
                 for (let j = i + 1; j < 6; j++) {
-                    if (recent6[j].l < lowestSinceAnchor) lowestSinceAnchor = recent6[j].l;
+                    const checkK = recent6[j];
+                    if (checkK.l < lowestSinceAnchor) lowestSinceAnchor = checkK.l;
+                    
+                    // 如果中间出现了实体大于均实体 1.2 倍的阴线，或者连续两根阴线
+                    const isBearish = checkK.c < checkK.o;
+                    const checkBody = Math.abs(checkK.c - checkK.o);
+                    if (isBearish && checkBody > avgBody * 1.2) {
+                        hasStrongPullback = true;
+                    }
                 }
                 
                 const toleranceBottom = anchorK.l - (range * 2);
                 
-                if (lowestSinceAnchor > toleranceBottom && isHammer) {
+                // 必须满足：有深度洗盘 + 没跌破容错底线 + 最新是锤子线
+                if (hasStrongPullback && lowestSinceAnchor > toleranceBottom && isHammer) {
                     longScore = 100;
                     longReasons.push(`前第 ${6-i} 根为放量大阳线 (定基调)`);
+                    longReasons.push(`中途出现较大阴线回调，洗盘充分`);
                     if (lowestSinceAnchor < anchorK.l) {
-                        longReasons.push(`回踩出现假跌破，未超2倍 (容错洗盘)`);
+                        longReasons.push(`回踩假跌破，未超2倍 (容错诱空)`);
                     } else {
                         longReasons.push(`回踩未破大阳线最低点`);
                     }
-                    longReasons.push(`最新收盘收出锤子线/长下影信号`);
+                    longReasons.push(`最新收出锤子线/长下影信号`);
                 }
             }
             
             // ---- 寻找做空机会 ----
-            if (shortScore === 0 && anchorK.c < anchorK.o && body > avgBody * 1.5 && anchorK.v > avgVol * 1.2) {
+            if (shortScore === 0 && anchorK.c < anchorK.o && body > avgBody * 2.0 && anchorK.v > avgVol * 1.2) {
+                
                 let highestSinceAnchor = lastK.h;
+                let hasStrongPullback = false; // 【新增】：是否出现较大阳线诱多
+
                 for (let j = i + 1; j < 6; j++) {
-                    if (recent6[j].h > highestSinceAnchor) highestSinceAnchor = recent6[j].h;
+                    const checkK = recent6[j];
+                    if (checkK.h > highestSinceAnchor) highestSinceAnchor = checkK.h;
+                    
+                    const isBullish = checkK.c > checkK.o;
+                    const checkBody = Math.abs(checkK.c - checkK.o);
+                    if (isBullish && checkBody > avgBody * 1.2) {
+                        hasStrongPullback = true;
+                    }
                 }
                 
                 const toleranceTop = anchorK.h + (range * 2);
                 
-                if (highestSinceAnchor < toleranceTop && isShootingStar) {
+                if (hasStrongPullback && highestSinceAnchor < toleranceTop && isShootingStar) {
                     shortScore = 100;
                     shortReasons.push(`前第 ${6-i} 根为放量大阴线 (定基调)`);
+                    shortReasons.push(`中途出现较大阳线反抽，诱多充分`);
                     if (highestSinceAnchor > anchorK.h) {
-                        shortReasons.push(`反抽出现假突破，未超2倍 (容错诱多)`);
+                        shortReasons.push(`反抽假突破，未超2倍 (容错诱多)`);
                     } else {
                         shortReasons.push(`反抽未破大阴线最高点`);
                     }
-                    shortReasons.push(`最新收盘收出流星线/长上影信号`);
+                    shortReasons.push(`最新收出流星线/长上影信号`);
                 }
             }
         }
@@ -244,7 +269,6 @@
             ]);
             if (instRes.code !== '0' || tickerRes.code !== '0') return [];
             const validInsts = new Set(instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
-            // 【修改点】改为前 50 名
             return tickerRes.data.filter(t => validInsts.has(t.instId)).map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 })).sort((a, b) => b.vol - a.vol).slice(0, 50);
         } finally { clearTimeout(timer); }
     }
@@ -271,7 +295,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 扫描收盘定型形态...";
+        document.getElementById('btnText').innerText = "⏳ 扫描深度洗盘形态...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -282,7 +306,7 @@
             const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在过滤横盘死水...`, 5);
+            updateProgress(`寻找15m深度洗盘反转形态...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -303,7 +327,6 @@
                         const entryPrice = result.lastK.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 做多入场 (止损设在锤子线最低点下方0.1%)
                         if (result.longScore === 100) {
                             sl = result.lastK.l * 0.999; 
                             risk = (entryPrice - sl) / entryPrice;
@@ -320,7 +343,6 @@
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
-                        // 做空入场 (止损设在流星线最高点上方0.1%)
                         if (result.shortScore === 100) {
                             sl = result.lastK.h * 1.001;
                             risk = (sl - entryPrice) / entryPrice;
@@ -339,7 +361,7 @@
 
                     } catch (e) {}
                     done++;
-                    updateProgress(`扫描形态中... (${done}/${targetCoins.length})`, 5 + (done / targetCoins.length) * 90);
+                    updateProgress(`推演中... (${done}/${targetCoins.length})`, 5 + (done / targetCoins.length) * 90);
                 }));
             }
 
@@ -361,7 +383,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 纯形态信号生成", 100);
+        updateProgress("✅ 深度洗盘信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -387,7 +409,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🔨 15m 收盘定型确认 (1:${bestPick.rr})</span>
+                        <span>🔨 深度洗盘确认 (1:${bestPick.rr})</span>
                         <span class="badge">形态满分</span>
                     </div>
                     <div class="best-coin">
@@ -415,7 +437,7 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (已剔除未收盘K线，止损仅 ${bestPick.risk}%)
+                            (强制要求出现大阴/阳线洗盘诱多，止损仅 ${bestPick.risk}%)
                         </div>
                     </div>
                     
@@ -428,8 +450,8 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无 15m 容错回踩机会<br>
-                    (已过滤死水横盘，要求：放量大K + 回踩未超2倍 + 最新收出锤子/流星)
+                    ⚠️ 当前无 15m 深度洗盘形态<br>
+                    (要求：放量大K + 中途必须有较大阴/阳洗盘 + 最新收出锤子/流星)
                 </div>
             `;
         }
@@ -441,7 +463,7 @@
             html += `
                 <details class="long-item">
                     <summary>
-                        <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></summary>
+                        <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
                         <div class="summary-right"><span class="score-badge">完美形态</span><span class="arrow-icon">▼</span></div>
                     </summary>
                     <div class="detail-content">
