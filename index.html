@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50币 2H大势 + 15m放量反包 (欧易真实杠杆版)</title>
+    <title>半小时吃大肉 - 5m动能狙击 (v261)</title>
     <script>
-        const AUTO_VERSION = '260'; 
+        const AUTO_VERSION = '261'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -101,7 +101,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 放量反包 (欧易真杠杆版)</span>
+                <span id="btnText">⚡ 5m动能狙击 (半小时吃肉)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -130,7 +130,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 放量反包 (欧易真杠杆版)";
+        document.getElementById('btnText').innerText = "⚡ 5m动能狙击 (半小时吃肉)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -187,74 +187,60 @@
         return 100 - (100 / (1 + (avgGain / avgLoss)));
     }
 
-    // ================= 核心打分引擎 (放量严格反包) =================
-    function evaluateCoin(k2h, k15) {
-        const closed2h = k2h.slice(0, -1);
-        const closes2h = closed2h.map(k => k.c);
+    // ================= 核心打分引擎 (5m极短狙击) =================
+    function evaluateCoin(k1h, k15, k5) {
+        const closed1h = k1h.slice(0, -1);
+        const closes1h = closed1h.map(k => k.c);
         
         const closed15m = k15.slice(0, -1);
-        const last15m = closed15m[closed15m.length - 1];
-        const prev15m = closed15m[closed15m.length - 2];
+        const closes15m = closed15m.map(k => k.c);
 
-        // 剔除横盘/妖币
-        const recent2h = closed2h.slice(-20);
-        const maxH = Math.max(...recent2h.map(k => k.h));
-        const minL = Math.min(...recent2h.map(k => k.l));
-        const totalAmp = (maxH - minL) / minL * 100;
-        if (totalAmp < 5 || totalAmp > 50) return null;
+        const closed5m = k5.slice(0, -1);
+        const last5m = closed5m[closed5m.length - 1];
+        const prev5m = closed5m[closed5m.length - 2];
 
-        const ema20_2h = getEMAArray(closes2h, 20);
-        const macd2h = calcMACD(closes2h);
-        const curPrice = k2h[k2h.length - 1].c;
-        const ema20Val = ema20_2h[ema20_2h.length - 1];
-        const ema20_up = ema20Val > ema20_2h[ema20_2h.length - 2];
-        const ema20_down = ema20Val < ema20_2h[ema20_2h.length - 2];
+        // 1H 大势过滤 (防接飞刀第一层)
+        const ema20_1h = getEMAArray(closes1h, 20);
+        const ema20Val = ema20_1h[ema20_1h.length - 1];
+        const is1HBull = closes1h[closes1h.length-1] > ema20Val;
+        const is1HBear = closes1h[closes1h.length-1] < ema20Val;
+
+        // 15m RSI 过滤
+        const rsi15 = calcRSI(closes15m, 14);
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
 
-        const is2HBull = curPrice > ema20Val && ema20_up && macd2h > 0;
-        const is2HBear = curPrice < ema20Val && ema20_down && macd2h < 0;
+        // 5m 反包判定 (核心入场)
+        const bodyLast = Math.abs(last5m.c - last5m.o);
+        const lowerWick = Math.min(last5m.o, last5m.c) - last5m.l;
+        const upperWick = last5m.h - Math.max(last5m.o, last5m.c);
 
-        // 【反包判定】：上一根必须反向，且当前实体吞没，且带下/上影线（防飞刀）
-        const bodyLast = Math.abs(last15m.c - last15m.o);
-        const lowerWick = Math.min(last15m.o, last15m.c) - last15m.l;
-        const upperWick = last15m.h - Math.max(last15m.o, last15m.c);
+        // 做多：前阴，今阳吞没，且带下影线
+        const is5mBull = (prev5m.c < prev5m.o) && (last5m.c > last5m.o) && (last5m.c > prev5m.o) && (lowerWick > bodyLast * 0.2);
+        // 做空：前阳，今阴吞没，且带上影线
+        const is5mBear = (prev5m.c > prev5m.o) && (last5m.c < last5m.o) && (last5m.c < prev5m.o) && (upperWick > bodyLast * 0.2);
 
-        // 做多：前阴，今阳吞没，且下影线 > 实体的 20% (证明下方有支撑接盘)
-        const is15mBull = (prev15m.c < prev15m.o) && (last15m.c > last15m.o) && (last15m.c > prev15m.o) && (lowerWick > bodyLast * 0.2);
-        // 做空：前阳，今阴吞没，且上影线 > 实体的 20% (证明上方有抛压)
-        const is15mBear = (prev15m.c > prev15m.o) && (last15m.c < last15m.o) && (last15m.c < prev15m.o) && (upperWick > bodyLast * 0.2);
+        // 5m 放量判定 (爆发力保障)
+        const avgVol5 = (closed5m[closed5m.length-2].v + closed5m[closed5m.length-3].v + closed5m[closed5m.length-4].v) / 3;
+        const isVolSpike = last5m.v > avgVol5 * 1.8; // 5m 级别放量要求更高，1.8倍
 
-        // 【放量过滤】：当前成交量必须大于前三根均量的 1.5 倍（确保进场即盈的爆发力）
-        const avgVol3 = (closed15m[closed15m.length-2].v + closed15m[closed15m.length-3].v + closed15m[closed15m.length-4].v) / 3;
-        const isVolSpike = last15m.v > avgVol3 * 1.5;
-
-        const rsi15 = calcRSI(closed15m.map(k=>k.c), 14);
-
-        if (is2HBull) {
-            longScore += 50; longReasons.push("2H大趋势看多");
-            if (is15mBull) { 
-                longScore += 30; longReasons.push("15m标准放量反包"); 
-                if (isVolSpike) longReasons.push("成交量放大1.5倍");
-            }
-            if (rsi15 > 50 && rsi15 < 70) { longScore += 20; longReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
+        if (is1HBull && rsi15 > 45) {
+            longScore += 50; longReasons.push("1H大势看多");
+            if (is5mBull) { longScore += 30; longReasons.push("5m带下影反包"); }
+            if (isVolSpike) { longScore += 20; longReasons.push("5m放量1.8倍"); }
         }
 
-        if (is2HBear) {
-            shortScore += 50; shortReasons.push("2H大趋势看空");
-            if (is15mBear) { 
-                shortScore += 30; shortReasons.push("15m标准放量反包"); 
-                if (isVolSpike) shortReasons.push("成交量放大1.5倍");
-            }
-            if (rsi15 < 50 && rsi15 > 30) { shortScore += 20; shortReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
+        if (is1HBear && rsi15 < 55) {
+            shortScore += 50; shortReasons.push("1H大势看空");
+            if (is5mBear) { shortScore += 30; shortReasons.push("5m带上影反包"); }
+            if (isVolSpike) { shortScore += 20; shortReasons.push("5m放量1.8倍"); }
         }
 
         return { 
             longScore: Math.min(100, longScore), longReasons,
             shortScore: Math.min(100, shortScore), shortReasons,
-            last15m,
-            isVolSpike, is15mBull, is15mBear
+            last5m
         };
     }
 
@@ -282,22 +268,19 @@
         } finally { clearTimeout(timer); }
     }
 
-    // 【新增】：获取欧易真实最大杠杆
     async function fetchMaxLever(instId) {
         try {
             const res = await fetch(`https://www.okx.com/api/v5/public/position-tiers?instType=SWAP&tdMode=isolated&instId=${instId}`).then(r => r.json());
-            if (res.code === '0' && res.data && res.data.length > 0) {
-                return parseInt(res.data[0].maxLever) || 10; // 默认10倍
-            }
+            if (res.code === '0' && res.data && res.data.length > 0) return parseInt(res.data[0].maxLever) || 10;
         } catch(e) {}
-        return 10; // 兜底
+        return 10;
     }
 
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 严格过滤接飞刀...";
+        document.getElementById('btnText').innerText = "⏳ 捕捉5m爆发点...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -308,7 +291,7 @@
             const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在匹配欧易真实杠杆...`, 5);
+            updateProgress(`显微镜扫描 5m K 线...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -316,55 +299,48 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k2h, k15, realMaxLever] = await Promise.all([
-                            fetchCandles(coin.instId, '2H', 30), 
+                        // 同时抓取 1H, 15m, 5m
+                        const [k1h, k15, k5, realMaxLever] = await Promise.all([
+                            fetchCandles(coin.instId, '1H', 30), 
                             fetchCandles(coin.instId, '15m', 30),
+                            fetchCandles(coin.instId, '5m', 30),
                             fetchMaxLever(coin.instId)
                         ]);
                         
-                        if (k2h.length < 25 || k15.length < 25) return;
+                        if (k1h.length < 25 || k15.length < 25 || k5.length < 25) return;
 
-                        const result = evaluateCoin(k2h, k15);
+                        const result = evaluateCoin(k1h, k15, k5);
                         if (!result) return; 
 
-                        const entryPrice = result.last15m.c;
+                        const entryPrice = result.last5m.c;
                         let sl = 0, tp = 0, risk = 0;
-                        const MAX_TP_DISTANCE = 0.016; // 止盈最远不超过 1.6% (保证进场极速盈利)
 
-                        if (result.longScore >= 80 && result.is15mBull && result.isVolSpike) {
-                            sl = result.last15m.l * (1 - 0.002); 
+                        if (result.longScore >= 80) {
+                            // 止损设在 5m 极值下方 0.1%，防止被 5m 插针
+                            sl = result.last5m.l * 0.999; 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            if (risk > 0.010 || risk < 0.003) return; 
+                            // 止损极窄限制：0.2% ~ 0.8% (半小时战法要求止损绝对小)
+                            if (risk > 0.008 || risk < 0.002) return; 
                             
-                            let currentRR = 3;
-                            if (risk * 3 > MAX_TP_DISTANCE) {
-                                currentRR = Math.floor((MAX_TP_DISTANCE / risk) * 10) / 10; 
-                                if (currentRR < 2) return; // 如果降级后低于 1:2，直接放弃，满足你 1:2 以上的要求
-                            }
-
+                            // 极速盈亏比：1:2。距离很短，几分钟就能跑完。
+                            let currentRR = 2;
                             tp = entryPrice + (entryPrice - sl) * currentRR; 
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            // 【核心修改】：取算出的杠杆和欧易真实最高杠杆的最小值
                             suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
-                            suggestedLeverage = Math.max(3, suggestedLeverage); // 最低3倍
+                            suggestedLeverage = Math.max(3, suggestedLeverage);
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
-                        if (result.shortScore >= 80 && result.is15mBear && result.isVolSpike) {
-                            sl = result.last15m.h * (1 + 0.002);
+                        if (result.shortScore >= 80) {
+                            sl = result.last5m.h * 1.001;
                             risk = (sl - entryPrice) / entryPrice;
                             
-                            if (risk > 0.010 || risk < 0.003) return;
+                            if (risk > 0.008 || risk < 0.002) return;
                             
-                            let currentRR = 3;
-                            if (risk * 3 > MAX_TP_DISTANCE) {
-                                currentRR = Math.floor((MAX_TP_DISTANCE / risk) * 10) / 10;
-                                if (currentRR < 2) return; 
-                            }
-
+                            let currentRR = 2;
                             tp = entryPrice - (sl - entryPrice) * currentRR; 
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
@@ -398,7 +374,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 放量狙击信号生成", 100);
+        updateProgress("✅ 5m爆发信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -422,14 +398,10 @@
             const expectedLoss = (bestPick.leverage * bestPick.risk).toFixed(2);
             const expectedProfit = (expectedLoss * bestPick.rr).toFixed(2);
 
-            const breakevenPrice = bestType === 'LONG' 
-                ? bestPick.price + (bestPick.price - bestPick.sl) * 1.0 
-                : bestPick.price - (bestPick.sl - bestPick.price) * 1.0;
-
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🏆 真实杠杆版 (1:${bestPick.rr})</span>
+                        <span>⚡ 5m极速狙击 (1:2)</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
@@ -439,15 +411,15 @@
                     
                     <div class="trade-box">
                         <div class="trade-item">
-                            <span class="label">参考进场价</span>
+                            <span class="label">市价进场</span>
                             <span class="val">${formatPrice(bestPick.price)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">防守止损价</span>
+                            <span class="label">极窄防守</span>
                             <span class="val sl">${formatPrice(bestPick.sl)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">极近止盈价</span>
+                            <span class="label">半小时止盈</span>
                             <span class="val tp">${formatPrice(bestPick.tp)}</span>
                         </div>
                         
@@ -457,16 +429,12 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (已匹配欧易该币最高杠杆，防爆仓)
+                            (止损极窄 ${bestPick.risk}%，目标极速，绝不接飞刀)
                         </div>
-                    </div>
-
-                    <div class="breakeven-tip">
-                        🛡️ 保本策略：当价格达到 ${formatPrice(breakevenPrice)} 时，将止损上移至进场价。
                     </div>
                     
                     <div class="best-reasons" style="margin-top: 10px;">
-                        <b>趋势触发逻辑：</b><br>
+                        <b>5m动能逻辑：</b><br>
                         ${reasons.map(r => `✔ ${r}`).join('<br>')}
                     </div>
                 </div>
@@ -474,8 +442,8 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无符合条件的爆发点<br>
-                    (严格过滤了接飞刀，且要求 15m 放量 1.5 倍，建议耐心等待主力进场！)
+                    ⚠️ 当前无 5m 极速爆发机会<br>
+                    (绝不接飞刀，必须有带影线的放量反包，空仓就是最好的操作！)
                 </div>
             `;
         }
@@ -488,7 +456,7 @@
                 <details class="long-item">
                     <summary>
                         <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
-                        <div class="summary-right"><span class="score-badge">多分: ${item.longScore} (1:${item.rr})</span><span class="arrow-icon">▼</span></div>
+                        <div class="summary-right"><span class="score-badge">多分: ${item.longScore}</span><span class="arrow-icon">▼</span></div>
                     </summary>
                     <div class="detail-content">
                         <div class="analysis-row">
@@ -511,7 +479,7 @@
                 <details class="short-item">
                     <summary>
                         <div class="summary-left"><span class="coin-name">${index + 1}. ${item.instId.replace('-USDT-SWAP', '')}</span></div>
-                        <div class="summary-right"><span class="score-badge">空分: ${item.shortScore} (1:${item.rr})</span><span class="arrow-icon">▼</span></div>
+                        <div class="summary-right"><span class="score-badge">空分: ${item.shortScore}</span><span class="arrow-icon">▼</span></div>
                     </summary>
                     <div class="detail-content">
                         <div class="analysis-row">
