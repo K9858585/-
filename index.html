@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50币 2H大势 + 15m极窄防守 (1:2极速版)</title>
+    <title>前50币 2H大势 + 15m极窄防守 (20%极速版)</title>
+    <script>
+        // 自动版本控制：每次更新代码，只要把这个数字改大即可，网页会自动跳转
+        const AUTO_VERSION = '254'; 
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('v') !== AUTO_VERSION) {
+            urlParams.set('v', AUTO_VERSION);
+            window.location.search = urlParams.toString();
+        }
+    </script>
     <style>
         :root { --bg: #12161f; --panel: #1a1f2b; --text: #d1d4dc; --sub: #848e9c; --up: #0ecb81; --down: #f6465d; --yellow: #fcd535; --blue: #2962ff; }
         body { background-color: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; display: flex; flex-direction: column; min-height: 100vh; -webkit-overflow-scrolling: touch; }
@@ -54,8 +63,8 @@
         .trade-item .val.sl { color: var(--down); }
         
         /* 杠杆高亮 */
-        .trade-item.full-width { width: 100%; border-top: 1px dashed #2a2e39; margin-top: 5px; padding-top: 12px; flex-direction: row; justify-content: center; gap: 15px;}
-        .trade-item .val.lev { color: var(--yellow); font-size: 22px; text-shadow: 0 0 10px rgba(252,213,53,0.3);}
+        .trade-item.full-width { width: 100%; border-top: 1px dashed #2a2e39; margin-top: 5px; padding-top: 12px; flex-direction: row; justify-content: space-between; align-items: center;}
+        .trade-item .val.lev { color: var(--yellow); font-size: 22px; text-shadow: 0 0 10px rgba(252,213,53,0.3); text-align: center; flex: 1;}
 
         .best-reasons { font-size: 13px; color: #b2b5be; line-height: 1.6; background: rgba(18,22,31,0.5); padding: 10px; border-radius: 8px;}
         .best-reasons b { color: #fff; }
@@ -127,7 +136,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 15m微观狙击 (1:2极速版)</span>
+                <span id="btnText">🎯 15m极速狙击 (20%止盈版)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -158,7 +167,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 15m微观狙击 (1:2极速版)";
+        document.getElementById('btnText').innerText = "🎯 15m极速狙击 (20%止盈版)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
 
@@ -324,7 +333,7 @@
             const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在显微镜下寻找1:2极速狙击点...`, 5);
+            updateProgress(`正在显微镜下寻找极速狙击点...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -345,18 +354,19 @@
                         const entryPrice = result.last15m.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 止盈止损逻辑（极窄版，1:2盈亏比）
+                        // 止盈止损逻辑（极窄版，1:2盈亏比，目标20%收益）
                         if (result.longScore >= 80) {
                             sl = result.last15m.l * (1 - 0.002); 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            // 【核心过滤】：允许的最大止损空间砍到 0.8%！超过0.8%不划算
-                            if (risk > 0.008 || risk < 0.002) return; 
+                            // 【核心过滤】：将止损空间强制压缩在 0.2% ~ 0.5% 以内，让目标极近
+                            if (risk > 0.005 || risk < 0.002) return; 
                             
-                            tp = entryPrice + (entryPrice - sl) * 2; // 盈亏比改为 1:2
+                            tp = entryPrice + (entryPrice - sl) * 2; // 盈亏比 1:2
                             
+                            // 亏损 10% 反推杠杆。由于止损变小了，杠杆会自动变大（约20倍）
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(15, suggestedLeverage)); // 最高限制 15 倍
+                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage)); // 最高上限放宽到 25 倍
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage });
                         }
@@ -365,12 +375,13 @@
                             sl = result.last15m.h * (1 + 0.002);
                             risk = (sl - entryPrice) / entryPrice;
                             
-                            if (risk > 0.008 || risk < 0.002) return;
+                            // 【核心过滤】：将止损空间强制压缩在 0.2% ~ 0.5% 以内，让目标极近
+                            if (risk > 0.005 || risk < 0.002) return;
                             
                             tp = entryPrice - (sl - entryPrice) * 2;
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(15, suggestedLeverage));
+                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage));
 
                             shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage });
                         }
@@ -420,10 +431,14 @@
             const reasons = bestType === 'LONG' ? bestPick.longReasons : bestPick.shortReasons;
             const score = bestType === 'LONG' ? bestPick.longScore : bestPick.shortScore;
 
+            // 计算总资金预期盈亏
+            const expectedLoss = (bestPick.leverage * bestPick.risk).toFixed(2);
+            const expectedProfit = (expectedLoss * 2).toFixed(2);
+
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🏆 极窄防守极速版 (1:2)</span>
+                        <span>🏆 极窄防守极速版 (单笔+20%)</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
@@ -446,9 +461,12 @@
                         </div>
                         
                         <div class="trade-item full-width">
-                            <span class="label">价格波动 ${bestPick.risk}% ≈</span>
+                            <span class="label" style="color:var(--down)">亏 ${expectedLoss}% (总资金)</span>
                             <span class="val lev">${bestPick.leverage} 倍杠杆</span>
-                            <span class="label">(极速落袋)</span>
+                            <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
+                        </div>
+                        <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
+                            (价格只需波动 ${bestPick.risk}% 即可极速落袋)
                         </div>
                     </div>
                     
@@ -462,7 +480,7 @@
             html += `
                 <div class="empty-tip">
                     ⚠️ 当前无极窄防守机会<br>
-                    (止损必须小于 0.8% 才算划算，当前无此形态，建议空仓等待！)
+                    (止损必须小于 0.5% 才算极速形态，当前无此完美位置，建议空仓等待！)
                 </div>
             `;
         }
@@ -470,6 +488,7 @@
         html += `<div class="section-title long" style="margin-top:10px;">🟢 极窄多头备选</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合的做多标的。</div>`;
         longs.slice(0, 3).forEach((item, index) => {
+            const expLoss = (item.leverage * item.risk).toFixed(2);
             html += `
                 <details class="long-item">
                     <summary>
@@ -479,7 +498,7 @@
                     <div class="detail-content">
                         <div class="analysis-row">
                             <span class="analysis-label">价格波动 / 推荐杠杆</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b></span>
+                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b> (预期亏${expLoss}%)</span>
                         </div>
                         <div>
                             <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
@@ -492,6 +511,7 @@
         html += `<div class="section-title short" style="margin-top:20px;">🔴 极窄空头备选</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合的做空标的。</div>`;
         shorts.slice(0, 3).forEach((item, index) => {
+            const expLoss = (item.leverage * item.risk).toFixed(2);
             html += `
                 <details class="short-item">
                     <summary>
@@ -501,7 +521,7 @@
                     <div class="detail-content">
                         <div class="analysis-row">
                             <span class="analysis-label">价格波动 / 推荐杠杆</span>
-                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b></span>
+                            <span class="analysis-value" style="color:var(--yellow)">${item.risk}% / <b style="color:#fff">${item.leverage}x</b> (预期亏${expLoss}%)</span>
                         </div>
                         <div>
                             <div class="analysis-label" style="margin-bottom: 5px;">核心得分点：</div>
