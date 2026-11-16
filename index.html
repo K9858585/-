@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>前50币 2H大势 + 15m严格反包 (极近目标版)</title>
+    <title>前50币 2H大势 + 15m放量反包 (欧易真实杠杆版)</title>
     <script>
-        // 自动版本控制
-        const AUTO_VERSION = '259'; 
+        const AUTO_VERSION = '260'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -60,6 +59,7 @@
         
         .trade-item.full-width { width: 100%; border-top: 1px dashed #2a2e39; margin-top: 5px; padding-top: 12px; flex-direction: row; justify-content: space-between; align-items: center;}
         .trade-item .val.lev { color: var(--yellow); font-size: 22px; text-shadow: 0 0 10px rgba(252,213,53,0.3); text-align: center; flex: 1;}
+
         .best-reasons { font-size: 13px; color: #b2b5be; line-height: 1.6; background: rgba(18,22,31,0.5); padding: 10px; border-radius: 8px; margin-bottom: 10px;}
         .best-reasons b { color: #fff; }
 
@@ -101,7 +101,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 严格反包 (防追单极近版)</span>
+                <span id="btnText">🎯 放量反包 (欧易真杠杆版)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -130,7 +130,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 严格反包 (防追单极近版)";
+        document.getElementById('btnText').innerText = "🎯 放量反包 (欧易真杠杆版)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -187,7 +187,7 @@
         return 100 - (100 / (1 + (avgGain / avgLoss)));
     }
 
-    // ================= 核心打分引擎 (严格反包版) =================
+    // ================= 核心打分引擎 (放量严格反包) =================
     function evaluateCoin(k2h, k15) {
         const closed2h = k2h.slice(0, -1);
         const closes2h = closed2h.map(k => k.c);
@@ -216,30 +216,45 @@
         const is2HBull = curPrice > ema20Val && ema20_up && macd2h > 0;
         const is2HBear = curPrice < ema20Val && ema20_down && macd2h < 0;
 
-        // 【核心修改点】：严格限定反包！
-        // 做多：上一根必须是阴线，当前大阳线吞没上一根
-        const is15mBull = last15m.c > last15m.o && (last15m.c > prev15m.o) && (prev15m.c < prev15m.o); 
-        // 做空：上一根必须是阳线，当前大阴线吞没上一根。坚决不接连续阴线的单边暴跌！
-        const is15mBear = last15m.c < last15m.o && (last15m.c < prev15m.o) && (prev15m.c > prev15m.o); 
+        // 【反包判定】：上一根必须反向，且当前实体吞没，且带下/上影线（防飞刀）
+        const bodyLast = Math.abs(last15m.c - last15m.o);
+        const lowerWick = Math.min(last15m.o, last15m.c) - last15m.l;
+        const upperWick = last15m.h - Math.max(last15m.o, last15m.c);
+
+        // 做多：前阴，今阳吞没，且下影线 > 实体的 20% (证明下方有支撑接盘)
+        const is15mBull = (prev15m.c < prev15m.o) && (last15m.c > last15m.o) && (last15m.c > prev15m.o) && (lowerWick > bodyLast * 0.2);
+        // 做空：前阳，今阴吞没，且上影线 > 实体的 20% (证明上方有抛压)
+        const is15mBear = (prev15m.c > prev15m.o) && (last15m.c < last15m.o) && (last15m.c < prev15m.o) && (upperWick > bodyLast * 0.2);
+
+        // 【放量过滤】：当前成交量必须大于前三根均量的 1.5 倍（确保进场即盈的爆发力）
+        const avgVol3 = (closed15m[closed15m.length-2].v + closed15m[closed15m.length-3].v + closed15m[closed15m.length-4].v) / 3;
+        const isVolSpike = last15m.v > avgVol3 * 1.5;
 
         const rsi15 = calcRSI(closed15m.map(k=>k.c), 14);
 
         if (is2HBull) {
             longScore += 50; longReasons.push("2H大趋势看多");
-            if (is15mBull) { longScore += 30; longReasons.push("15m标准阳线反包"); }
+            if (is15mBull) { 
+                longScore += 30; longReasons.push("15m标准放量反包"); 
+                if (isVolSpike) longReasons.push("成交量放大1.5倍");
+            }
             if (rsi15 > 50 && rsi15 < 70) { longScore += 20; longReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
         }
 
         if (is2HBear) {
             shortScore += 50; shortReasons.push("2H大趋势看空");
-            if (is15mBear) { shortScore += 30; shortReasons.push("15m标准阴线反包"); }
+            if (is15mBear) { 
+                shortScore += 30; shortReasons.push("15m标准放量反包"); 
+                if (isVolSpike) shortReasons.push("成交量放大1.5倍");
+            }
             if (rsi15 < 50 && rsi15 > 30) { shortScore += 20; shortReasons.push(`15m RSI健康(${rsi15.toFixed(1)})`); }
         }
 
         return { 
             longScore: Math.min(100, longScore), longReasons,
             shortScore: Math.min(100, shortScore), shortReasons,
-            last15m
+            last15m,
+            isVolSpike, is15mBull, is15mBear
         };
     }
 
@@ -267,11 +282,22 @@
         } finally { clearTimeout(timer); }
     }
 
+    // 【新增】：获取欧易真实最大杠杆
+    async function fetchMaxLever(instId) {
+        try {
+            const res = await fetch(`https://www.okx.com/api/v5/public/position-tiers?instType=SWAP&tdMode=isolated&instId=${instId}`).then(r => r.json());
+            if (res.code === '0' && res.data && res.data.length > 0) {
+                return parseInt(res.data[0].maxLever) || 10; // 默认10倍
+            }
+        } catch(e) {}
+        return 10; // 兜底
+    }
+
     window.runScanner = async function() {
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 严格测算中...";
+        document.getElementById('btnText').innerText = "⏳ 严格过滤接飞刀...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -282,7 +308,7 @@
             const targetCoins = await fetchTop50Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在严格过滤防追单...`, 5);
+            updateProgress(`正在匹配欧易真实杠杆...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -290,9 +316,10 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k2h, k15] = await Promise.all([
+                        const [k2h, k15, realMaxLever] = await Promise.all([
                             fetchCandles(coin.instId, '2H', 30), 
-                            fetchCandles(coin.instId, '15m', 30)
+                            fetchCandles(coin.instId, '15m', 30),
+                            fetchMaxLever(coin.instId)
                         ]);
                         
                         if (k2h.length < 25 || k15.length < 25) return;
@@ -302,36 +329,31 @@
 
                         const entryPrice = result.last15m.c;
                         let sl = 0, tp = 0, risk = 0;
+                        const MAX_TP_DISTANCE = 0.016; // 止盈最远不超过 1.6% (保证进场极速盈利)
 
-                        // 【核心修改点】：强制目标最大偏离不超过 1%
-                        const MAX_TP_DISTANCE = 0.01; // 1%
-
-                        if (result.longScore >= 80) {
+                        if (result.longScore >= 80 && result.is15mBull && result.isVolSpike) {
                             sl = result.last15m.l * (1 - 0.002); 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            // 止损空间在 0.3% ~ 1.0% 之间
                             if (risk > 0.010 || risk < 0.003) return; 
                             
                             let currentRR = 3;
-                            // 如果 1:3 的目标距离超过 1%，降级
                             if (risk * 3 > MAX_TP_DISTANCE) {
-                                currentRR = Math.floor((MAX_TP_DISTANCE / risk) * 10) / 10; // 向下取整
-                                if (currentRR < 1) currentRR = 1; 
+                                currentRR = Math.floor((MAX_TP_DISTANCE / risk) * 10) / 10; 
+                                if (currentRR < 2) return; // 如果降级后低于 1:2，直接放弃，满足你 1:2 以上的要求
                             }
-                            
-                            // 如果 1:1 目标都超过 1%（说明止损太宽了），放弃
-                            if (risk * currentRR > MAX_TP_DISTANCE + 0.001) return;
 
                             tp = entryPrice + (entryPrice - sl) * currentRR; 
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage)); 
+                            // 【核心修改】：取算出的杠杆和欧易真实最高杠杆的最小值
+                            suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
+                            suggestedLeverage = Math.max(3, suggestedLeverage); // 最低3倍
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
-                        if (result.shortScore >= 80) {
+                        if (result.shortScore >= 80 && result.is15mBear && result.isVolSpike) {
                             sl = result.last15m.h * (1 + 0.002);
                             risk = (sl - entryPrice) / entryPrice;
                             
@@ -340,15 +362,14 @@
                             let currentRR = 3;
                             if (risk * 3 > MAX_TP_DISTANCE) {
                                 currentRR = Math.floor((MAX_TP_DISTANCE / risk) * 10) / 10;
-                                if (currentRR < 1) currentRR = 1;
+                                if (currentRR < 2) return; 
                             }
-                            
-                            if (risk * currentRR > MAX_TP_DISTANCE + 0.001) return;
 
                             tp = entryPrice - (sl - entryPrice) * currentRR; 
                             
                             let suggestedLeverage = Math.round(10 / (risk * 100));
-                            suggestedLeverage = Math.max(3, Math.min(25, suggestedLeverage));
+                            suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
+                            suggestedLeverage = Math.max(3, suggestedLeverage);
 
                             shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
@@ -377,7 +398,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 狙击信号生成", 100);
+        updateProgress("✅ 放量狙击信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -408,7 +429,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🏆 严格反包版 (1:${bestPick.rr})</span>
+                        <span>🏆 真实杠杆版 (1:${bestPick.rr})</span>
                         <span class="badge">综合评分 ${score} 分</span>
                     </div>
                     <div class="best-coin">
@@ -436,12 +457,12 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (价格波动 ${bestPick.risk}%，止盈距离 < 1% 极速落袋)
+                            (已匹配欧易该币最高杠杆，防爆仓)
                         </div>
                     </div>
 
                     <div class="breakeven-tip">
-                        🛡️ 保本策略：当价格达到 ${formatPrice(breakevenPrice)} 时，将止损上移至进场价，做到进场不亏。
+                        🛡️ 保本策略：当价格达到 ${formatPrice(breakevenPrice)} 时，将止损上移至进场价。
                     </div>
                     
                     <div class="best-reasons" style="margin-top: 10px;">
@@ -453,8 +474,8 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无符合严格反包的机会<br>
-                    (系统已过滤掉单边追单，且止盈距离硬限制在 1% 以内，建议空仓等待！)
+                    ⚠️ 当前无符合条件的爆发点<br>
+                    (严格过滤了接飞刀，且要求 15m 放量 1.5 倍，建议耐心等待主力进场！)
                 </div>
             `;
         }
