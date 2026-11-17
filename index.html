@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日线长线大波段 - 双EMA顺势 (前100合约)</title>
+    <title>日线稳站均线 + 1H回调 (高杠杆高盈亏比)</title>
     <script>
-        const AUTO_VERSION = '280'; 
+        const AUTO_VERSION = '281'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -87,7 +87,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🎯 长线大波段 (日线防守)</span>
+                <span id="btnText">🎯 日线稳站 + 1H回调 (满杠杆)</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 15分定时</span>
@@ -116,7 +116,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🎯 长线大波段 (日线防守)";
+        document.getElementById('btnText').innerText = "🎯 日线稳站 + 1H回调 (满杠杆)";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -153,17 +153,30 @@
         return result;
     }
 
-    // ================= 核心打分引擎 (日线长线+15m入场) =================
-    function evaluateCoin(k1d, k15) {
-        const closed1d = k1d.slice(0, -1); 
-        const closed15m = k15.slice(0, -1); 
+    // ================= 核心打分引擎 (日线稳站+剔除插针+1H回调) =================
+    function evaluateCoin(k1d, k1h) {
+        const closed1d = k1d.slice(0, -1); // 严格剔除当前未走完的日线
+        const closed1h = k1h.slice(0, -1); 
         
-        if (closed1d.length < 25 || closed15m.length < 20) return null;
+        if (closed1d.length < 25 || closed1h.length < 20) return null;
         
-        const closes1d = closed1d.map(k => k.c);
-        const closes15m = closed15m.map(k => k.c);
+        // ---- 1. 剔除插针币 (检查最近 3 根日线实体比例) ----
+        let isPinBarHeavy = false;
+        for (let i = closed1d.length - 3; i < closed1d.length; i++) {
+            const k = closed1d[i];
+            const body = Math.abs(k.c - k.o);
+            const range = k.h - k.l;
+            // 如果实体占比不到 30%，说明是上下插针的十字星或长影线
+            if (body < range * 0.3 && range > 0) {
+                isPinBarHeavy = true; break;
+            }
+        }
+        if (isPinBarHeavy) return null; // 插针妖币直接过滤
 
-        // 1. 日线 EMA5 和 EMA20
+        const closes1d = closed1d.map(k => k.c);
+        const closes1h = closed1h.map(k => k.c);
+
+        // ---- 2. 日线 EMA5 和 EMA20 稳站判定 ----
         const ema5_1d = getEMAArray(closes1d, 5);
         const ema20_1d = getEMAArray(closes1d, 20);
         
@@ -172,38 +185,37 @@
         const prevEma5 = ema5_1d[ema5_1d.length - 2];
         const prevEma20 = ema20_1d[ema20_1d.length - 2];
 
-        const is1DEma5Up = curEma5 > prevEma5;
-        const is1DEma20Up = curEma20 > prevEma20;
-        const is1DEma5Down = curEma5 < prevEma5;
-        const is1DEma20Down = curEma20 < prevEma20;
+        const is1DBull = curEma5 > curEma20 && curEma5 > prevEma5 && curEma20 > prevEma20;
+        const is1DBear = curEma5 < curEma20 && curEma5 < prevEma5 && curEma20 < prevEma20;
 
-        const is1DBull = curEma5 > curEma20 && is1DEma5Up && is1DEma20Up;
-        const is1DBear = curEma5 < curEma20 && is1DEma5Down && is1DEma20Down;
-
-        // 2. 刚站稳/跌破均线不超过 4 根日K
+        // 计算收盘价站稳/跌破双均线的天数
         let daysAbove = 0, daysBelow = 0;
         for (let i = closed1d.length - 1; i >= 0; i--) {
-            if (closed1d[i].c > ema20_1d[i]) daysAbove++;
+            if (closed1d[i].c > ema20_1d[i] && closed1d[i].c > ema5_1d[i]) daysAbove++;
             else break;
         }
         for (let i = closed1d.length - 1; i >= 0; i--) {
-            if (closed1d[i].c < ema20_1d[i]) daysBelow++;
+            if (closed1d[i].c < ema20_1d[i] && closed1d[i].c < ema5_1d[i]) daysBelow++;
             else break;
         }
 
+        // 必须刚站稳 1~4 天
         const isValidLongStart = daysAbove >= 1 && daysAbove <= 4;
         const isValidShortStart = daysBelow >= 1 && daysBelow <= 4;
 
-        // 3. 15m 入场形态
-        const ema20_15m = getEMAArray(closes15m, 20);
-        const curEma20_15m = ema20_15m[ema20_15m.length - 1];
-        const last15m = closed15m[closed15m.length - 1];
+        // ---- 3. 1H 级别回踩进场时机 ----
+        const ema20_1h = getEMAArray(closes1h, 20);
+        const curEma20_1h = ema20_1h[ema20_1h.length - 1];
+        const last1h = closed1h[closed1h.length - 1];
 
-        const distToEma20_Long = (last15m.c - curEma20_15m) / curEma20_15m;
-        const distToEma20_Short = (curEma20_15m - last15m.c) / curEma20_15m;
+        // 当前 1H 离 EMA20 的距离百分比
+        const distToEma20_Long = (last1h.c - curEma20_1h) / curEma20_1h;
+        const distToEma20_Short = (curEma20_1h - last1h.c) / curEma20_1h;
 
-        const is15mLongEntry = last15m.c > last15m.o && distToEma20_Long > -0.005 && distToEma20_Long < 0.015;
-        const is15mShortEntry = last15m.c < last15m.o && distToEma20_Short > -0.005 && distToEma20_Short < 0.015;
+        // 做多回踩：价格在均线附近（-1% ~ +1.5%），且收阳线
+        const is1hLongEntry = last1h.c > last1h.o && distToEma20_Long > -0.01 && distToEma20_Long < 0.015;
+        // 做空反抽：价格在均线附近（-1% ~ +1.5%），且收阴线
+        const is1hShortEntry = last1h.c < last1h.o && distToEma20_Short > -0.01 && distToEma20_Short < 0.015;
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
@@ -211,27 +223,29 @@
         if (is1DBull && isValidLongStart) {
             longScore += 60; 
             longReasons.push("日线 EMA5>20 且双线向上");
-            longReasons.push(`刚站稳日线均线 ${daysAbove} 天`);
+            longReasons.push(`日线收盘站稳双均线 ${daysAbove} 天`);
+            longReasons.push("近期无恶劣插针形态");
             
-            if (is15mLongEntry) {
+            if (is1hLongEntry) {
                 longScore += 40;
-                longReasons.push("15m 回踩 EMA20 附近，收阳企稳");
+                longReasons.push("1H 级别回踩 EMA20 附近，收阳企稳");
             }
         }
 
         if (is1DBear && isValidShortStart) {
             shortScore += 60; 
             shortReasons.push("日线 EMA5<20 且双线向下");
-            shortReasons.push(`刚跌破日线均线 ${daysBelow} 天`);
+            shortReasons.push(`日线收盘跌破双均线 ${daysBelow} 天`);
+            shortReasons.push("近期无恶劣插针形态");
             
-            if (is15mShortEntry) {
+            if (is1hShortEntry) {
                 shortScore += 40;
-                shortReasons.push("15m 反抽 EMA20 附近，收阴遇阻");
+                shortReasons.push("1H 级别反抽 EMA20 附近，收阴遇阻");
             }
         }
 
         return { 
-            longScore, longReasons, shortScore, shortReasons, last15m, ema20_1d: ema20_1d[ema20_1d.length - 1]
+            longScore, longReasons, shortScore, shortReasons, last1h, ema20_1d: curEma20
         };
     }
 
@@ -245,7 +259,6 @@
             ]);
             if (instRes.code !== '0' || tickerRes.code !== '0') return [];
             const validInsts = new Set(instRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
-            // 【修改点】：只抓取前 100 的合约
             return tickerRes.data.filter(t => validInsts.has(t.instId)).map(t => ({ instId: t.instId, vol: +t.volCcy24h || 0 })).sort((a, b) => b.vol - a.vol).slice(0, 100);
         } finally { clearTimeout(timer); }
     }
@@ -272,7 +285,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 测算长线防守位...";
+        document.getElementById('btnText').innerText = "⏳ 寻找日线稳站机会...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -283,7 +296,7 @@
             const targetCoins = await fetchTop100Swaps();
             if (targetCoins.length === 0) { updateProgress("获取合约失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在寻找日线启动点...`, 5);
+            updateProgress(`正在排查日线趋势...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -291,49 +304,47 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k1d, k15, realMaxLever] = await Promise.all([
+                        const [k1d, k1h, realMaxLever] = await Promise.all([
                             fetchCandles(coin.instId, '1D', 30),
-                            fetchCandles(coin.instId, '15m', 30),
+                            fetchCandles(coin.instId, '1H', 30),
                             fetchMaxLever(coin.instId)
                         ]);
                         
-                        if (k1d.length < 25 || k15.length < 25) return;
+                        if (k1d.length < 25 || k1h.length < 25) return;
 
-                        const result = evaluateCoin(k1d, k15);
+                        const result = evaluateCoin(k1d, k1h);
                         if (!result) return;
 
-                        const entryPrice = result.last15m.c;
+                        const entryPrice = result.last1h.c;
                         let sl = 0, tp = 0, risk = 0;
 
-                        // 长线做多：止损设在 15m 信号的极值点，或者日线 EMA20 外侧
+                        // 做多入场
                         if (result.longScore === 100) {
-                            // 【长线防守核心】：跌破 15m 信号低点，或者跌破日线 EMA20 均线
-                            const structuralSL = result.last15m.l * 0.998;
-                            const dailyEmaSL = result.ema20_1d * 0.995; // 日线均线下方 0.5%
+                            // 长线防守：1H信号最低点与日线均线外侧取更宽者
+                            const structuralSL = result.last1h.l * 0.998;
+                            const dailyEmaSL = result.ema20_1d * 0.99; 
+                            sl = Math.min(structuralSL, dailyEmaSL);
                             
-                            // 取两者中更安全（更宽）的一个作为止损
-                            sl = Math.min(structuralSL, dailyEmaSL); 
                             risk = (entryPrice - sl) / entryPrice;
                             
-                            // 长线止损空间通常较大，限制在 1.5% ~ 8% 之间
+                            // 放宽长线止损限制（1.5% ~ 8%）
                             if (risk > 0.08 || risk < 0.015) return; 
                             
-                            let currentRR = 5; // 长线盈亏比放大到 1:5
+                            let currentRR = 5; // 盈亏比拉满到 1:5
                             tp = entryPrice + (entryPrice - sl) * currentRR; 
                             
-                            let suggestedLeverage = Math.round(30 / (risk * 100));
-                            suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
-                            suggestedLeverage = Math.max(1, suggestedLeverage);
+                            // 【核心修改】：直接使用欧易最高杠杆
+                            let suggestedLeverage = realMaxLever;
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
+                        // 做空入场
                         if (result.shortScore === 100) {
-                            const structuralSL = result.last15m.h * 1.002;
-                            const dailyEmaSL = result.ema20_1d * 1.005; // 日线均线上方 0.5%
+                            const structuralSL = result.last1h.h * 1.002;
+                            const dailyEmaSL = result.ema20_1d * 1.01; 
+                            sl = Math.max(structuralSL, dailyEmaSL);
                             
-                            // 取两者中更安全（更宽）的一个
-                            sl = Math.max(structuralSL, dailyEmaSL); 
                             risk = (sl - entryPrice) / entryPrice;
                             
                             if (risk > 0.08 || risk < 0.015) return;
@@ -341,9 +352,8 @@
                             let currentRR = 5;
                             tp = entryPrice - (sl - entryPrice) * currentRR; 
                             
-                            let suggestedLeverage = Math.round(30 / (risk * 100));
-                            suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
-                            suggestedLeverage = Math.max(1, suggestedLeverage);
+                            // 【核心修改】：直接使用欧易最高杠杆
+                            let suggestedLeverage = realMaxLever;
 
                             shortResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
@@ -372,7 +382,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 长线波段信号生成", 100);
+        updateProgress("✅ 长线信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -392,14 +402,15 @@
             const dirClass = bestType === 'LONG' ? 'long' : 'short';
             const reasons = bestType === 'LONG' ? bestPick.longReasons : bestPick.shortReasons;
 
+            // 使用欧易最高杠杆后，实际盈亏百分比非常大
             const expectedLoss = (bestPick.leverage * bestPick.risk).toFixed(2);
             const expectedProfit = (expectedLoss * bestPick.rr).toFixed(2);
 
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🎯 长线防守布局 (1:${bestPick.rr})</span>
-                        <span class="badge">长线机会</span>
+                        <span>🎯 日线满杠杆长线 (1:${bestPick.rr})</span>
+                        <span class="badge">完美条件</span>
                     </div>
                     <div class="best-coin">
                         ${bestPick.instId.replace('-USDT-SWAP', '')} 
@@ -412,21 +423,21 @@
                             <span class="val">${formatPrice(bestPick.price)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">日线防守 (止损)</span>
+                            <span class="label">长线防守 (止损)</span>
                             <span class="val sl">${formatPrice(bestPick.sl)}</span>
                         </div>
                         <div class="trade-item">
-                            <span class="label">长线止盈</span>
+                            <span class="label">目标止盈</span>
                             <span class="val tp">${formatPrice(bestPick.tp)}</span>
                         </div>
                         
                         <div class="trade-item full-width">
                             <span class="label" style="color:var(--down)">亏 ${expectedLoss}% (总资金)</span>
-                            <span class="val lev">${bestPick.leverage} 倍杠杆</span>
+                            <span class="val lev">${bestPick.leverage} 倍杠杆 (满)</span>
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (依托日线EMA20结构防守，止损空间 ${bestPick.risk}%)
+                            (已剔除插针币，止损空间 ${bestPick.risk}%，请严格控制仓位！)
                         </div>
                     </div>
                     
@@ -439,8 +450,8 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无长线启动机会<br>
-                    (要求：日线双均线同向发散 + 刚站稳不超过4天 + 15m回踩企稳)
+                    ⚠️ 当前无日线稳站回踩机会<br>
+                    (要求：日线双均线同向发散 + 站稳4天内 + 剔除插针 + 1H回踩企稳)
                 </div>
             `;
         }
