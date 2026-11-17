@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>15m 纯形态 - 深度洗盘 (前200币/现货+合约)</title>
+    <title>5m 纯形态 - 连阳/阴 + 1H顺势 (前200标的)</title>
     <script>
-        const AUTO_VERSION = '275'; 
+        const AUTO_VERSION = '276'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -87,10 +87,10 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🔨 15m 纯形态 (前200标的)</span>
+                <span id="btnText">🔨 5m 连阳/阴 + 1H顺势</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
-                <span id="autoBtnText">⏱️ 15分定时</span>
+                <span id="autoBtnText">⏱️ 5分定时</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪</div>
@@ -104,7 +104,8 @@
     let countdownInterval = null;
     let nextScanTime = 0;
     let isAutoScanning = false;
-    const SCAN_INTERVAL = 15 * 60 * 1000; 
+    // 因为看的是 5m K 线，所以 5 分钟定时一次
+    const SCAN_INTERVAL = 5 * 60 * 1000; 
 
     function updateProgress(text, percent) {
         document.getElementById('progressText').innerText = text;
@@ -116,7 +117,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🔨 15m 纯形态 (前200标的)";
+        document.getElementById('btnText').innerText = "🔨 5m 连阳/阴 + 1H顺势";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -126,7 +127,7 @@
             isAutoScanning = false;
             clearInterval(autoScanInterval); clearInterval(countdownInterval);
             autoBtn.classList.remove('active');
-            autoBtnText.innerText = "⏱️ 15分定时";
+            autoBtnText.innerText = "⏱️ 5分定时";
             updateProgress("已停止自动扫描", 0);
         } else {
             isAutoScanning = true;
@@ -144,108 +145,71 @@
         }
     }
 
-    // ================= 核心打分引擎 =================
-    function evaluateCoin(k15) {
-        const closed15m = k15.slice(0, -1); 
-        if (closed15m.length < 20) return null;
-        
-        const recent20 = closed15m.slice(-20);
-        const recent6 = closed15m.slice(-6);
-        const lastK = recent6[5]; 
-        
-        // 1. 【过滤死水横盘】
-        const maxH = Math.max(...recent20.map(k => k.h));
-        const minL = Math.min(...recent20.map(k => k.l));
-        const totalAmp = (maxH - minL) / minL * 100;
-        if (totalAmp < 2.5) return null;
+    function getEMAArray(prices, period) {
+        if (prices.length === 0) return [];
+        let k = 2 / (period + 1);
+        let ema = prices[0];
+        let result = [ema];
+        for (let i = 1; i < prices.length; i++) { ema = prices[i] * k + ema * (1 - k); result.push(ema); }
+        return result;
+    }
 
-        // 计算前 5 根的均实体和均量
-        let totalBody = 0, totalVol = 0;
-        for(let i=0; i<5; i++) {
-            totalBody += Math.abs(recent6[i].c - recent6[i].o);
-            totalVol += recent6[i].v;
-        }
-        const avgBody = totalBody / 5;
-        const avgVol = totalVol / 5;
+    // ================= 核心打分引擎 (5m 颜色+形态+1H大趋势) =================
+    function evaluateCoin(k1h, k5) {
+        // 严格剔除正在走的一根，只留彻底收盘的
+        const closed1h = k1h.slice(0, -1);
+        const closed5m = k5.slice(0, -1); 
         
-        // 2. 判定信号K线 (锤子/流星)
+        if (closed1h.length < 20 || closed5m.length < 4) return null;
+        
+        // 取已经收盘的最新一根 5m 作为信号 K 线
+        const lastK = closed5m[closed5m.length - 1]; 
+        // 取包含信号 K 线在内的最近 4 根 5m K 线
+        const recent4 = closed5m.slice(-4);
+
+        // ---- 1. 日内大趋势判定 (1H 级别 EMA20) ----
+        const closes1h = closed1h.map(k => k.c);
+        const ema20_1h = getEMAArray(closes1h, 20);
+        const curPrice1h = closes1h[closes1h.length - 1];
+        const ema20Val1h = ema20_1h[ema20_1h.length - 1];
+        
+        const is1HBull = curPrice1h > ema20Val1h; // 1H 价格在 EMA20 之上
+        const is1HBear = curPrice1h < ema20Val1h; // 1H 价格在 EMA20 之下
+
+        // ---- 2. 信号 K 线形态判定 ----
         const lastBody = Math.abs(lastK.c - lastK.o);
         const upperWick = lastK.h - Math.max(lastK.o, lastK.c);
         const lowerWick = Math.min(lastK.o, lastK.c) - lastK.l;
         
-        const isHammer = (lowerWick > lastBody * 1.5 && upperWick < lastBody) || (lowerWick > (lastK.h - lastK.l) * 0.55);
-        const isShootingStar = (upperWick > lastBody * 1.5 && lowerWick < lastBody) || (upperWick > (lastK.h - lastK.l) * 0.55);
+        // 做多：必须是绿色（阳线），且下影线 > 实体 1.5 倍，或者影线占整根 K 线的 50% 以上
+        const isGreenHammer = lastK.c > lastK.o && (lowerWick > lastBody * 1.5 || lowerWick > (lastK.h - lastK.l) * 0.5);
+        // 做空：必须是红色（阴线），且上影线 > 实体 1.5 倍，或者影线占整根 K 线的 50% 以上
+        const isRedShootingStar = lastK.c < lastK.o && (upperWick > lastBody * 1.5 || upperWick > (lastK.h - lastK.l) * 0.5);
+
+        // ---- 3. 颜色过滤：4 根里至少 3 根同色 ----
+        let greenCount = 0, redCount = 0;
+        recent4.forEach(k => {
+            if (k.c > k.o) greenCount++;
+            else if (k.c < k.o) redCount++;
+        });
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
 
-        // 3. 寻找大K线及随后的强制洗盘
-        for (let i = 0; i < 5; i++) {
-            const anchorK = recent6[i];
-            const body = Math.abs(anchorK.c - anchorK.o);
-            const range = anchorK.h - anchorK.l; 
-            
-            // 做多机会
-            if (longScore === 0 && anchorK.c > anchorK.o && body > avgBody * 1.5 && anchorK.v > avgVol * 1.1) {
-                let lowestSinceAnchor = lastK.l;
-                let hasStrongPullback = false;
+        // 做多条件：1H看多 + 绿色锤子线 + 4根里至少3根绿
+        if (is1HBull && isGreenHammer && greenCount >= 3) {
+            longScore = 100;
+            longReasons.push("1H 级别大趋势看多 (顺势)");
+            longReasons.push("最新收盘出现绿色锤子线");
+            longReasons.push(`最近 4 根 K 线有 ${greenCount} 根阳线，多头强势`);
+        }
 
-                for (let j = i + 1; j < 6; j++) {
-                    const checkK = recent6[j];
-                    if (checkK.l < lowestSinceAnchor) lowestSinceAnchor = checkK.l;
-                    
-                    const isBearish = checkK.c < checkK.o;
-                    const checkBody = Math.abs(checkK.c - checkK.o);
-                    if (isBearish && checkBody > avgBody * 1.0) {
-                        hasStrongPullback = true;
-                    }
-                }
-                
-                const toleranceBottom = anchorK.l - (range * 2);
-                
-                if (hasStrongPullback && lowestSinceAnchor > toleranceBottom && isHammer) {
-                    longScore = 100;
-                    longReasons.push(`前第 ${6-i} 根为大阳线 (定基调)`);
-                    longReasons.push(`中途出现阴线回调，洗盘充分`);
-                    if (lowestSinceAnchor < anchorK.l) {
-                        longReasons.push(`回踩假跌破，未超2倍 (容错诱空)`);
-                    } else {
-                        longReasons.push(`回踩未破大阳线最低点`);
-                    }
-                    longReasons.push(`最新收出锤子线/长下影信号`);
-                }
-            }
-            
-            // 做空机会
-            if (shortScore === 0 && anchorK.c < anchorK.o && body > avgBody * 1.5 && anchorK.v > avgVol * 1.1) {
-                let highestSinceAnchor = lastK.h;
-                let hasStrongPullback = false;
-
-                for (let j = i + 1; j < 6; j++) {
-                    const checkK = recent6[j];
-                    if (checkK.h > highestSinceAnchor) highestSinceAnchor = checkK.h;
-                    
-                    const isBullish = checkK.c > checkK.o;
-                    const checkBody = Math.abs(checkK.c - checkK.o);
-                    if (isBullish && checkBody > avgBody * 1.0) {
-                        hasStrongPullback = true;
-                    }
-                }
-                
-                const toleranceTop = anchorK.h + (range * 2);
-                
-                if (hasStrongPullback && highestSinceAnchor < toleranceTop && isShootingStar) {
-                    shortScore = 100;
-                    shortReasons.push(`前第 ${6-i} 根为大阴线 (定基调)`);
-                    shortReasons.push(`中途出现阳线反抽，诱多充分`);
-                    if (highestSinceAnchor > anchorK.h) {
-                        shortReasons.push(`反抽假突破，未超2倍 (容错诱多)`);
-                    } else {
-                        shortReasons.push(`反抽未破大阴线最高点`);
-                    }
-                    shortReasons.push(`最新收出流星线/长上影信号`);
-                }
-            }
+        // 做空条件：1H看空 + 红色流星线 + 4根里至少3根红
+        if (is1HBear && isRedShootingStar && redCount >= 3) {
+            shortScore = 100;
+            shortReasons.push("1H 级别大趋势看空 (顺势)");
+            shortReasons.push("最新收盘出现红色流星线");
+            shortReasons.push(`最近 4 根 K 线有 ${redCount} 根阴线，空头强势`);
         }
 
         return { 
@@ -253,7 +217,6 @@
         };
     }
 
-    // 重新写获取数据的函数，确保现货和合约都能进来 (前200名)
     async function fetchTop200() {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 15000);
@@ -266,30 +229,22 @@
             ]);
             
             let allTickers = [];
-            // 处理合约
             if (swapInstRes.code === '0' && swapTickerRes.code === '0') {
                 const swapInsts = new Set(swapInstRes.data.filter(i => i.instId.endsWith('-USDT-SWAP')).map(i => i.instId));
                 swapTickerRes.data.forEach(t => {
-                    if (swapInsts.has(t.instId)) {
-                        allTickers.push({ instId: t.instId, vol: +t.volCcy24h || 0 });
-                    }
+                    if (swapInsts.has(t.instId)) allTickers.push({ instId: t.instId, vol: +t.volCcy24h || 0 });
                 });
             }
-            
-            // 处理现货
             if (spotInstRes.code === '0' && spotTickerRes.code === '0') {
                 const spotInsts = new Set(spotInstRes.data.filter(i => i.instId.endsWith('-USDT')).map(i => i.instId));
                 spotTickerRes.data.forEach(t => {
                     if (spotInsts.has(t.instId)) {
-                        // 排除杠杆代币 (如 3L, 3S)
                         if (!t.instId.includes('3L') && !t.instId.includes('3S')) {
                             allTickers.push({ instId: t.instId, vol: +t.volCcy24h || 0 });
                         }
                     }
                 });
             }
-            
-            // 【修改点】：改为前 200 名
             return allTickers.sort((a, b) => b.vol - a.vol).slice(0, 200);
         } finally { clearTimeout(timer); }
     }
@@ -305,7 +260,7 @@
     }
 
     async function fetchMaxLever(instId) {
-        if(instId.endsWith('-USDT')) return 1; // 现货没有杠杆，或者相当于 1 倍
+        if(instId.endsWith('-USDT')) return 1; // 现货
         try {
             const res = await fetch(`https://www.okx.com/api/v5/public/position-tiers?instType=SWAP&tdMode=isolated&instId=${instId}`).then(r => r.json());
             if (res.code === '0' && res.data && res.data.length > 0) return parseInt(res.data[0].maxLever) || 10;
@@ -317,7 +272,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 扫描前200个标的...";
+        document.getElementById('btnText').innerText = "⏳ 扫描中...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -328,22 +283,23 @@
             const targetCoins = await fetchTop200();
             if (targetCoins.length === 0) { updateProgress("获取标的失败。", 100); endScanner(); return; }
 
-            updateProgress(`寻找深度洗盘形态...`, 5);
+            updateProgress(`正在扫描 5m 颜色形态...`, 5);
             let done = 0;
-            const chunkSize = 10; // 每次并发10个请求
+            const chunkSize = 10;
 
             for (let i = 0; i < targetCoins.length; i += chunkSize) {
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k15, realMaxLever] = await Promise.all([
-                            fetchCandles(coin.instId, '15m', 30),
+                        const [k1h, k5, realMaxLever] = await Promise.all([
+                            fetchCandles(coin.instId, '1H', 30),
+                            fetchCandles(coin.instId, '5m', 30),
                             fetchMaxLever(coin.instId)
                         ]);
                         
-                        if (k15.length < 25) return;
+                        if (k1h.length < 25 || k5.length < 25) return;
 
-                        const result = evaluateCoin(k15);
+                        const result = evaluateCoin(k1h, k5);
                         if (!result) return;
 
                         const entryPrice = result.lastK.c;
@@ -360,12 +316,12 @@
                             
                             let suggestedLeverage = Math.round(30 / (risk * 100));
                             suggestedLeverage = Math.min(suggestedLeverage, realMaxLever);
-                            suggestedLeverage = Math.max(1, suggestedLeverage); // 现货最低1倍
+                            suggestedLeverage = Math.max(1, suggestedLeverage);
 
                             longResults.push({ ...coin, ...result, price: entryPrice, sl, tp, risk: (risk*100).toFixed(2), leverage: suggestedLeverage, rr: currentRR });
                         }
 
-                        if (result.shortScore === 100 && realMaxLever > 1) { // 现货不做空
+                        if (result.shortScore === 100 && realMaxLever > 1) {
                             sl = result.lastK.h * 1.001;
                             risk = (sl - entryPrice) / entryPrice;
                             
@@ -431,8 +387,8 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🔨 深度洗盘确认 (1:${bestPick.rr})</span>
-                        <span class="badge">形态满分</span>
+                        <span>🔨 5m连阳/阴 + 1H顺势 (1:${bestPick.rr})</span>
+                        <span class="badge">完美条件</span>
                     </div>
                     <div class="best-coin">
                         ${bestPick.instId.replace('-USDT-SWAP', '').replace('-USDT', '')} 
@@ -459,7 +415,7 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (支持现货形态，止损仅 ${bestPick.risk}%)
+                            (已收盘K线，止损 ${bestPick.risk}%)
                         </div>
                     </div>
                     
@@ -472,13 +428,13 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无 15m 深度洗盘形态<br>
-                    (要求：大K定基调 + 中途必须有较大阴/阳洗盘 + 最新收出锤子/流星)
+                    ⚠️ 当前无 5m 完美共振机会<br>
+                    (要求：1H同向 + 4根内3根同色 + 最后1根为同色锤子/流星)
                 </div>
             `;
         }
 
-        html += `<div class="section-title long" style="margin-top:10px;">🟢 锤子线做多备选</div>`;
+        html += `<div class="section-title long" style="margin-top:10px;">🟢 绿色锤子线做多备选</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合的做多标的。</div>`;
         longs.slice(0, 3).forEach((item, index) => {
             const expLoss = (item.leverage * item.risk).toFixed(2);
@@ -501,7 +457,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:20px;">🔴 流星线做空备选</div>`;
+        html += `<div class="section-title short" style="margin-top:20px;">🔴 红色流星线做空备选</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合的做空标的。</div>`;
         shorts.slice(0, 3).forEach((item, index) => {
             const expLoss = (item.leverage * item.risk).toFixed(2);
