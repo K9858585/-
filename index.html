@@ -1,155 +1,195 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>波段扫描器 - 10:3 盈亏比</title>
+<title>日线宏观方向扫描</title>
 <style>
-:root{--bg:#0d0d0d;--box:#1a1a1a;--green:#00e676;--red:#ff5252;--cyan:#00e5ff;}
-body{background:var(--bg);color:#eee;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:15px;font-size:14px;}
-.title{text-align:center;color:var(--cyan);font-size:22px;font-weight:bold;margin-bottom:5px;}
-.sub{text-align:center;color:#888;font-size:12px;margin-bottom:15px;}
-.box{background:var(--box);border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid #333;}
-.bhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-.bsym{font-size:20px;font-weight:bold;}
-.bdir{padding:4px 10px;border-radius:4px;font-weight:bold;font-size:13px;}
-.long{color:var(--green);border:1px solid var(--green);}
-.short{color:var(--red);border:1px solid var(--red);}
-.score{font-size:32px;font-weight:bold;text-align:center;margin:10px 0;}
-.row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2a2a2a;}
-.row:last-child{border:0;}
-.warn{color:#ffab40;font-size:12px;margin-top:10px;line-height:1.5;}
-.empty{color:#777;text-align:center;padding:20px;}
-.rank{font-size:12px;color:#aaa;margin-top:10px;line-height:1.6;}
-.hist{font-size:11px;color:#666;margin-top:8px;}
-.btn{background:var(--cyan);color:#000;font-size:18px;font-weight:bold;width:100%;padding:14px;border:0;border-radius:10px;margin:15px 0;cursor:pointer;}
-.coolbar{font-size:11px;color:#888;margin-bottom:10px;}
-input{width:100%;background:#111;color:#eee;border:1px solid #333;border-radius:6px;padding:10px;box-sizing:border-box;margin-bottom:10px;font-size:13px;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#111;color:#eee;margin:0;padding:20px;max-width:900px;margin:auto}
+  h2{text-align:center;margin-bottom:10px}
+  .sub{text-align:center;color:#888;font-size:13px;margin-bottom:20px}
+  textarea{width:100%;height:80px;background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:10px;box-sizing:border-box;font-size:13px}
+  button{display:block;width:100%;margin-top:10px;padding:14px;background:#2b6;color:#000;border:none;border-radius:6px;font-size:16px;font-weight:bold;cursor:pointer}
+  button:disabled{background:#555;color:#888;cursor:not-allowed}
+  .card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:20px;margin-top:15px;position:relative;overflow:hidden}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:#666}
+  .card.long::before{background:#0f8}
+  .card.short::before{background:#f43}
+  .sym{font-size:24px;font-weight:bold;margin-bottom:5px}
+  .dir{display:inline-block;padding:4px 12px;border-radius:4px;font-weight:bold;font-size:18px;margin-bottom:15px}
+  .dir.LONG{background:#0f82;color:#0f8}
+  .dir.SHORT{background:#f432;color:#f43}
+  .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a2a;font-size:15px}
+  .row:last-child{border:none}
+  .score{font-size:42px;font-weight:bold;text-align:right;margin-bottom:10px}
+  .long .score{color:#0f8}
+  .short .score{color:#f43}
+  .bars{display:flex;height:10px;background:#222;border-radius:5px;overflow:hidden;margin:10px 0}
+  .bar-l{background:#0f8;height:100%}
+  .bar-s{background:#f43;height:100%}
+  .note{color:#aaa;font-size:13px;margin-top:15px;line-height:1.6}
+  .warn{color:#fa3;font-size:13px;margin-top:10px}
+  #out{margin-top:20px}
+  #pt{text-align:center;color:#666;margin-top:10px;font-size:13px}
 </style>
 </head>
 <body>
-<div class="title">📈 波段扫描器</div>
-<div class="sub">4H定方向 · 1H等回调 · 盈亏比 10:3 · 50x杠杆</div>
+<h2>📈 日线宏观方向扫描</h2>
+<div class="sub">只看日线（趋势/均线/结构），强制推多空各1个，不管盈亏比与杠杆</div>
 
-<input id="coins" value="BTC,ETH,SOL,XRP,DOGE,BNB,ADA,AVAX,LINK,DOT,MATIC,ATOM,NEAR,APT,SUI,ARB,OP,LTC,BCH,XLM,ETC,FIL,ICP,HBAR,VET,ALGO,THETA,XTZ,EOS,AAVE,UNI,MKR,CRV,LDO,RUNE,SNX,1INCH,COMP,DYDX,FTM,KAVA,LUNA,TRX,USDC,USDT">
+<textarea id="coins">BTC,ETH,SOL,BNB,XRP,DOGE,ADA,AVAX,LINK,DOT,MATIC,ATOM,OP,ARB,INJ,SUI,SEI,TIA,NEAR,LDO</textarea>
+<button id="btn" onclick="scan()">🚀 扫描日线方向（多空各1）</button>
 
-<div class="coolbar" id="cooltxt">冷却中 0 个</div>
-<button class="btn" id="scanBtn" onclick="scan()">🚀 扫描（多空各1 · 1h冷却）</button>
-<div id="ptext" style="text-align:center;color:#888;font-size:12px;">就绪</div>
-
-<div id="results"></div>
+<div id="out"></div>
+<div id="pt"></div>
 
 <script>
-const HKEY='band_scanner_rr10_3';
-let excluded={};
-try{excluded=JSON.parse(localStorage.getItem(HKEY))||{};}catch(e){excluded={};}
-const COOLDOWN=3600000;
+const btn=document.getElementById('btn');
+const out=document.getElementById('out');
 
-function clearEx(){localStorage.removeItem(HKEY);excluded={};scan();}
-
-function refreshBar(){
-  let now=Date.now(),n=0,minT=999999999,nextSym='';
-  Object.keys(excluded).forEach(k=>{
-    let left=COOLDOWN-(now-excluded[k]);
-    if(left>0){n++;if(left<minT){minT=left;nextSym=k;}}
-  });
-  document.getElementById('cooltxt').innerText=n>0?`冷却中 ${n} 个 · ${nextSym} 约 ${Math.ceil(minT/60000)}分钟后解禁`:'无冷却限制';
+// 模拟欧易日线数据（真实环境替换为 fetch('/api/v5/market/candles?instId=XXX&bar=1D')）
+function getDailyKlines(sym){
+  // 生成带趋势的模拟日线，确保多空都有方向
+  let base = sym.charCodeAt(0)*137 % 100;
+  let trend = (sym.charCodeAt(sym.length-1)%10) - 4; // -4~5 的趋势偏向
+  let closes=[],highs=[],lows=[],opens=[];
+  let p = 100 + base;
+  for(let i=0;i<200;i++){
+    let drift = trend*0.015 + (Math.random()-0.5)*0.04;
+    let o=p*(1+(Math.random()-0.5)*0.02);
+    let c=p*(1+drift);
+    let h=Math.max(o,c)*1.015, l=Math.min(o,c)*0.985;
+    opens.push(o);closes.push(c);highs.push(h);lows.push(l);
+    p=c;
+  }
+  return {closes,highs,lows,opens};
 }
 
-async function fetchKlines(sym,period=60,bar='1H'){
-  // 实际环境需代理；此处返回结构供真实API对接
-  // 真实URL: https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${bar}&limit=50
-  return [];
-}
+// 纯日线打分（0-100）
+function dailyScore(sym, dir){
+  const k=getDailyKlines(sym);
+  const c=k.closes, h=k.highs, l=k.lows, o=k.opens;
+  let s=0, log=[];
 
-function calcScore(sym,dir){
-  // 真实逻辑需基于fetchKlines计算ADX/RSI/ATR与趋势；此处保留核心输出结构
-  let base=sym.length*3+dir.length;
-  let score=Math.max(30,Math.min(85,(base%55)));
-  let price=Math.random()*50000+1;
-  let adx=15+Math.random()*20;
-  let rsi=dir==='LONG'?55+Math.random()*15:45-Math.random()*15;
-  let atr=price*(0.005+Math.random()*0.01);
+  // EMA200 (年线分水岭)
+  let ema200=c[0]; for(let i=1;i<c.length;i++)ema200=ema200*0.95+c[i]*0.05;
+  // EMA50
+  let ema50=c[0]; for(let i=1;i<c.length;i++)ema50=ema50*0.88+c[i]*0.12;
+  // EMA20
+  let ema20=c[0]; for(let i=1;i<c.length;i++)ema20=ema20*0.77+c[i]*0.23;
+
+  const last=c[c.length-1];
   
-  // 50x杠杆，止损30%本金 => 价格反向0.6%
-  let needSL=0.006; 
-  // 盈亏比10:3 => 止盈需为止损的3.333倍 => 价格正向2.0%
-  let needTP=0.020; 
-  
-  let sl=dir==='LONG'?price*(1-needSL):price*(1+needSL);
-  let tp=dir==='LONG'?price*(1+needTP):price*(1-needTP);
-  let room=dir==='LONG'?0.025:0.022; // 模拟到前高/前低空间
-  
-  return {sym,score,price,adx,rsi,atr,sl,tp,needSL,needTP,room,L:dir==='LONG'?score:0,S:dir==='SHORT'?score:0};
+  // 1) 均线排列 30分
+  if(dir==='LONG'){
+    if(last>ema20 && ema20>ema50 && ema50>ema200){s+=30;log.push('均线完美多头')}
+    else if(last>ema50 && ema50>ema200){s+=22;log.push('均线偏多')}
+    else if(last>ema200){s+=12;log.push('站上年线')}
+    else {s-=10;log.push('年线下，多头受限')}
+  } else {
+    if(last<ema20 && ema20<ema50 && ema50<ema200){s+=30;log.push('均线完美空头')}
+    else if(last<ema50 && ema50<ema200){s+=22;log.push('均线偏空')}
+    else if(last<ema200){s+=12;log.push('跌破年线')}
+    else {s-=10;log.push('年线上，空头受限')}
+  }
+
+  // 2) 20日斜率 15分
+  let slope20=(c[c.length-1]-c[c.length-21])/c[c.length-21];
+  if(dir==='LONG'){ if(slope20>0.08){s+=15;log.push('20日强升')}else if(slope20>0.03){s+=10}else if(slope20>0){s+=5}else{s-=5;log.push('20日走平/下')} }
+  else { if(slope20<-0.08){s+=15;log.push('20日强跌')}else if(slope20<-0.03){s+=10}else if(slope20<0){s+=5}else{s-=5;log.push('20日走平/上')} }
+
+  // 3) ADX 趋势强度 15分
+  let tr=[],dmPlus=[],dmMinus=[];
+  for(let i=1;i<c.length;i++){
+    let tr1=h[i]-l[i], tr2=Math.abs(h[i]-c[i-1]), tr3=Math.abs(l[i]-c[i-1]);
+    tr.push(Math.max(tr1,tr2,tr3));
+    dmPlus.push(h[i]-h[i-1]>l[i-1]-l[i]?Math.max(h[i]-h[i-1],0):0);
+    dmMinus.push(l[i-1]-l[i]>h[i]-h[i-1]?Math.max(l[i-1]-l[i],0):0);
+  }
+  let atr=tr.slice(-14).reduce((a,b)=>a+b)/14;
+  let diP=dmPlus.slice(-14).reduce((a,b)=>a+b)/atr, diM=dmMinus.slice(-14).reduce((a,b)=>a+b)/atr;
+  let adx=Math.abs(diP-diM)/(diP+diM)*100;
+  if(adx>25){s+=15;log.push('ADX强('+adx.toFixed(0)+')')}else if(adx>15){s+=8;log.push('ADX中')}else{s-=5;log.push('震荡')}
+
+  // 4) +DI/-DI 方向 15分
+  if(dir==='LONG' && diP>diM){s+=15;log.push('+DI>DI')}else if(dir==='LONG'){s-=10}
+  if(dir==='SHORT' && diM>diP){s+=15;log.push('-DI>+DI')}else if(dir==='SHORT'){s-=10}
+
+  // 5) 高低点结构 15分
+  let hh=c[c.length-1]>c[c.length-30] && c[c.length-30]>c[c.length-60];
+  let ll=c[c.length-1]<c[c.length-30] && c[c.length-30]<c[c.length-60];
+  if(dir==='LONG' && hh){s+=15;log.push('高点抬高')}else if(dir==='LONG' && !hh){s-=5}
+  if(dir==='SHORT' && ll){s+=15;log.push('低点降低')}else if(dir==='SHORT' && !ll){s-=5}
+
+  // 6) 近20日线性斜率 10分
+  let xs=[],ys=[]; for(let i=c.length-20;i<c.length;i++){xs.push(i);ys.push(c[i])}
+  let mx=xs.reduce((a,b)=>a+b)/20, my=ys.reduce((a,b)=>a+b)/20;
+  let num=0,den=0; for(let i=0;i<20;i++){num+=(xs[i]-mx)*(ys[i]-my);den+=(xs[i]-mx)**2}
+  let regSlope=num/den/my;
+  if(dir==='LONG' && regSlope>0.01){s+=10}else if(dir==='LONG'){s-=5}
+  if(dir==='SHORT' && regSlope<-0.01){s+=10}else if(dir==='SHORT'){s-=5}
+
+  // 7) 超买超卖修正 (日线RSI)
+  let diffs=c.slice(1).map((v,i)=>v-c[i]);
+  let gains=diffs.map(d=>d>0?d:0),losses=diffs.map(d=>d<0?-d:0);
+  let ag=gains.slice(-14).reduce((a,b)=>a+b)/14, al=losses.slice(-14).reduce((a,b)=>a+b)/14;
+  let rsi=ag/(ag+al)*100;
+  if(dir==='LONG' && rsi>75){s-=10;log.push('日线超买RSI'+rsi.toFixed(0))}
+  if(dir==='SHORT' && rsi<25){s-=10;log.push('日线超卖RSI'+rsi.toFixed(0))}
+
+  return {sym, score:Math.max(0,Math.min(100,s)), log, ema20, ema50, ema200, adx, rsi, last, slope20, regSlope, diP, diM, hh, ll};
 }
 
 async function scan(){
-  let btn=document.getElementById('scanBtn');
-  btn.disabled=true;btn.innerText='扫描中...';
-  let coins=document.getElementById('coins').value.split(',').map(s=>s.trim()).filter(s=>s);
-  let now=Date.now();
+  btn.disabled=true;btn.innerText='扫描日线中...';
+  out.innerHTML='';
+  const coins=document.getElementById('coins').value.split(',').map(s=>s.trim()).filter(s=>s);
   
-  // 清理过期冷却
-  Object.keys(excluded).forEach(k=>{if(now-excluded[k]>=COOLDOWN)delete excluded[k];});
-  localStorage.setItem(HKEY,JSON.stringify(excluded));
+  // 模拟异步
+  await new Promise(r=>setTimeout(r,600));
   
-  let cooled=coins.filter(c=>excluded[c]);
-  let pool=coins.filter(c=>!excluded[c]);
-  if(pool.length<2){pool=coins;} // 池子太小则无视冷却强制补
-  
-  await new Promise(r=>setTimeout(r,800));
-  
-  let longs=[],shorts=[];
-  pool.forEach(s=>{
-    longs.push(calcScore(s,'LONG'));
-    shorts.push(calcScore(s,'SHORT'));
+  let longs=[], shorts=[];
+  coins.forEach(sym=>{
+    longs.push(dailyScore(sym,'LONG'));
+    shorts.push(dailyScore(sym,'SHORT'));
   });
   
   longs.sort((a,b)=>b.score-a.score);
   shorts.sort((a,b)=>b.score-a.score);
   
-  let bestL=longs[0],bestS=shorts[0];
+  let bestL=longs[0], bestS=shorts[0];
+  // 若同一币多空第一，空头换次高（保证多空不同标的）
   if(bestL.sym===bestS.sym)bestS=shorts[1]||shorts[0];
   
-  // 打冷却
-  excluded[bestL.sym]=now;
-  excluded[bestS.sym]=now;
-  localStorage.setItem(HKEY,JSON.stringify(excluded));
-  
-  let p=x=>x.toFixed(4);
-  let fmt=ms=>Math.ceil(ms/60000)+'分';
-  
   let html='';
-  const card=(s,dir)=>{
+  const render=(d, dir)=>{
     let isL=dir==='LONG';
-    let cls=isL?'long':'short';
-    let lev=50;
-    let roomMult=s.room/s.needTP;
-    return `<div class="box">
-      <div class="bhead"><span class="bsym">${s.sym}</span><span class="bdir ${cls}">${isL?'做多':'做空'}</span></div>
-      <div class="score" style="color:${isL?'var(--green)':'var(--red)'}">${s.score}</div>
-      <div class="row"><span>盈亏比(固定)</span><b>10 : 3 (${((s.needTP/s.needSL)).toFixed(2)}倍)</b></div>
-      <div class="row"><span>进场价(估)</span><b>${p(s.price)}</b></div>
-      <div class="row"><span>止损 -30%本金</span><b style="color:var(--red)">${p(s.sl)}（反向 ${(s.needSL*100).toFixed(2)}%）</b></div>
-      <div class="row"><span>止盈 +100%本金</span><b style="color:var(--green)">${p(s.tp)}（正向 ${(s.needTP*100).toFixed(2)}%）</b></div>
-      <div class="row"><span>到止盈的空间</span><b>${((s.room)*100).toFixed(2)}% ${roomMult<3.33?'⚠️不足3.33倍':'（约'+roomMult.toFixed(1)+'倍）'}</b></div>
-      <div class="row"><span>杠杆 / ADX / RSI</span><b>${lev}x / ${s.adx.toFixed(0)} / ${s.rsi.toFixed(0)}</b></div>
-      <div class="row"><span>冷却至</span><b>${fmt(COOLDOWN)} 后解禁</b></div>
-      <div class="warn">⚠️ 50x下反向0.6%损30%本金；止盈需走2.0%（10:3）。${roomMult<3.33?'空间不足，易损难盈。':''}</div>
+    return `<div class="card ${isL?'long':'short'}">
+      <div class="sym">${d.sym}</div>
+      <div class="dir ${dir}">${isL?'📈 日线看涨 (做多)':'📉 日线看跌 (做空)'}</div>
+      <div class="score">${d.score}分</div>
+      <div class="bars">
+        <div class="bar-l" style="width:${d.diP*1.5}%"></div>
+        <div class="bar-s" style="width:${d.diM*1.5}%"></div>
+      </div>
+      <div class="row"><span>收盘价</span><b>${d.last.toFixed(4)}</b></div>
+      <div class="row"><span>EMA20 / EMA50 / EMA200</span><b>${d.ema20.toFixed(0)} / ${d.ema50.toFixed(0)} / ${d.ema200.toFixed(0)}</b></div>
+      <div class="row"><span>20日斜率</span><b>${(d.slope20*100).toFixed(2)}%</b></div>
+      <div class="row"><span>ADX / RSI</span><b>${d.adx.toFixed(0)} / ${d.rsi.toFixed(0)}</b></div>
+      <div class="row"><span>+DI / -DI</span><b>${d.diP.toFixed(1)} / ${d.diM.toFixed(1)}</b></div>
+      <div class="row"><span>结构</span><b>${isL?(d.hh?'高点抬高 ✅':'高点未确认'):(d.ll?'低点降低 ✅':'低点未确认')}</b></div>
+      <div class="note">依据：${d.log.join('，')}</div>
+      <div class="warn">⚠️ 仅日线宏观方向，不含进出场点位与盈亏比。实盘请自行定夺。</div>
     </div>`;
   };
   
-  html+=card(bestL,'LONG');
-  html+=card(bestS,'SHORT');
-  html+=`<div class="rank">✅ 推荐：${bestL.sym}(多) + ${bestS.sym}(空) · 1h后自动解禁</div>`;
-  if(cooled.length)html+=`<div class="hist">❄️ 本轮跳过(冷却)：${cooled.join('、')}</div>`;
+  html+=render(bestL,'LONG');
+  html+=render(bestS,'SHORT');
+  html+=`<div class="note">📊 候选：多头最高 ${longs.slice(0,3).map(x=>x.sym+'('+x.score+')').join('，')}　空头最高 ${shorts.slice(0,3).map(x=>x.sym+'('+x.score+')').join('，')}</div>`;
   
-  document.getElementById('results').innerHTML=html;
-  document.getElementById('ptext').innerText=`扫完 ${coins.length} 个 · 冷却 ${Object.keys(excluded).length} 个`;
-  refreshBar();
+  out.innerHTML=html;
+  document.getElementById('pt').innerText=`扫完 ${coins.length} 个 · 仅看日线 · 强制多空各1`;
   btn.disabled=false;btn.innerText='🚀 重新扫描';
 }
-refreshBar();
 </script>
 </body>
 </html>
