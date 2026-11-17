@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>5m 纯形态 - 连阳/阴 + 1H顺势 (前200标的)</title>
+    <title>5m 纯形态 - 拒绝十字星 + 1H顺势 (前200标的)</title>
     <script>
-        const AUTO_VERSION = '276'; 
+        const AUTO_VERSION = '277'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -87,7 +87,7 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🔨 5m 连阳/阴 + 1H顺势</span>
+                <span id="btnText">🔨 5m 严格锤子/流星形态</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
                 <span id="autoBtnText">⏱️ 5分定时</span>
@@ -104,7 +104,6 @@
     let countdownInterval = null;
     let nextScanTime = 0;
     let isAutoScanning = false;
-    // 因为看的是 5m K 线，所以 5 分钟定时一次
     const SCAN_INTERVAL = 5 * 60 * 1000; 
 
     function updateProgress(text, percent) {
@@ -117,7 +116,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🔨 5m 连阳/阴 + 1H顺势";
+        document.getElementById('btnText').innerText = "🔨 5m 严格锤子/流星形态";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -154,39 +153,51 @@
         return result;
     }
 
-    // ================= 核心打分引擎 (5m 颜色+形态+1H大趋势) =================
+    // ================= 核心打分引擎 (严格形态判定) =================
     function evaluateCoin(k1h, k5) {
-        // 严格剔除正在走的一根，只留彻底收盘的
         const closed1h = k1h.slice(0, -1);
         const closed5m = k5.slice(0, -1); 
         
         if (closed1h.length < 20 || closed5m.length < 4) return null;
         
-        // 取已经收盘的最新一根 5m 作为信号 K 线
         const lastK = closed5m[closed5m.length - 1]; 
-        // 取包含信号 K 线在内的最近 4 根 5m K 线
         const recent4 = closed5m.slice(-4);
 
-        // ---- 1. 日内大趋势判定 (1H 级别 EMA20) ----
+        // 1. 日内大趋势判定 (1H 级别 EMA20)
         const closes1h = closed1h.map(k => k.c);
         const ema20_1h = getEMAArray(closes1h, 20);
         const curPrice1h = closes1h[closes1h.length - 1];
         const ema20Val1h = ema20_1h[ema20_1h.length - 1];
         
-        const is1HBull = curPrice1h > ema20Val1h; // 1H 价格在 EMA20 之上
-        const is1HBear = curPrice1h < ema20Val1h; // 1H 价格在 EMA20 之下
+        const is1HBull = curPrice1h > ema20Val1h; 
+        const is1HBear = curPrice1h < ema20Val1h; 
 
-        // ---- 2. 信号 K 线形态判定 ----
+        // 2. 严格形态判定
         const lastBody = Math.abs(lastK.c - lastK.o);
+        const totalRange = lastK.h - lastK.l;
         const upperWick = lastK.h - Math.max(lastK.o, lastK.c);
         const lowerWick = Math.min(lastK.o, lastK.c) - lastK.l;
         
-        // 做多：必须是绿色（阳线），且下影线 > 实体 1.5 倍，或者影线占整根 K 线的 50% 以上
-        const isGreenHammer = lastK.c > lastK.o && (lowerWick > lastBody * 1.5 || lowerWick > (lastK.h - lastK.l) * 0.5);
-        // 做空：必须是红色（阴线），且上影线 > 实体 1.5 倍，或者影线占整根 K 线的 50% 以上
-        const isRedShootingStar = lastK.c < lastK.o && (upperWick > lastBody * 1.5 || upperWick > (lastK.h - lastK.l) * 0.5);
+        // 【核心修改】：拒绝十字星。实体必须占据整根 K 线振幅的 15% 以上
+        const isValidBody = lastBody > totalRange * 0.15;
 
-        // ---- 3. 颜色过滤：4 根里至少 3 根同色 ----
+        // 严格的锤子线：必须是绿线，有实体，下影线长，上影线极短
+        const isGreenHammer = 
+            lastK.c > lastK.o && 
+            isValidBody && 
+            (lowerWick >= lastBody * 2.0) && 
+            (upperWick <= lastBody * 0.5) &&
+            (lowerWick > totalRange * 0.5); 
+
+        // 严格的流星线：必须是红线，有实体，上影线长，下影线极短
+        const isRedShootingStar = 
+            lastK.c < lastK.o && 
+            isValidBody && 
+            (upperWick >= lastBody * 2.0) && 
+            (lowerWick <= lastBody * 0.5) &&
+            (upperWick > totalRange * 0.5);
+
+        // 3. 颜色过滤：4 根里至少 3 根同色
         let greenCount = 0, redCount = 0;
         recent4.forEach(k => {
             if (k.c > k.o) greenCount++;
@@ -196,19 +207,17 @@
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
 
-        // 做多条件：1H看多 + 绿色锤子线 + 4根里至少3根绿
         if (is1HBull && isGreenHammer && greenCount >= 3) {
             longScore = 100;
             longReasons.push("1H 级别大趋势看多 (顺势)");
-            longReasons.push("最新收盘出现绿色锤子线");
+            longReasons.push("最新收盘出现严格绿色锤子线");
             longReasons.push(`最近 4 根 K 线有 ${greenCount} 根阳线，多头强势`);
         }
 
-        // 做空条件：1H看空 + 红色流星线 + 4根里至少3根红
         if (is1HBear && isRedShootingStar && redCount >= 3) {
             shortScore = 100;
             shortReasons.push("1H 级别大趋势看空 (顺势)");
-            shortReasons.push("最新收盘出现红色流星线");
+            shortReasons.push("最新收盘出现严格红色流星线");
             shortReasons.push(`最近 4 根 K 线有 ${redCount} 根阴线，空头强势`);
         }
 
@@ -260,7 +269,7 @@
     }
 
     async function fetchMaxLever(instId) {
-        if(instId.endsWith('-USDT')) return 1; // 现货
+        if(instId.endsWith('-USDT')) return 1;
         try {
             const res = await fetch(`https://www.okx.com/api/v5/public/position-tiers?instType=SWAP&tdMode=isolated&instId=${instId}`).then(r => r.json());
             if (res.code === '0' && res.data && res.data.length > 0) return parseInt(res.data[0].maxLever) || 10;
@@ -283,7 +292,7 @@
             const targetCoins = await fetchTop200();
             if (targetCoins.length === 0) { updateProgress("获取标的失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在扫描 5m 颜色形态...`, 5);
+            updateProgress(`正在扫描严格形态...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -387,7 +396,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🔨 5m连阳/阴 + 1H顺势 (1:${bestPick.rr})</span>
+                        <span>🔨 严格形态确认 (1:${bestPick.rr})</span>
                         <span class="badge">完美条件</span>
                     </div>
                     <div class="best-coin">
@@ -415,7 +424,7 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (已收盘K线，止损 ${bestPick.risk}%)
+                            (已严格剔除十字星，止损 ${bestPick.risk}%)
                         </div>
                     </div>
                     
@@ -429,7 +438,7 @@
             html += `
                 <div class="empty-tip">
                     ⚠️ 当前无 5m 完美共振机会<br>
-                    (要求：1H同向 + 4根内3根同色 + 最后1根为同色锤子/流星)
+                    (要求：1H同向 + 4根内3根同色 + 严格锤子/流星，拒收十字星)
                 </div>
             `;
         }
