@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>5m 纯形态 - 拒绝十字星 + 1H顺势 (前200标的)</title>
+    <title>日线双EMA顺势 + 15m微观入场 (前200标的)</title>
     <script>
-        const AUTO_VERSION = '277'; 
+        const AUTO_VERSION = '279'; 
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('v') !== AUTO_VERSION) {
             urlParams.set('v', AUTO_VERSION);
@@ -87,10 +87,10 @@
     <div id="top-bar">
         <div class="btn-container">
             <button class="scan-btn" id="startBtn" onclick="runScanner()">
-                <span id="btnText">🔨 5m 严格锤子/流星形态</span>
+                <span id="btnText">🎯 日线双EMA + 15m入场</span>
             </button>
             <button class="scan-btn auto-btn" id="autoBtn" onclick="toggleAutoScan()" style="flex: 0.6;">
-                <span id="autoBtnText">⏱️ 5分定时</span>
+                <span id="autoBtnText">⏱️ 15分定时</span>
             </button>
         </div>
         <div class="progress-text" id="progressText">准备就绪</div>
@@ -104,7 +104,8 @@
     let countdownInterval = null;
     let nextScanTime = 0;
     let isAutoScanning = false;
-    const SCAN_INTERVAL = 5 * 60 * 1000; 
+    // 因为是 15m 级别入场，15分钟扫描一次
+    const SCAN_INTERVAL = 15 * 60 * 1000; 
 
     function updateProgress(text, percent) {
         document.getElementById('progressText').innerText = text;
@@ -116,7 +117,7 @@
     function endScanner() {
         isRunning = false;
         document.getElementById('startBtn').disabled = false;
-        document.getElementById('btnText').innerText = "🔨 5m 严格锤子/流星形态";
+        document.getElementById('btnText').innerText = "🎯 日线双EMA + 15m入场";
         if (isAutoScanning) nextScanTime = Date.now() + SCAN_INTERVAL;
     }
     function toggleAutoScan() {
@@ -126,7 +127,7 @@
             isAutoScanning = false;
             clearInterval(autoScanInterval); clearInterval(countdownInterval);
             autoBtn.classList.remove('active');
-            autoBtnText.innerText = "⏱️ 5分定时";
+            autoBtnText.innerText = "⏱️ 15分定时";
             updateProgress("已停止自动扫描", 0);
         } else {
             isAutoScanning = true;
@@ -144,6 +145,7 @@
         }
     }
 
+    // ================= 指标计算 =================
     function getEMAArray(prices, period) {
         if (prices.length === 0) return [];
         let k = 2 / (period + 1);
@@ -153,76 +155,89 @@
         return result;
     }
 
-    // ================= 核心打分引擎 (严格形态判定) =================
-    function evaluateCoin(k1h, k5) {
-        const closed1h = k1h.slice(0, -1);
-        const closed5m = k5.slice(0, -1); 
+    // ================= 核心打分引擎 (日线双EMA + 15m入场) =================
+    function evaluateCoin(k1d, k15) {
+        const closed1d = k1d.slice(0, -1); // 必须剔除未走完的日线
+        const closed15m = k15.slice(0, -1); 
         
-        if (closed1h.length < 20 || closed5m.length < 4) return null;
+        if (closed1d.length < 25 || closed15m.length < 20) return null;
         
-        const lastK = closed5m[closed5m.length - 1]; 
-        const recent4 = closed5m.slice(-4);
+        const closes1d = closed1d.map(k => k.c);
+        const closes15m = closed15m.map(k => k.c);
 
-        // 1. 日内大趋势判定 (1H 级别 EMA20)
-        const closes1h = closed1h.map(k => k.c);
-        const ema20_1h = getEMAArray(closes1h, 20);
-        const curPrice1h = closes1h[closes1h.length - 1];
-        const ema20Val1h = ema20_1h[ema20_1h.length - 1];
+        // 1. 日线 EMA5 和 EMA20
+        const ema5_1d = getEMAArray(closes1d, 5);
+        const ema20_1d = getEMAArray(closes1d, 20);
         
-        const is1HBull = curPrice1h > ema20Val1h; 
-        const is1HBear = curPrice1h < ema20Val1h; 
+        const curEma5 = ema5_1d[ema5_1d.length - 1];
+        const curEma20 = ema20_1d[ema20_1d.length - 1];
+        const prevEma5 = ema5_1d[ema5_1d.length - 2];
+        const prevEma20 = ema20_1d[ema20_1d.length - 2];
 
-        // 2. 严格形态判定
-        const lastBody = Math.abs(lastK.c - lastK.o);
-        const totalRange = lastK.h - lastK.l;
-        const upperWick = lastK.h - Math.max(lastK.o, lastK.c);
-        const lowerWick = Math.min(lastK.o, lastK.c) - lastK.l;
-        
-        // 【核心修改】：拒绝十字星。实体必须占据整根 K 线振幅的 15% 以上
-        const isValidBody = lastBody > totalRange * 0.15;
+        // 均线必须向上/向下，且没有拐头
+        const is1DEma5Up = curEma5 > prevEma5;
+        const is1DEma20Up = curEma20 > prevEma20;
+        const is1DEma5Down = curEma5 < prevEma5;
+        const is1DEma20Down = curEma20 < prevEma20;
 
-        // 严格的锤子线：必须是绿线，有实体，下影线长，上影线极短
-        const isGreenHammer = 
-            lastK.c > lastK.o && 
-            isValidBody && 
-            (lowerWick >= lastBody * 2.0) && 
-            (upperWick <= lastBody * 0.5) &&
-            (lowerWick > totalRange * 0.5); 
+        const is1DBull = curEma5 > curEma20 && is1DEma5Up && is1DEma20Up;
+        const is1DBear = curEma5 < curEma20 && is1DEma5Down && is1DEma20Down;
 
-        // 严格的流星线：必须是红线，有实体，上影线长，下影线极短
-        const isRedShootingStar = 
-            lastK.c < lastK.o && 
-            isValidBody && 
-            (upperWick >= lastBody * 2.0) && 
-            (lowerWick <= lastBody * 0.5) &&
-            (upperWick > totalRange * 0.5);
+        // 2. 站稳均线不超过 3~4 根日K (寻找刚启动的)
+        let daysAbove = 0, daysBelow = 0;
+        for (let i = closed1d.length - 1; i >= 0; i--) {
+            if (closed1d[i].c > ema20_1d[i]) daysAbove++;
+            else break;
+        }
+        for (let i = closed1d.length - 1; i >= 0; i--) {
+            if (closed1d[i].c < ema20_1d[i]) daysBelow++;
+            else break;
+        }
 
-        // 3. 颜色过滤：4 根里至少 3 根同色
-        let greenCount = 0, redCount = 0;
-        recent4.forEach(k => {
-            if (k.c > k.o) greenCount++;
-            else if (k.c < k.o) redCount++;
-        });
+        const isValidLongStart = daysAbove >= 1 && daysAbove <= 4;
+        const isValidShortStart = daysBelow >= 1 && daysBelow <= 4;
+
+        // 3. 15m 微观入场点 (回踩均线企稳)
+        const ema20_15m = getEMAArray(closes15m, 20);
+        const curEma20_15m = ema20_15m[ema20_15m.length - 1];
+        const last15m = closed15m[closed15m.length - 1];
+
+        // 15m 必须是阳线/阴线，且靠近 EMA20 (距离不超过 0.5%)
+        const distToEma20_Long = (last15m.c - curEma20_15m) / curEma20_15m;
+        const distToEma20_Short = (curEma20_15m - last15m.c) / curEma20_15m;
+
+        // 做多：收阳线，回踩靠近 EMA20
+        const is15mLongEntry = last15m.c > last15m.o && distToEma20_Long > -0.005 && distToEma20_Long < 0.015;
+        // 做空：收阴线，反抽靠近 EMA20
+        const is15mShortEntry = last15m.c < last15m.o && distToEma20_Short > -0.005 && distToEma20_Short < 0.015;
 
         let longScore = 0, longReasons = [];
         let shortScore = 0, shortReasons = [];
 
-        if (is1HBull && isGreenHammer && greenCount >= 3) {
-            longScore = 100;
-            longReasons.push("1H 级别大趋势看多 (顺势)");
-            longReasons.push("最新收盘出现严格绿色锤子线");
-            longReasons.push(`最近 4 根 K 线有 ${greenCount} 根阳线，多头强势`);
+        if (is1DBull && isValidLongStart) {
+            longScore += 60; 
+            longReasons.push("日线 EMA5>20 且双线向上");
+            longReasons.push(`刚站稳日线均线 ${daysAbove} 天 (启动初期)`);
+            
+            if (is15mLongEntry) {
+                longScore += 40;
+                longReasons.push("15m 回踩 EMA20 附近，收阳企稳");
+            }
         }
 
-        if (is1HBear && isRedShootingStar && redCount >= 3) {
-            shortScore = 100;
-            shortReasons.push("1H 级别大趋势看空 (顺势)");
-            shortReasons.push("最新收盘出现严格红色流星线");
-            shortReasons.push(`最近 4 根 K 线有 ${redCount} 根阴线，空头强势`);
+        if (is1DBear && isValidShortStart) {
+            shortScore += 60; 
+            shortReasons.push("日线 EMA5<20 且双线向下");
+            shortReasons.push(`刚跌破日线均线 ${daysBelow} 天 (启动初期)`);
+            
+            if (is15mShortEntry) {
+                shortScore += 40;
+                shortReasons.push("15m 反抽 EMA20 附近，收阴遇阻");
+            }
         }
 
         return { 
-            longScore, longReasons, shortScore, shortReasons, lastK
+            longScore, longReasons, shortScore, shortReasons, last15m
         };
     }
 
@@ -281,7 +296,7 @@
         if (isRunning) return;
         isRunning = true;
         document.getElementById('startBtn').disabled = true;
-        document.getElementById('btnText').innerText = "⏳ 扫描中...";
+        document.getElementById('btnText').innerText = "⏳ 扫描日线级别行情...";
         const area = document.getElementById('result-area');
         area.style.display = 'none';
         area.innerHTML = '';
@@ -292,7 +307,7 @@
             const targetCoins = await fetchTop200();
             if (targetCoins.length === 0) { updateProgress("获取标的失败。", 100); endScanner(); return; }
 
-            updateProgress(`正在扫描严格形态...`, 5);
+            updateProgress(`正在寻找日线刚启动的标的...`, 5);
             let done = 0;
             const chunkSize = 10;
 
@@ -300,22 +315,22 @@
                 const chunk = targetCoins.slice(i, i + chunkSize);
                 await Promise.all(chunk.map(async (coin) => {
                     try {
-                        const [k1h, k5, realMaxLever] = await Promise.all([
-                            fetchCandles(coin.instId, '1H', 30),
-                            fetchCandles(coin.instId, '5m', 30),
+                        const [k1d, k15, realMaxLever] = await Promise.all([
+                            fetchCandles(coin.instId, '1D', 30),
+                            fetchCandles(coin.instId, '15m', 30),
                             fetchMaxLever(coin.instId)
                         ]);
                         
-                        if (k1h.length < 25 || k5.length < 25) return;
+                        if (k1d.length < 25 || k15.length < 25) return;
 
-                        const result = evaluateCoin(k1h, k5);
+                        const result = evaluateCoin(k1d, k15);
                         if (!result) return;
 
-                        const entryPrice = result.lastK.c;
+                        const entryPrice = result.last15m.c;
                         let sl = 0, tp = 0, risk = 0;
 
                         if (result.longScore === 100) {
-                            sl = result.lastK.l * 0.999; 
+                            sl = result.last15m.l * 0.999; 
                             risk = (entryPrice - sl) / entryPrice;
                             
                             if (risk > 0.03 || risk < 0.002) return; 
@@ -331,7 +346,7 @@
                         }
 
                         if (result.shortScore === 100 && realMaxLever > 1) {
-                            sl = result.lastK.h * 1.001;
+                            sl = result.last15m.h * 1.001;
                             risk = (sl - entryPrice) / entryPrice;
                             
                             if (risk > 0.03 || risk < 0.002) return;
@@ -370,7 +385,7 @@
     }
 
     function renderResults(longs, shorts) {
-        updateProgress("✅ 形态信号生成", 100);
+        updateProgress("✅ 日线顺势信号生成", 100);
         endScanner();
         const area = document.getElementById('result-area');
         area.style.display = 'flex';
@@ -396,7 +411,7 @@
             html += `
                 <div class="best-pick-card ${cardClass}">
                     <div class="best-title">
-                        <span>🔨 严格形态确认 (1:${bestPick.rr})</span>
+                        <span>🎯 日线刚启动 + 15m顺势 (1:${bestPick.rr})</span>
                         <span class="badge">完美条件</span>
                     </div>
                     <div class="best-coin">
@@ -424,7 +439,7 @@
                             <span class="label" style="color:var(--up)">赚 ${expectedProfit}% (总资金)</span>
                         </div>
                         <div style="width: 100%; text-align: center; font-size: 12px; color: #848e9c; margin-top: 5px;">
-                            (已严格剔除十字星，止损 ${bestPick.risk}%)
+                            (日线多头/空头排列，15m 回踩均线进场)
                         </div>
                     </div>
                     
@@ -437,13 +452,13 @@
         } else {
             html += `
                 <div class="empty-tip">
-                    ⚠️ 当前无 5m 完美共振机会<br>
-                    (要求：1H同向 + 4根内3根同色 + 严格锤子/流星，拒收十字星)
+                    ⚠️ 当前无日线刚启动的顺势机会<br>
+                    (必须：日线双均线同向且不拐头 + 刚站稳不超过4天 + 15m回踩企稳)
                 </div>
             `;
         }
 
-        html += `<div class="section-title long" style="margin-top:10px;">🟢 绿色锤子线做多备选</div>`;
+        html += `<div class="section-title long" style="margin-top:10px;">🟢 日线多头备选</div>`;
         if (longs.length === 0) html += `<div class="empty-tip">当前无符合的做多标的。</div>`;
         longs.slice(0, 3).forEach((item, index) => {
             const expLoss = (item.leverage * item.risk).toFixed(2);
@@ -466,7 +481,7 @@
                 </details>`;
         });
 
-        html += `<div class="section-title short" style="margin-top:20px;">🔴 红色流星线做空备选</div>`;
+        html += `<div class="section-title short" style="margin-top:20px;">🔴 日线空头备选</div>`;
         if (shorts.length === 0) html += `<div class="empty-tip">当前无符合的做空标的。</div>`;
         shorts.slice(0, 3).forEach((item, index) => {
             const expLoss = (item.leverage * item.risk).toFixed(2);
