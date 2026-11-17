@@ -3,152 +3,216 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>动量突破扫描器</title>
+<title>波段扫描器</title>
 <style>
-:root{--bg:#1a1a1a;--card:#252525;--border:#333;--green:#00d4aa;--red:#ff6b6b;--yellow:#ffc107;--text:#e0e0e0}
+:root{--bg:#0f0f0f;--card:#1a1a1a;--border:#2a2a2a;--green:#00d4aa;--red:#ff4757;--yellow:#ffc107;--text:#e0e0e0;--sub:#888}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;margin:0;padding:12px;font-size:14px}
-.wrap{max-width:420px;margin:0 auto}
-h1{text-align:center;font-size:18px;margin:8px 0;color:var(--yellow)}
-.tip{text-align:center;color:#888;font-size:12px;margin-bottom:12px;padding:8px;border:1px dashed var(--border);border-radius:8px}
-.params{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.param{background:var(--card);padding:8px;border-radius:6px;border:1px solid var(--border)}
-.param label{font-size:11px;color:#999;display:block;margin-bottom:4px}
-.param input{width:100%;background:transparent;color:var(--text);border:none;font-size:16px;outline:none}
-textarea{width:100%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box;margin-bottom:10px}
-.btn-row{display:flex;gap:8px;margin-bottom:10px}
-button{flex:1;padding:10px;border:none;border-radius:6px;font-size:14px;cursor:pointer}
-.btn-primary{background:var(--green);color:#000;font-weight:bold}
-.btn-auto{background:#444;color:var(--text)}
-.progress{height:6px;background:#333;border-radius:3px;margin:8px 0;overflow:hidden}
+.wrap{max-width:440px;margin:0 auto}
+h1{text-align:center;font-size:17px;margin:6px 0;color:var(--yellow)}
+.desc{text-align:center;color:var(--sub);font-size:11px;margin-bottom:10px}
+textarea{width:100%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:12px;resize:vertical;box-sizing:border-box;margin-bottom:8px}
+.params{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.param{background:var(--card);padding:6px;border-radius:6px;border:1px solid var(--border)}
+.param label{font-size:10px;color:var(--sub);display:block;margin-bottom:2px}
+.param input{width:100%;background:transparent;color:var(--text);border:none;font-size:14px;outline:none}
+.btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;margin-bottom:8px}
+.btn-scan{background:var(--green);color:#000}
+.btn-stop{background:#444;color:var(--text);font-size:13px;padding:8px}
+.progress{height:4px;background:#222;border-radius:2px;margin:6px 0;overflow:hidden}
 .progress-fill{height:100%;background:var(--green);width:0%;transition:width .3s}
-.progress-text{text-align:center;font-size:12px;color:#888;margin-bottom:10px}
-.stats{text-align:center;color:#888;font-size:12px;margin:8px 0}
-.results{margin-top:10px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px}
+.ptext{text-align:center;font-size:11px;color:var(--sub);margin-bottom:8px}
+.stats{text-align:center;font-size:12px;color:var(--sub);margin:6px 0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
 .card.long{border-left:3px solid var(--green)}
 .card.short{border-left:3px solid var(--red)}
-.sig-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.sym{font-size:16px;font-weight:bold}
-.dir{font-size:12px;padding:3px 8px;border-radius:4px}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sym{font-size:15px;font-weight:bold}
+.dir{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:bold}
 .dir-long{background:var(--green);color:#000}
 .dir-short{background:var(--red);color:#fff}
-.row{display:flex;justify-content:space-between;font-size:12px;margin:3px 0;color:#ccc}
+.row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0;color:#bbb}
 .row b{color:var(--text)}
-.filter-list{font-size:11px;color:#777;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
-.filter-list div{margin:2px 0}
+.tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:3px;margin:2px 2px 0 0;background:#333;color:var(--sub)}
+.empty{text-align:center;color:var(--sub);font-size:12px;padding:20px 0}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>⚡ 动量突破扫描器</h1>
-<div class="tip">横盘后放量突破 · 参数可调 · 扫不到是常态</div>
+<h1>📈 波段扫描器</h1>
+<div class="desc">4H定方向 · 1H等回调企稳 · 不接飞刀</div>
+
+<textarea id="coins" rows="2" placeholder="BTC,ETH,SOL,ZEC,LINK,AVAX,DOGE,XRP,SUI,APT">BTC,ETH,SOL,ZEC,LINK,AVAX,DOGE,XRP,SUI,APT,OP,ARB,MATIC,ATOM,NEAR,SEI,TIA,INJ</textarea>
 
 <div class="params">
-<div class="param"><label>量比门槛</label><input id="volRatio" type="number" step="0.1" value="1.2"></div>
-<div class="param"><label>横盘根数</label><input id="rangeBars" type="number" value="5"></div>
-<div class="param"><label>区间振幅%</label><input id="rangeAmp" type="number" step="0.5" value="4.5"></div>
-<div class="param"><label>突破确认%</label><input id="breakConf" type="number" step="0.1" value="0.3"></div>
+<div class="param"><label>回调最小%</label><input id="pullMin" type="number" step="0.5" value="2"></div>
+<div class="param"><label>回调最大%</label><input id="pullMax" type="number" step="0.5" value="5"></div>
+<div class="param"><label>ADX最低</label><input id="adxMin" type="number" value="20"></div>
+</div>
+<div class="params">
+<div class="param"><label>盈亏比最低</label><input id="rrMin" type="number" step="0.1" value="1.8"></div>
+<div class="param"><label>止损上限%</label><input id="slMax" type="number" step="0.5" value="3.5"></div>
+<div class="param"><label>止盈倍数R</label><input id="tpR" type="number" step="0.1" value="1.6"></div>
 </div>
 
-<textarea id="coinList" rows="3" placeholder="BTC,ETH,SOL,ZEC,LINK,AVAX,DOGE,PEPE,SUI,APT">BTC,ETH,SOL,ZEC,LINK,AVAX,DOGE,PEPE,SUI,APT,XRP,BNB,OP,ARB,MATIC,ATOM,NEAR,SEI,TIA,INJ</textarea>
-
-<div class="btn-row">
-<button class="btn-primary" onclick="startScan()">🚀 扫描</button>
-<button class="btn-auto" id="autoBtn" onclick="toggleAuto()">⏱ 自动15分</button>
-</div>
-
-<div class="progress"><div class="progress-fill" id="pf"></div></div>
-<div class="progress-text" id="pt">就绪</div>
+<button class="btn btn-scan" onclick="start()">🚀 扫描自选币</button>
+<div class="progress"><div class="progress-fill" id="bar"></div></div>
+<div class="ptext" id="ptext">就绪</div>
 <div class="stats" id="stats"></div>
-<div class="results" id="results"></div>
+<div id="results"></div>
 </div>
 
 <script>
-let scanning=false,autoOn=false,autoT=null,cntT=null,nextScan=0;
-const defaultParams={volRatio:1.2,rangeBars:5,rangeAmp:4.5,breakConf:0.3};
+let running=false;
 
-function getP(){return{volRatio:+document.getElementById('volRatio').value,rangeBars:+document.getElementById('rangeBars').value,rangeAmp:+document.getElementById('rangeAmp').value,breakConf:+document.getElementById('breakConf').value}}
-function setP(p){document.getElementById('pf').style.width=p+'%';document.getElementById('pt').innerText=Math.round(p)+'%'}
-function ema(a,p){if(!a.length)return[];const k=2/(p+1);let e=a[0],r=[e];for(let i=1;i<a.length;i++){e=a[i]*k+e*(1-k);r.push(e)}return r}
-function rsi(c,p){if(c.length<p+1)return 50;let g=0,l=0;for(let i=c.length-p;i<c.length;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else l-=d}if(l===0)return 100;return 100-100/(1+(g/p)/(l/p))}
-function sma(a,n){return a.slice(-n).reduce((x,y)=>x+y,0)/n}
+function pct(v){return(v*100).toFixed(2)+'%'}
+function setBar(p){document.getElementById('bar').style.width=p+'%';document.getElementById('ptext').innerText=Math.round(p)+'%'}
+function ema(arr,n){const k=2/(n+1);let e=arr[0],r=[e];for(let i=1;i<arr.length;i++){e=arr[i]*k+e*(1-k);r.push(e)}return r}
+function rsi(arr,n=14){if(arr.length<n+1)return 50;let g=0,l=0;for(let i=arr.length-n;i<arr.length;i++){const d=arr[i]-arr[i-1];if(d>0)g+=d;else l-=d}if(l===0)return 100;return 100-100/(1+(g/n)/(l/n))}
+function adxCalc(h,l,c,p=14){
+  const up=[],down=[],tr=[];
+  for(let i=1;i<c.length;i++){up.push(h[i]-h[i-1]);down.push(l[i-1]-l[i]);tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])))}
+  let pdi=0,mdi=0,dxSum=0;
+  for(let i=0;i<p;i++){pdi+=up[i]>0?up[i]:0;mdi+=down[i]>0?down[i]:0}
+  pdi=pdi/p;mdi=mdi/p;
+  let atr=0;for(let i=0;i<p;i++)atr+=tr[i];atr/=p;
+  return{pdi,mdi,adx:100*Math.abs(pdi-mdi)/(pdi+mdi)};
+}
 
-async function fetchK(sym){
+async function fetchK(inst,bar,limit){
   try{
-    const r=await fetch(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=1H&limit=30`);
+    const r=await fetch(`https://www.okx.com/api/v5/market/candles?instId=${inst}-USDT-SWAP&bar=${bar}&limit=${limit}`);
     const j=await r.json();
-    if(j.code!='0'||!j.data)return null;
+    if(j.code!=='0')return null;
     return j.data.reverse().map(d=>({t:+d[0],o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
   }catch(e){return null}
 }
 
-async function startScan(){
-  if(scanning)return;scanning=true;
-  const coins=document.getElementById('coinList').value.split(',').map(s=>s.trim()).filter(Boolean);
-  const p=getP(),results=[],filters=[];
-  setP(0);document.getElementById('stats').innerText=`共扫 ${coins.length} · 命中 0 · 剔除 0`;
-  
-  for(let i=0;i<coins.length;i++){
-    const sym=coins[i];setP(i/coins.length*100);
-    const k=await fetchK(sym);
-    if(!k||k.length<25){filters.push({sym,reason:'K线不足'});continue}
-    const closed=k.slice(0,-1),last=closed[closed.length-1],recent=closed.slice(-p.rangeBars);
-    
-    const highs=recent.map(x=>x.h),lows=recent.map(x=>x.l);
-    const rngHi=Math.max(...highs),rngLo=Math.min(...lows),amp=(rngHi-rngLo)/rngLo*100;
-    if(amp>p.rangeAmp){filters.push({sym,reason:`区间振幅${amp.toFixed(2)}%>${p.rangeAmp}%，不是整理`});continue}
-    
-    const volAvg=sma(recent.slice(0,-1).map(x=>x.v),p.rangeBars-1);
-    const volR=last.v/volAvg;
-    if(volR<p.volRatio){filters.push({sym,reason:`量比${volR.toFixed(2)}<${p.volRatio}，缩量突破不可信`});continue}
-    
-    const ema20=ema(closed.map(x=>x.c),20)[closed.length-1];
-    if(Math.abs(last.c-ema20)/ema20*100>3){filters.push({sym,reason:'偏离EMA20>3%'});continue}
-    
-    const r=rsi(closed.map(x=>x.c),14);
-    const upBreak=last.c>rngHi*(1+p.breakConf/100);
-    const dnBreak=last.c<rngLo*(1-p.breakConf/100);
-    
-    let sig=null;
-    if(upBreak&&r<68){
-      const body=Math.abs(last.c-last.o),full=last.h-last.l;
-      if(full>0&&body/full>=0.45){
-        sig={sym,dir:'LONG',entry:last.c,sl:rngLo*0.997,r1:rngLo*0.997,r2:rngHi,tp1:last.c+(last.c-rngLo)*1.6,tp2:last.c+(last.c-rngLo)*2.6};
-      }else filters.push({sym,reason:'实体占全幅<45%（长影线）'});
-    }else if(dnBreak&&r>32){
-      const body=Math.abs(last.c-last.o),full=last.h-last.l;
-      if(full>0&&body/full>=0.45){
-        sig={sym,dir:'SHORT',entry:last.c,sl:rngHi*1.003,r1:rngHi*1.003,r2:rngLo,tp1:last.c-(rngHi-last.c)*1.6,tp2:last.c-(rngHi-last.c)*2.6};
-      }else filters.push({sym,reason:'实体占全幅<45%（长影线）'});
-    }else if(upBreak||dnBreak){filters.push({sym,reason:'RSI超买/超卖，不追'})}
-    
-    if(sig)results.push(sig);else if(!filters.find(f=>f.sym===sym))filters.push({sym,reason:'收盘在区间内'});
+async function start(){
+  if(running)return;running=true;
+  const coins=document.getElementById('coins').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const pullMin=+document.getElementById('pullMin').value/100;
+  const pullMax=+document.getElementById('pullMax').value/100;
+  const adxMin=+document.getElementById('adxMin').value;
+  const rrMin=+document.getElementById('rrMin').value;
+  const slMax=+document.getElementById('slMax').value/100;
+  const tpR=+document.getElementById('tpR').value;
+
+  const results=[];
+  setBar(0);
+  document.getElementById('stats').innerText=`扫描中... 0/${coins.length}`;
+
+  for(let idx=0;idx<coins.length;idx++){
+    const sym=coins[idx];
+    setBar(idx/coins.length*100);
+
+    const h4=await fetchK(sym,'4H',80);
+    const h1=await fetchK(sym,'1H',300);
+    if(!h4||!h1||h4.length<60||h1.length<200){continue}
+
+    // 4H指标
+    const c4=h4.map(d=>d.c);
+    const e20=ema(c4,20),e55=ema(c4,55);
+    const adxR=adxCalc(h4.map(d=>d.h),h4.map(d=>d.l),c4);
+    const h4Up=e20[e20.length-1]>e20[e20.length-2];
+
+    // 1H指标
+    const c1=h1.map(d=>d.c);
+    const e1h=ema(c1,20);
+
+    // 最近12根1H
+    const recent=h1.slice(-13,-1);
+    const hh=Math.max(...recent.map(d=>d.h));
+    const ll=Math.min(...recent.map(d=>d.l));
+
+    const last4=h4[h4.length-1];
+    const last1=h1[h1.length-1];
+    const prev1=h1[h1.length-2];
+
+    // 方向判定
+    const longTrend=e20[e20.length-1]>e55[e55.length-1]&&adxR.pdi>adxR.mdi&&last1.c>e55[e55.length-1]&&h4Up;
+    const shortTrend=e20[e20.length-1]<e55[e55.length-1]&&adxR.mdi>adxR.pdi&&last1.c<e55[e55.length-1]&&!h4Up;
+
+    if(!longTrend&&!shortTrend){continue}
+
+    if(longTrend){
+      const dev=(last1.c-e55[e55.length-1])/e55[e55.length-1];
+      if(dev>0.08)continue;
+      const pull=(hh-last1.c)/hh;
+      if(pull<pullMin||pull>pullMax)continue;
+      if(!(last1.c>prev1.c&&last1.c>prev1.h&&last1.l>=prev1.l))continue;
+      const body=Math.abs(last1.c-last1.o);
+      if(body/(last1.h-last1.l)<0.45)continue;
+
+      const entry=last1.c;
+      const sl=Math.min(prev1.l,last1.l)*0.997;
+      const slDist=(entry-sl)/entry;
+      if(slDist>slMax||slDist<0.004)continue;
+      const tp=hh;
+      const rr=(tp-entry)/(entry-sl);
+      if(rr<rrMin)continue;
+
+      const tp1=entry+(entry-sl)*tpR;
+      const lev=Math.min(20,2/slDist*100);
+
+      results.push({sym,direction:'LONG',entry,sl,tp1,tp2:tp,rr,slDist,lev,bodyRatio:body/(last1.h-last1.l)});
+    }
+
+    if(shortTrend){
+      const dev=(e55[e55.length-1]-last1.c)/e55[e55.length-1];
+      if(dev>0.08)continue;
+      const pull=(last1.c-ll)/ll;
+      if(pull<pullMin||pull>pullMax)continue;
+      if(!(last1.c<prev1.c&&last1.c<prev1.l&&last1.h<=prev1.h))continue;
+      const body=Math.abs(last1.c-last1.o);
+      if(body/(last1.h-last1.l)<0.45)continue;
+
+      const entry=last1.c;
+      const sl=Math.max(prev1.h,last1.h)*1.003;
+      const slDist=(sl-entry)/entry;
+      if(slDist>slMax||slDist<0.004)continue;
+      const tp=ll;
+      const rr=(entry-tp)/(sl-entry);
+      if(rr<rrMin)continue;
+
+      const tp1=entry-(sl-entry)*tpR;
+      const lev=Math.min(20,2/slDist*100);
+
+      results.push({sym,direction:'SHORT',entry,sl,tp1,tp2:tp,rr,slDist,lev,bodyRatio:body/(last1.h-last1.l)});
+    }
   }
-  
-  render(results,filters,coins.length,p);
-  scanning=false;if(autoOn)nextScan=Date.now()+900000;
+
+  // 渲染
+  if(results.length===0){
+    document.getElementById('results').innerHTML='<div class="empty">没有命中信号<br>当前时段可能没有符合条件的回调<br>试试把ADX降到15或回调范围放宽到2~6%</div>';
+  }else{
+    document.getElementById('results').innerHTML=results.map(s=>`
+      <div class="card ${s.direction==='LONG'?'long':'short'}">
+        <div class="head">
+          <span class="sym">${s.sym}</span>
+          <span class="dir ${s.direction==='LONG'?'dir-long':'dir-short'}">${s.direction==='LONG'?'做多':'做空'}</span>
+        </div>
+        <div class="row"><span>进场</span><b>${s.entry.toFixed(s.entry<0.01?6:2)}</b></div>
+        <div class="row"><span>止损</span><b>${s.sl.toFixed(s.sl<0.01?6:2)} (-${pct(s.slDist)})</b></div>
+        <div class="row"><span>止盈① ${s.rr.toFixed(1)}R</span><b>${s.tp1.toFixed(s.tp1<0.01?6:2)}</b></div>
+        <div class="row"><span>止盈② 前高/前低</span><b>${s.tp2.toFixed(s.tp2<0.01?6:2)}</b></div>
+        <div class="row"><span>盈亏比</span><b>${s.rr.toFixed(2)}</b></div>
+        <div class="row"><span>建议杠杆</span><b>${s.lev.toFixed(1)}x</b></div>
+        <div class="row"><span>实体占比</span><b>${(s.bodyRatio*100).toFixed(0)}%</b></div>
+        <div style="margin-top:6px"><span class="tag">${s.direction==='LONG'?'4H多趋势':'4H空趋势'}</span><span class="tag">回调${(s.slDist*100/(s.rr||1)).toFixed(1)}%</span><span class="tag">${s.slDist*100<1?'紧止损':'正常止损'}</span></div>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('stats').innerText=`扫完 ${coins.length} 个 · 命中 ${results.length} 个信号`;
+  setBar(100);
+  running=false;
 }
 
-function render(res,flt,total,p){
-  const html=res.map(s=>{
-    const risk=Math.abs(s.entry-s.sl)/s.entry*100;
-    const lev=Math.min(20,2/risk*100);
-    return`<div class="card ${s.dir==='LONG'?'long':'short'}"><div class="sig-head"><span class="sym">${s.sym}</span><span class="dir ${s.dir==='LONG'?'dir-long':'dir-short'}">${s.dir}</span></div><div class="row"><span>进场</span><b>${s.entry.toFixed(4)}</b></div><div class="row"><span>止损</span><b>${s.sl.toFixed(4)} (-${risk.toFixed(2)}%)</b></div><div class="row"><span>止盈① 1.6R</span><b>${s.tp1.toFixed(4)}</b></div><div class="row"><span>止盈② 2.6R</span><b>${s.tp2.toFixed(4)}</b></div><div class="row"><span>建议杠杆</span><b>${lev.toFixed(1)}x · 仓位按2%风险</b></div></div>`;
-  }).join('');
-  
-  const fGrp={};flt.forEach(f=>{fGrp[f.reason]=(fGrp[f.reason]||0)+1});
-  const fHtml=Object.entries(fGrp).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,v])=>`<div>${v}个 · ${k}</div>`).join('');
-  
-  document.getElementById('results').innerHTML=html+(fHtml?`<div class="filter-list"><div style="color:#aaa;margin-bottom:4px;">剔除原因分布（前8类，共${flt.length}个）</div>${fHtml}</div>`:'');
-  document.getElementById('stats').innerText=`共扫 ${total} · 命中 ${res.length} · 剔除 ${flt.length}`;
-  setP(100);
-}
-
+// 自动刷新倒计时
+let autoTimer=null;
 function toggleAuto(){
-  autoOn=!autoOn;
-  const b=document.getElementById('autoBtn');
-  if(autoOn){b.innerText='🛑 停止';autoT=setInterval(()=>{if(!scanning)startScan()},900000);cntT=setInterval(()=>{if(!scanning&&nextScan){const l=Math.max(0,nextScan-Date.now());setP((900000-l)/900000*100)}},1000);startScan()}
-  else{b.innerText='⏱ 自动15分';clearInterval(autoT);clearInterval(cntT)}
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.querySelector('.btn-stop').innerText='⏱ 自动刷新';}
+  else{autoTimer=setInterval(start,300000);document.querySelector('.btn-stop').innerText='🛑 停止自动';start();}
 }
 </script>
 </body>
