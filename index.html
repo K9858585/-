@@ -1,194 +1,214 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>日线宏观方向扫描</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日线潜力币·实时扫描</title>
 <style>
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#111;color:#eee;margin:0;padding:20px;max-width:900px;margin:auto}
-  h2{text-align:center;margin-bottom:10px}
-  .sub{text-align:center;color:#888;font-size:13px;margin-bottom:20px}
-  textarea{width:100%;height:80px;background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:10px;box-sizing:border-box;font-size:13px}
-  button{display:block;width:100%;margin-top:10px;padding:14px;background:#2b6;color:#000;border:none;border-radius:6px;font-size:16px;font-weight:bold;cursor:pointer}
-  button:disabled{background:#555;color:#888;cursor:not-allowed}
-  .card{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:20px;margin-top:15px;position:relative;overflow:hidden}
-  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:#666}
-  .card.long::before{background:#0f8}
-  .card.short::before{background:#f43}
-  .sym{font-size:24px;font-weight:bold;margin-bottom:5px}
-  .dir{display:inline-block;padding:4px 12px;border-radius:4px;font-weight:bold;font-size:18px;margin-bottom:15px}
-  .dir.LONG{background:#0f82;color:#0f8}
-  .dir.SHORT{background:#f432;color:#f43}
-  .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a2a;font-size:15px}
-  .row:last-child{border:none}
-  .score{font-size:42px;font-weight:bold;text-align:right;margin-bottom:10px}
-  .long .score{color:#0f8}
-  .short .score{color:#f43}
-  .bars{display:flex;height:10px;background:#222;border-radius:5px;overflow:hidden;margin:10px 0}
-  .bar-l{background:#0f8;height:100%}
-  .bar-s{background:#f43;height:100%}
-  .note{color:#aaa;font-size:13px;margin-top:15px;line-height:1.6}
-  .warn{color:#fa3;font-size:13px;margin-top:10px}
-  #out{margin-top:20px}
-  #pt{text-align:center;color:#666;margin-top:10px;font-size:13px}
+:root{--bg:#0b0e11;--card:#151a21;--line:#232a34;--green:#0ecb81;--red:#f6465d;--gold:#f0b90b;--cyan:#4aa8ff;--txt:#eaecef;--sub:#848e9c}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;margin:0;padding:14px;font-size:14px}
+.wrap{max-width:520px;margin:0 auto}
+h1{text-align:center;font-size:18px;margin:4px 0;color:var(--gold)}
+.sub{text-align:center;font-size:11px;color:var(--sub);line-height:1.6;margin-bottom:12px}
+.ctrl{display:flex;gap:8px;margin-bottom:10px}
+.ctrl input{flex:1;background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:11px;font-size:14px}
+.ctrl button{background:var(--gold);color:#000;font-weight:bold;border:0;border-radius:8px;padding:0 16px;font-size:15px;cursor:pointer}
+.ctrl button:disabled{opacity:.5}
+.pt{text-align:center;font-size:11px;color:var(--sub);margin:8px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:11px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:#666}
+.card.LONG::before{background:var(--green)}
+.card.SHORT::before{background:var(--red)}
+.hd{display:flex;justify-content:space-between;align-items:center}
+.sy{font-size:22px;font-weight:bold}
+.dr{font-size:13px;font-weight:bold;padding:4px 10px;border-radius:5px}
+.dr.LONG{background:rgba(14,203,129,.16);color:var(--green)}
+.dr.SHORT{background:rgba(246,70,93,.16);color:var(--red)}
+.sc{text-align:center;margin:8px 0}
+.sc .n{font-size:32px;font-weight:bold}
+.txt{font-size:13px;line-height:1.8;color:#c7ced6;white-space:pre-wrap;margin-top:10px;
+  background:#10141a;border:1px solid #1c2229;border-radius:8px;padding:11px}
+.row{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid #1c2229;color:#b7bfc9}
+.row:last-child{border:0}
+.row b{color:var(--txt)}
+.g{color:var(--green)!important}.r{color:var(--red)!important}.y{color:var(--gold)!important}
+.note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.6}
+.empty{text-align:center;color:var(--sub);font-size:12px;padding:18px}
 </style>
 </head>
 <body>
-<h2>📈 日线宏观方向扫描</h2>
-<div class="sub">只看日线（趋势/均线/结构），强制推多空各1个，不管盈亏比与杠杆</div>
+<div class="wrap">
+<h1>📡 日线潜力币·实时扫描</h1>
+<div class="sub">实时拉欧易永续行情 → 按24h成交额取前N只 → 日线过滤横盘/插针/飞刀 → 只推1个</div>
 
-<textarea id="coins">BTC,ETH,SOL,BNB,XRP,DOGE,ADA,AVAX,LINK,DOT,MATIC,ATOM,OP,ARB,INJ,SUI,SEI,TIA,NEAR,LDO</textarea>
-<button id="btn" onclick="scan()">🚀 扫描日线方向（多空各1）</button>
-
+<div class="ctrl">
+  <input id="num" type="number" min="5" max="200" value="50" />
+  <button id="btn" onclick="scan()">🚀 扫描</button>
+</div>
+<div class="pt" id="pt">就绪</div>
 <div id="out"></div>
-<div id="pt"></div>
+</div>
 
 <script>
-const btn=document.getElementById('btn');
-const out=document.getElementById('out');
+/* ============ 指标 ============ */
+function ema(a,n){const k=2/(n+1);let e=a[0],r=[e];for(let i=1;i<a.length;i++){e=a[i]*k+e*(1-k);r.push(e)}return r}
+function rsi(a,n=14){let g=0,l=0;for(let i=a.length-n;i<a.length;i++){const d=a[i]-a[i-1];if(d>0)g+=d;else l-=d}return l===0?100:100-100/(1+(g/n)/(l/n))}
+function adxCalc(h,l,c,p=14){
+  const up=[],dn=[],tr=[];
+  for(let i=1;i<c.length;i++){up.push(h[i]-h[i-1]);dn.push(l[i-1]-l[i]);tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])))}
+  let su=0,sd=0,st=0;for(let i=tr.length-p;i<tr.length;i++){su+=Math.max(up[i],0);sd+=Math.max(dn[i],0);st+=tr[i]}
+  if(!st)return{adx:0,pdi:0,mdi:0};
+  const pdi=100*su/st,mdi=100*sd/st;
+  return{adx:100*Math.abs(pdi-mdi)/(pdi+mdi),pdi,mdi};
+}
+function slope(a){const n=a.length;let sx=0,sy=0,sxy=0,sxx=0;for(let i=0;i<n;i++){sx+=i;sy+=a[i];sxy+=i*a[i];sxx+=i*i}const d=n*sxx-sx*sx;if(!d)return 0;return((n*sxy-sx*sy)/d)/a[n-1]*100}
+function atr(h,l,c,p=14){let tr=[];for(let i=1;i<c.length;i++)tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));let s=0;for(let i=tr.length-p;i<tr.length;i++)s+=tr[i];return s/p}
+function bollWidth(c,p=20){const m=c.slice(-p).reduce((a,b)=>a+b)/p;let sd=0;for(const x of c.slice(-p))sd+=(x-m)**2;sd=Math.sqrt(sd/p);return((m+2*sd)-(m-2*sd))/m}
 
-// 模拟欧易日线数据（真实环境替换为 fetch('/api/v5/market/candles?instId=XXX&bar=1D')）
-function getDailyKlines(sym){
-  // 生成带趋势的模拟日线，确保多空都有方向
-  let base = sym.charCodeAt(0)*137 % 100;
-  let trend = (sym.charCodeAt(sym.length-1)%10) - 4; // -4~5 的趋势偏向
-  let closes=[],highs=[],lows=[],opens=[];
-  let p = 100 + base;
-  for(let i=0;i<200;i++){
-    let drift = trend*0.015 + (Math.random()-0.5)*0.04;
-    let o=p*(1+(Math.random()-0.5)*0.02);
-    let c=p*(1+drift);
-    let h=Math.max(o,c)*1.015, l=Math.min(o,c)*0.985;
-    opens.push(o);closes.push(c);highs.push(h);lows.push(l);
-    p=c;
+async function getTopSymbols(N){
+  const r=await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP');
+  const j=await r.json();
+  if(j.code!=='0')return [];
+  return j.data
+    .filter(x=>x.instId.endsWith('-USDT-SWAP'))
+    .map(x=>({sym:x.instId.replace('-USDT-SWAP',''),vol:parseFloat(x.volCcy24h||0)}))
+    .sort((a,b)=>b.vol-a.vol)
+    .slice(0,N)
+    .map(x=>x.sym);
+}
+async function fetchK(sym,bar,limit){
+  try{
+    const r=await fetch(`https://www.okx.com/api/v5/market/candles?instId=${sym}-USDT-SWAP&bar=${bar}&limit=${limit}`);
+    const j=await r.json();
+    if(j.code!=='0'||!j.data)return null;
+    return j.data.slice(1).reverse().map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
+  }catch(e){return null}
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ============ 日线评估 ============ */
+function evalDaily(sym,d){
+  const c=d.map(x=>x.c),h=d.map(x=>x.h),l=d.map(x=>x.l),o=d.map(x=>x.o),v=d.map(x=>x.v);
+  const n=c.length;
+  const e20=ema(c,20),e50=ema(c,50),e200=ema(c,Math.min(200,n-1));
+  const ad=adxCalc(h,l,c,14), a=ad.adx, sl=slope(c.slice(-20)), bw=bollWidth(c,20);
+  const atrv=atr(h,l,c,14)/c[n-1];
+
+  if(a<22 && bw<0.06) return {reject:`横盘死市（ADX ${a.toFixed(0)}，布林带宽 ${(bw*100).toFixed(1)}%）`};
+  let spike=0;
+  for(let i=n-20;i<n;i++){
+    const body=Math.abs(c[i]-o[i]), upS=h[i]-Math.max(o[i],c[i]), dnS=Math.min(o[i],c[i])-l[i];
+    const maxS=Math.max(upS,dnS);
+    if(body>0 && maxS/body>2.2 && maxS/c[i]>atrv*1.5) spike++;
   }
-  return {closes,highs,lows,opens};
+  if(spike>=4) return {reject:`插针盘（近20日 ${spike} 根长影线，洗盘概率高）`};
+
+  let score=0,dir=null,log=[];
+  if(c[n-1]>e20[n-1]&&e20[n-1]>e50[n-1]&&e50[n-1]>e200[n-1]){score+=30;dir='LONG';log.push('日线完美多头排列')}
+  else if(c[n-1]<e20[n-1]&&e20[n-1]<e50[n-1]&&e50[n-1]<e200[n-1]){score+=30;dir='SHORT';log.push('日线完美空头排列')}
+  else if(c[n-1]>e200[n-1]){score+=12;dir='LONG';log.push('价格站上年线')}
+  else {score+=12;dir='SHORT';log.push('价格跌破年线')}
+
+  score+=Math.min(20,Math.max(0,(a-22)*0.8));
+  if(a>25)log.push(`ADX ${a.toFixed(0)} 趋势强`);
+  if(dir==='LONG'&&ad.pdi>ad.mdi){score+=10;log.push('+DI 主导资金')}else if(dir==='SHORT'&&ad.mdi>ad.pdi){score+=10;log.push('-DI 主导资金')}
+  if(Math.abs(sl)>0.3)score+=10;
+  const hh20=Math.max(...h.slice(-20)),hh40=Math.max(...h.slice(-40,-20));
+  const ll20=Math.min(...l.slice(-20)),ll40=Math.min(...l.slice(-40,-20));
+  if(dir==='LONG'&&hh20>hh40&&ll20>ll40){score+=10;log.push('高点抬高低点抬高')}
+  if(dir==='SHORT'&&hh20<hh40&&ll20<ll40){score+=10;log.push('高点降低低点降低')}
+  const v5=v.slice(-5).reduce((x,y)=>x+y)/5, v20=v.slice(-20).reduce((x,y)=>x+y)/20;
+  if(v5>v20*1.1){score+=8;log.push('量能放大')}else score-=4;
+
+  const r=rsi(c,14);
+  if(dir==='LONG'&&r>78)return {reject:`日线超买 RSI ${r.toFixed(0)}，不接飞刀`};
+  if(dir==='SHORT'&&r<22)return {reject:`日线超卖 RSI ${r.toFixed(0)}，不接飞刀`};
+  const dev=(c[n-1]-e200[n-1])/e200[n-1];
+  if(Math.abs(dev)>0.35)return {reject:`偏离年线 ${(dev*100).toFixed(0)}% 过远，不追`};
+
+  score=Math.round(Math.min(100,Math.max(0,score)));
+  return {sym,dir,score,adx:a,rsi:r,dev,slope:sl,log,close:c[n-1],
+    e20:e20[n-1],e50:e50[n-1],e200:e200[n-1],atrPct:atrv*100,spike};
 }
 
-// 纯日线打分（0-100）
-function dailyScore(sym, dir){
-  const k=getDailyKlines(sym);
-  const c=k.closes, h=k.highs, l=k.lows, o=k.opens;
-  let s=0, log=[];
+/* ============ 文字解读 ============ */
+function explain(best){
+  const isL=best.dir==='LONG';
+  const trend=isL?'日线级别上涨趋势':'日线级别下跌趋势';
+  const why=best.log.join('，');
+  const risk=isL
+    ? `如果价格跌破 ${best.e20.toFixed(best.close<1?4:2)}（EMA20）说明短期多头转弱，先减仓；跌破年线 ${best.e200.toFixed(best.close<1?4:2)} 直接离场。`
+    : `如果价格反弹突破 ${best.e20.toFixed(best.close<1?4:2)}（EMA20）说明空头失效，先减仓；重新站回年线 ${best.e200.toFixed(best.close<1?4:2)} 直接离场。`;
+  const chase=Math.abs(best.dev)>0.25?`注意：当前已偏离年线 ${(best.dev*100).toFixed(1)}%，不是底部，属于趋势中段的顺势单，别重仓追。`:`位置相对年线不算极端，可以等回踩均线再动手。`;
+  return `【${best.sym}】判断：日线${isL?'看涨':'看跌'}，潜力分 ${best.score}/100。
 
-  // EMA200 (年线分水岭)
-  let ema200=c[0]; for(let i=1;i<c.length;i++)ema200=ema200*0.95+c[i]*0.05;
-  // EMA50
-  let ema50=c[0]; for(let i=1;i<c.length;i++)ema50=ema50*0.88+c[i]*0.12;
-  // EMA20
-  let ema20=c[0]; for(let i=1;i<c.length;i++)ema20=ema20*0.77+c[i]*0.23;
-
-  const last=c[c.length-1];
-  
-  // 1) 均线排列 30分
-  if(dir==='LONG'){
-    if(last>ema20 && ema20>ema50 && ema50>ema200){s+=30;log.push('均线完美多头')}
-    else if(last>ema50 && ema50>ema200){s+=22;log.push('均线偏多')}
-    else if(last>ema200){s+=12;log.push('站上年线')}
-    else {s-=10;log.push('年线下，多头受限')}
-  } else {
-    if(last<ema20 && ema20<ema50 && ema50<ema200){s+=30;log.push('均线完美空头')}
-    else if(last<ema50 && ema50<ema200){s+=22;log.push('均线偏空')}
-    else if(last<ema200){s+=12;log.push('跌破年线')}
-    else {s-=10;log.push('年线上，空头受限')}
-  }
-
-  // 2) 20日斜率 15分
-  let slope20=(c[c.length-1]-c[c.length-21])/c[c.length-21];
-  if(dir==='LONG'){ if(slope20>0.08){s+=15;log.push('20日强升')}else if(slope20>0.03){s+=10}else if(slope20>0){s+=5}else{s-=5;log.push('20日走平/下')} }
-  else { if(slope20<-0.08){s+=15;log.push('20日强跌')}else if(slope20<-0.03){s+=10}else if(slope20<0){s+=5}else{s-=5;log.push('20日走平/上')} }
-
-  // 3) ADX 趋势强度 15分
-  let tr=[],dmPlus=[],dmMinus=[];
-  for(let i=1;i<c.length;i++){
-    let tr1=h[i]-l[i], tr2=Math.abs(h[i]-c[i-1]), tr3=Math.abs(l[i]-c[i-1]);
-    tr.push(Math.max(tr1,tr2,tr3));
-    dmPlus.push(h[i]-h[i-1]>l[i-1]-l[i]?Math.max(h[i]-h[i-1],0):0);
-    dmMinus.push(l[i-1]-l[i]>h[i]-h[i-1]?Math.max(l[i-1]-l[i],0):0);
-  }
-  let atr=tr.slice(-14).reduce((a,b)=>a+b)/14;
-  let diP=dmPlus.slice(-14).reduce((a,b)=>a+b)/atr, diM=dmMinus.slice(-14).reduce((a,b)=>a+b)/atr;
-  let adx=Math.abs(diP-diM)/(diP+diM)*100;
-  if(adx>25){s+=15;log.push('ADX强('+adx.toFixed(0)+')')}else if(adx>15){s+=8;log.push('ADX中')}else{s-=5;log.push('震荡')}
-
-  // 4) +DI/-DI 方向 15分
-  if(dir==='LONG' && diP>diM){s+=15;log.push('+DI>DI')}else if(dir==='LONG'){s-=10}
-  if(dir==='SHORT' && diM>diP){s+=15;log.push('-DI>+DI')}else if(dir==='SHORT'){s-=10}
-
-  // 5) 高低点结构 15分
-  let hh=c[c.length-1]>c[c.length-30] && c[c.length-30]>c[c.length-60];
-  let ll=c[c.length-1]<c[c.length-30] && c[c.length-30]<c[c.length-60];
-  if(dir==='LONG' && hh){s+=15;log.push('高点抬高')}else if(dir==='LONG' && !hh){s-=5}
-  if(dir==='SHORT' && ll){s+=15;log.push('低点降低')}else if(dir==='SHORT' && !ll){s-=5}
-
-  // 6) 近20日线性斜率 10分
-  let xs=[],ys=[]; for(let i=c.length-20;i<c.length;i++){xs.push(i);ys.push(c[i])}
-  let mx=xs.reduce((a,b)=>a+b)/20, my=ys.reduce((a,b)=>a+b)/20;
-  let num=0,den=0; for(let i=0;i<20;i++){num+=(xs[i]-mx)*(ys[i]-my);den+=(xs[i]-mx)**2}
-  let regSlope=num/den/my;
-  if(dir==='LONG' && regSlope>0.01){s+=10}else if(dir==='LONG'){s-=5}
-  if(dir==='SHORT' && regSlope<-0.01){s+=10}else if(dir==='SHORT'){s-=5}
-
-  // 7) 超买超卖修正 (日线RSI)
-  let diffs=c.slice(1).map((v,i)=>v-c[i]);
-  let gains=diffs.map(d=>d>0?d:0),losses=diffs.map(d=>d<0?-d:0);
-  let ag=gains.slice(-14).reduce((a,b)=>a+b)/14, al=losses.slice(-14).reduce((a,b)=>a+b)/14;
-  let rsi=ag/(ag+al)*100;
-  if(dir==='LONG' && rsi>75){s-=10;log.push('日线超买RSI'+rsi.toFixed(0))}
-  if(dir==='SHORT' && rsi<25){s-=10;log.push('日线超卖RSI'+rsi.toFixed(0))}
-
-  return {sym, score:Math.max(0,Math.min(100,s)), log, ema20, ema50, ema200, adx, rsi, last, slope20, regSlope, diP, diM, hh, ll};
+`+
+`1. 大方向：${trend}。\n`+
+`   现在价格 ${best.close.toFixed(best.close<1?5:2)}，${isL?'在':'在'}年线上方还是下方？${best.close>best.e200?isL?'在年线上方，多头市场':'反常：价格虽在年线上但结构偏空':isL?'但结构仍偏多':'在年线下方，空头市场'}。\n\n`+
+`2. 为什么选它：\n`+
+`   ${why}。ADX ${best.adx.toFixed(0)} 说明趋势不是假突破；20日斜率 ${best.slope.toFixed(2)}% 说明动量真实存在，不是横盘乱震。\n\n`+
+`3. 风险过滤：\n`+
+`   已排除横盘死市和插针洗盘（近20日长影 ${best.spike} 根），也不是超买超卖接飞刀。\n\n`+
+`4. 怎么处理：\n`+
+`   ${chase}\n`+
+`   止损逻辑：本金亏 5 倍就走（按 10x 杠杆≈反向 0.5% 硬止损），不止损硬扛；\n`+
+`   止盈不预设顶部，用移动止盈——浮盈超 5% 后，回撤 ${ (best.atrPct*1.5).toFixed(2) }% 就落袋。\n\n`+
+`5. 退出信号：\n`+
+`   ${risk}\n`+
+`   日线收盘破位才认错，不用看 5 分钟噪音。`;
 }
 
+/* ============ 扫描主流程 ============ */
 async function scan(){
-  btn.disabled=true;btn.innerText='扫描日线中...';
-  out.innerHTML='';
-  const coins=document.getElementById('coins').value.split(',').map(s=>s.trim()).filter(s=>s);
-  
-  // 模拟异步
-  await new Promise(r=>setTimeout(r,600));
-  
-  let longs=[], shorts=[];
-  coins.forEach(sym=>{
-    longs.push(dailyScore(sym,'LONG'));
-    shorts.push(dailyScore(sym,'SHORT'));
-  });
-  
-  longs.sort((a,b)=>b.score-a.score);
-  shorts.sort((a,b)=>b.score-a.score);
-  
-  let bestL=longs[0], bestS=shorts[0];
-  // 若同一币多空第一，空头换次高（保证多空不同标的）
-  if(bestL.sym===bestS.sym)bestS=shorts[1]||shorts[0];
-  
-  let html='';
-  const render=(d, dir)=>{
-    let isL=dir==='LONG';
-    return `<div class="card ${isL?'long':'short'}">
-      <div class="sym">${d.sym}</div>
-      <div class="dir ${dir}">${isL?'📈 日线看涨 (做多)':'📉 日线看跌 (做空)'}</div>
-      <div class="score">${d.score}分</div>
-      <div class="bars">
-        <div class="bar-l" style="width:${d.diP*1.5}%"></div>
-        <div class="bar-s" style="width:${d.diM*1.5}%"></div>
-      </div>
-      <div class="row"><span>收盘价</span><b>${d.last.toFixed(4)}</b></div>
-      <div class="row"><span>EMA20 / EMA50 / EMA200</span><b>${d.ema20.toFixed(0)} / ${d.ema50.toFixed(0)} / ${d.ema200.toFixed(0)}</b></div>
-      <div class="row"><span>20日斜率</span><b>${(d.slope20*100).toFixed(2)}%</b></div>
-      <div class="row"><span>ADX / RSI</span><b>${d.adx.toFixed(0)} / ${d.rsi.toFixed(0)}</b></div>
-      <div class="row"><span>+DI / -DI</span><b>${d.diP.toFixed(1)} / ${d.diM.toFixed(1)}</b></div>
-      <div class="row"><span>结构</span><b>${isL?(d.hh?'高点抬高 ✅':'高点未确认'):(d.ll?'低点降低 ✅':'低点未确认')}</b></div>
-      <div class="note">依据：${d.log.join('，')}</div>
-      <div class="warn">⚠️ 仅日线宏观方向，不含进出场点位与盈亏比。实盘请自行定夺。</div>
-    </div>`;
-  };
-  
-  html+=render(bestL,'LONG');
-  html+=render(bestS,'SHORT');
-  html+=`<div class="note">📊 候选：多头最高 ${longs.slice(0,3).map(x=>x.sym+'('+x.score+')').join('，')}　空头最高 ${shorts.slice(0,3).map(x=>x.sym+'('+x.score+')').join('，')}</div>`;
-  
+  const btn=document.getElementById('btn'), pt=document.getElementById('pt'), out=document.getElementById('out');
+  const N=Math.max(5,Math.min(200,parseInt(document.getElementById('num').value||50)));
+  btn.disabled=true;btn.innerText='拉取中...';out.innerHTML='';
+  pt.innerText=`实时拉取欧易前 ${N} 只活跃永续...`;
+
+  let syms=[];
+  try{ syms=await getTopSymbols(N); }catch(e){}
+  if(!syms.length){out.innerHTML='<div class="empty">行情拉取失败，检查代理/网络</div>';btn.disabled=false;btn.innerText='🚀 扫描';return;}
+
+  const res=[],rej=[];
+  for(let i=0;i<syms.length;i++){
+    const sym=syms[i];
+    pt.innerText=`(${i+1}/${syms.length}) 分析 ${sym}`;
+    const d=await fetchK(sym,'1D',210);
+    if(!d||d.length<120){rej.push(sym+' 数据不足');await sleep(20);continue}
+    await sleep(50);
+    const r=evalDaily(sym,d);
+    if(r.reject){rej.push(sym+'：'+r.reject);continue}
+    res.push(r);
+  }
+
+  if(!res.length){
+    out.innerHTML=`<div class="card"><div class="empty">前 ${N} 只里没有符合「日线趋势+非横盘非插针」的币。<br>市场大概率整体震荡/洗盘，不硬推。</div></div>`+
+      `<div class="note">过滤记录：${rej.slice(0,10).join('　')}</div>`;
+    pt.innerText='0 个合格';
+    btn.disabled=false;btn.innerText='🚀 扫描';return;
+  }
+  res.sort((a,b)=>b.score-a.score);
+  const best=res[0], isL=best.dir==='LONG';
+  const p=x=>x<0.01?x.toFixed(6):x.toFixed(2);
+
+  let html=`<div class="card ${best.dir}">
+    <div class="hd"><span class="sy">${best.sym}</span>
+    <span class="dr ${best.dir}">${isL?'📈 做多':'📉 做空'} · 日线${isL?'看涨':'看跌'}</span></div>
+    <div class="sc"><div class="n" style="color:${isL?'var(--green)':'var(--red)'}">${best.score}</div>
+    <div class="t" style="font-size:11px;color:var(--sub)">潜力分/100（实时数据）</div></div>
+    <div class="row"><span>实时价</span><b>${p(best.close)}</b></div>
+    <div class="row"><span>EMA20/50/200</span><b>${p(best.e20)} / ${p(best.e50)} / ${p(best.e200)}</b></div>
+    <div class="row"><span>ADX / RSI</span><b>${best.adx.toFixed(0)} / ${best.rsi.toFixed(0)}</b></div>
+    <div class="row"><span>20日斜率</span><b>${best.slope.toFixed(2)}%</b></div>
+    <div class="row"><span>止损/止盈</span><b class="r">本金5倍</b> <b class="g">无上限·移动止盈</b></div>
+    <div class="txt">${explain(best)}</div>
+  </div>`;
+  html+=`<div class="note">📊 候选前5：${res.slice(0,5).map(x=>x.sym+'('+x.score+x.dir[0]+')').join('　')}</div>`;
+  html+=`<div class="note">🚫 过滤 ${rej.length} 个：${rej.slice(0,6).join('　')}</div>`;
   out.innerHTML=html;
-  document.getElementById('pt').innerText=`扫完 ${coins.length} 个 · 仅看日线 · 强制多空各1`;
-  btn.disabled=false;btn.innerText='🚀 重新扫描';
+  pt.innerText=`扫完 ${syms.length} 只 · 合格 ${res.length} 只 · 推1个`;
+  btn.disabled=false;btn.innerText='🚀 扫描';
 }
 </script>
 </body>
