@@ -3,216 +3,202 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>波段扫描器</title>
+<title>多空TOP1扫描器</title>
 <style>
 :root{--bg:#0f0f0f;--card:#1a1a1a;--border:#2a2a2a;--green:#00d4aa;--red:#ff4757;--yellow:#ffc107;--text:#e0e0e0;--sub:#888}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;margin:0;padding:12px;font-size:14px}
 .wrap{max-width:440px;margin:0 auto}
 h1{text-align:center;font-size:17px;margin:6px 0;color:var(--yellow)}
-.desc{text-align:center;color:var(--sub);font-size:11px;margin-bottom:10px}
-textarea{width:100%;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:12px;resize:vertical;box-sizing:border-box;margin-bottom:8px}
-.params{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
-.param{background:var(--card);padding:6px;border-radius:6px;border:1px solid var(--border)}
-.param label{font-size:10px;color:var(--sub);display:block;margin-bottom:2px}
-.param input{width:100%;background:transparent;color:var(--text);border:none;font-size:14px;outline:none}
-.btn{width:100%;padding:12px;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;margin-bottom:8px}
-.btn-scan{background:var(--green);color:#000}
-.btn-stop{background:#444;color:var(--text);font-size:13px;padding:8px}
+.desc{text-align:center;color:var(--sub);font-size:11px;margin-bottom:10px;line-height:1.5}
+.btn{width:100%;padding:13px;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;margin-bottom:8px;background:var(--green);color:#000}
 .progress{height:4px;background:#222;border-radius:2px;margin:6px 0;overflow:hidden}
-.progress-fill{height:100%;background:var(--green);width:0%;transition:width .3s}
-.ptext{text-align:center;font-size:11px;color:var(--sub);margin-bottom:8px}
-.stats{text-align:center;font-size:12px;color:var(--sub);margin:6px 0}
-.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px}
-.card.long{border-left:3px solid var(--green)}
-.card.short{border-left:3px solid var(--red)}
-.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-.sym{font-size:15px;font-weight:bold}
-.dir{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:bold}
-.dir-long{background:var(--green);color:#000}
-.dir-short{background:var(--red);color:#fff}
-.row{display:flex;justify-content:space-between;font-size:12px;margin:2px 0;color:#bbb}
+.pf{height:100%;background:var(--green);width:0%;transition:width .3s}
+.ptext{text-align:center;font-size:11px;color:var(--sub);margin-bottom:10px}
+.big{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
+.big.long{border-left:4px solid var(--green)}
+.big.short{border-left:4px solid var(--red)}
+.bhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.bsym{font-size:20px;font-weight:bold}
+.bdir{font-size:12px;padding:4px 10px;border-radius:5px;font-weight:bold}
+.bl{background:var(--green);color:#000}
+.bs{background:var(--red);color:#fff}
+.score{text-align:center;margin:8px 0;padding:8px;background:#111;border-radius:6px}
+.score .num{font-size:26px;font-weight:bold}
+.score .lbl{font-size:10px;color:var(--sub)}
+.row{display:flex;justify-content:space-between;font-size:12px;margin:3px 0;color:#bbb}
 .row b{color:var(--text)}
-.tag{display:inline-block;font-size:10px;padding:2px 6px;border-radius:3px;margin:2px 2px 0 0;background:#333;color:var(--sub)}
-.empty{text-align:center;color:var(--sub);font-size:12px;padding:20px 0}
+.rr{font-size:15px!important;font-weight:bold;color:var(--yellow)!important}
+.warn{font-size:11px;color:var(--sub);margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);line-height:1.5}
+.rank{font-size:11px;color:var(--sub);margin-top:4px}
+.empty{text-align:center;color:var(--sub);font-size:12px;padding:20px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>📈 波段扫描器</h1>
-<div class="desc">4H定方向 · 1H等回调企稳 · 不接飞刀</div>
+<h1>🎯 多空 TOP1 扫描器</h1>
+<div class="desc">前50币打分排名 · 多头/空头各取1个<br>已剔除追高、插针、超买超卖</div>
 
-<textarea id="coins" rows="2" placeholder="BTC,ETH,SOL,ZEC,LINK,AVAX,DOGE,XRP,SUI,APT">BTC,ETH,SOL,ZEC,LINK,AVAX,DOGE,XRP,SUI,APT,OP,ARB,MATIC,ATOM,NEAR,SEI,TIA,INJ</textarea>
-
-<div class="params">
-<div class="param"><label>回调最小%</label><input id="pullMin" type="number" step="0.5" value="2"></div>
-<div class="param"><label>回调最大%</label><input id="pullMax" type="number" step="0.5" value="5"></div>
-<div class="param"><label>ADX最低</label><input id="adxMin" type="number" value="20"></div>
-</div>
-<div class="params">
-<div class="param"><label>盈亏比最低</label><input id="rrMin" type="number" step="0.1" value="1.8"></div>
-<div class="param"><label>止损上限%</label><input id="slMax" type="number" step="0.5" value="3.5"></div>
-<div class="param"><label>止盈倍数R</label><input id="tpR" type="number" step="0.1" value="1.6"></div>
-</div>
-
-<button class="btn btn-scan" onclick="start()">🚀 扫描自选币</button>
-<div class="progress"><div class="progress-fill" id="bar"></div></div>
+<button class="btn" onclick="start()">🚀 扫描前50币</button>
+<div class="progress"><div class="pf" id="bar"></div></div>
 <div class="ptext" id="ptext">就绪</div>
-<div class="stats" id="stats"></div>
 <div id="results"></div>
 </div>
 
 <script>
-let running=false;
+const TOP50 = ["BTC","ETH","SOL","XRP","DOGE","BNB","ADA","AVAX","LINK","DOT",
+"MATIC","ATOM","NEAR","APT","SUI","ARB","OP","LTC","BCH","XLM",
+"ETC","FIL","ICP","HBAR","VET","ALGO","THETA","XTZ","EOS","AAVE",
+"UNI","MKR","CRV","LDO","RUNE","INJ","SEI","TIA","STX","PENDLE",
+"ENA","WLD","JUP","ONDO","ETHFI","ZEC","TRX","KAS","HYPE","FET"];
 
-function pct(v){return(v*100).toFixed(2)+'%'}
-function setBar(p){document.getElementById('bar').style.width=p+'%';document.getElementById('ptext').innerText=Math.round(p)+'%'}
-function ema(arr,n){const k=2/(n+1);let e=arr[0],r=[e];for(let i=1;i<arr.length;i++){e=arr[i]*k+e*(1-k);r.push(e)}return r}
-function rsi(arr,n=14){if(arr.length<n+1)return 50;let g=0,l=0;for(let i=arr.length-n;i<arr.length;i++){const d=arr[i]-arr[i-1];if(d>0)g+=d;else l-=d}if(l===0)return 100;return 100-100/(1+(g/n)/(l/n))}
+function ema(a,n){const k=2/(n+1);let e=a[0],r=[e];for(let i=1;i<a.length;i++){e=a[i]*k+e*(1-k);r.push(e)}return r}
+function rsi(a,n=14){if(a.length<n+1)return 50;let g=0,l=0;for(let i=a.length-n;i<a.length;i++){const d=a[i]-a[i-1];if(d>0)g+=d;else l-=d}if(l===0)return 100;return 100-100/(1+(g/n)/(l/n))}
 function adxCalc(h,l,c,p=14){
-  const up=[],down=[],tr=[];
-  for(let i=1;i<c.length;i++){up.push(h[i]-h[i-1]);down.push(l[i-1]-l[i]);tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])))}
-  let pdi=0,mdi=0,dxSum=0;
-  for(let i=0;i<p;i++){pdi+=up[i]>0?up[i]:0;mdi+=down[i]>0?down[i]:0}
-  pdi=pdi/p;mdi=mdi/p;
-  let atr=0;for(let i=0;i<p;i++)atr+=tr[i];atr/=p;
-  return{pdi,mdi,adx:100*Math.abs(pdi-mdi)/(pdi+mdi)};
+  const up=[],dn=[],tr=[];
+  for(let i=1;i<c.length;i++){up.push(h[i]-h[i-1]);dn.push(l[i-1]-l[i]);tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])))}
+  let su=0,sd=0,st=0;
+  for(let i=Math.max(1,tr.length-p);i<tr.length;i++){su+=Math.max(up[i],0);sd+=Math.max(dn[i],0);st+=tr[i]}
+  if(st===0)return{adx:0,pdi:0,mdi:0};
+  const pdi=100*su/st, mdi=100*sd/st;
+  return{adx:100*Math.abs(pdi-mdi)/(pdi+mdi),pdi,mdi};
 }
-
 async function fetchK(inst,bar,limit){
   try{
     const r=await fetch(`https://www.okx.com/api/v5/market/candles?instId=${inst}-USDT-SWAP&bar=${bar}&limit=${limit}`);
     const j=await r.json();
-    if(j.code!=='0')return null;
-    return j.data.reverse().map(d=>({t:+d[0],o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
+    if(j.code!=='0'||!j.data)return null;
+    return j.data.reverse().map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
   }catch(e){return null}
 }
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 
 async function start(){
-  if(running)return;running=true;
-  const coins=document.getElementById('coins').value.split(',').map(s=>s.trim()).filter(Boolean);
-  const pullMin=+document.getElementById('pullMin').value/100;
-  const pullMax=+document.getElementById('pullMax').value/100;
-  const adxMin=+document.getElementById('adxMin').value;
-  const rrMin=+document.getElementById('rrMin').value;
-  const slMax=+document.getElementById('slMax').value/100;
-  const tpR=+document.getElementById('tpR').value;
+  const btn=document.querySelector('.btn');
+  btn.disabled=true;btn.innerText='扫描中...';
+  const scored=[];
+  let done=0;
 
-  const results=[];
-  setBar(0);
-  document.getElementById('stats').innerText=`扫描中... 0/${coins.length}`;
+  for(const sym of TOP50){
+    done++;
+    document.getElementById('bar').style.width=(done/TOP50.length*100)+'%';
+    document.getElementById('ptext').innerText=`${done}/${TOP50.length}  ${sym}`;
 
-  for(let idx=0;idx<coins.length;idx++){
-    const sym=coins[idx];
-    setBar(idx/coins.length*100);
+    const h4=await fetchK(sym,'4H',60);
+    const h1=await fetchK(sym,'1H',200);
+    if(!h4||!h1||h4.length<50||h1.length<150)continue;
 
-    const h4=await fetchK(sym,'4H',80);
-    const h1=await fetchK(sym,'1H',300);
-    if(!h4||!h1||h4.length<60||h1.length<200){continue}
-
-    // 4H指标
-    const c4=h4.map(d=>d.c);
-    const e20=ema(c4,20),e55=ema(c4,55);
+    const c4=h4.map(d=>d.c), c1=h1.map(d=>d.c);
+    const e20=ema(c4,20), e55=ema(c4,55);
     const adxR=adxCalc(h4.map(d=>d.h),h4.map(d=>d.l),c4);
-    const h4Up=e20[e20.length-1]>e20[e20.length-2];
+    const last4=h4[h4.length-1], last1=h1[h1.length-1], prev1=h1[h1.length-2];
+    const r1=rsi(c1,14);
 
-    // 1H指标
-    const c1=h1.map(d=>d.c);
-    const e1h=ema(c1,20);
+    // 近12根1H区间
+    const win=h1.slice(-13,-1);
+    const hh=Math.max(...win.map(d=>d.h)), ll=Math.min(...win.map(d=>d.l));
 
-    // 最近12根1H
-    const recent=h1.slice(-13,-1);
-    const hh=Math.max(...recent.map(d=>d.h));
-    const ll=Math.min(...recent.map(d=>d.l));
+    // 插针检测（近10根4H）
+    let spikes=0;
+    for(const k of h4.slice(-10)){const body=Math.abs(k.c-k.o);if(body>0&&(k.h-k.l)/body>2)spikes++}
 
-    const last4=h4[h4.length-1];
-    const last1=h1[h1.length-1];
-    const prev1=h1[h1.length-2];
+    // ===== 多头打分 =====
+    let L=0;
+    if(e20[e20.length-1]>e55[e55.length-1])L+=15;              // 均线多头排列
+    if(e20[e20.length-1]>e20[e20.length-3])L+=10;              // EMA20向上
+    if(last4.c>e55[e55.length-1])L+=10;                        // 价格在EMA55上
+    L+=clamp((adxR.adx-15)*1.2,0,20);                          // 趋势强度
+    if(adxR.pdi>adxR.mdi)L+=clamp((adxR.pdi-adxR.mdi)*1.5,0,20); // DI方向
+    const pos1=(last1.c-ll)/(hh-ll||1);
+    L+=clamp(pos1*20,0,20);                                    // 1H收盘在区间位置
+    const volUp=h1.slice(-3).reduce((s,d)=>s+d.v,0)/3 > h1.slice(-20,-3).reduce((s,d)=>s+d.v,0)/17;
+    if(volUp&&last1.c>prev1.c)L+=15;                           // 放量上涨
 
-    // 方向判定
-    const longTrend=e20[e20.length-1]>e55[e55.length-1]&&adxR.pdi>adxR.mdi&&last1.c>e55[e55.length-1]&&h4Up;
-    const shortTrend=e20[e20.length-1]<e55[e55.length-1]&&adxR.mdi>adxR.pdi&&last1.c<e55[e55.length-1]&&!h4Up;
+    // 多头扣分（不接飞刀）
+    const devL=(last4.c-e55[e55.length-1])/e55[e55.length-1];
+    if(devL>0.08)L-=25; else if(devL>0.05)L-=10;
+    if(r1>70)L-=15; else if(r1>65)L-=8;
+    if(spikes>=3)L-=20; else if(spikes===2)L-=10;
 
-    if(!longTrend&&!shortTrend){continue}
+    const slL=Math.min(prev1.l,last1.l)*0.997;
+    const riskL=(last1.c-slL)/last1.c;
+    const rrL=riskL>0?(hh-last1.c)/(last1.c-slL):0;
+    if(rrL<1.5)L-=100;
 
-    if(longTrend){
-      const dev=(last1.c-e55[e55.length-1])/e55[e55.length-1];
-      if(dev>0.08)continue;
-      const pull=(hh-last1.c)/hh;
-      if(pull<pullMin||pull>pullMax)continue;
-      if(!(last1.c>prev1.c&&last1.c>prev1.h&&last1.l>=prev1.l))continue;
-      const body=Math.abs(last1.c-last1.o);
-      if(body/(last1.h-last1.l)<0.45)continue;
+    // ===== 空头打分（镜像）=====
+    let S=0;
+    if(e20[e20.length-1]<e55[e55.length-1])S+=15;
+    if(e20[e20.length-1]<e20[e20.length-3])S+=10;
+    if(last4.c<e55[e55.length-1])S+=10;
+    S+=clamp((adxR.adx-15)*1.2,0,20);
+    if(adxR.mdi>adxR.pdi)S+=clamp((adxR.mdi-adxR.pdi)*1.5,0,20);
+    S+=clamp((1-pos1)*20,0,20);
+    if(volUp&&last1.c<prev1.c)S+=15;
 
-      const entry=last1.c;
-      const sl=Math.min(prev1.l,last1.l)*0.997;
-      const slDist=(entry-sl)/entry;
-      if(slDist>slMax||slDist<0.004)continue;
-      const tp=hh;
-      const rr=(tp-entry)/(entry-sl);
-      if(rr<rrMin)continue;
+    const devS=(e55[e55.length-1]-last4.c)/e55[e55.length-1];
+    if(devS>0.08)S-=25; else if(devS>0.05)S-=10;
+    if(r1<30)S-=15; else if(r1<35)S-=8;
+    if(spikes>=3)S-=20; else if(spikes===2)S-=10;
 
-      const tp1=entry+(entry-sl)*tpR;
-      const lev=Math.min(20,2/slDist*100);
+    const slS=Math.max(prev1.h,last1.h)*1.003;
+    const riskS=(slS-last1.c)/last1.c;
+    const rrS=riskS>0?(last1.c-ll)/(slS-last1.c):0;
+    if(rrS<1.5)S-=100;
 
-      results.push({sym,direction:'LONG',entry,sl,tp1,tp2:tp,rr,slDist,lev,bodyRatio:body/(last1.h-last1.l)});
-    }
-
-    if(shortTrend){
-      const dev=(e55[e55.length-1]-last1.c)/e55[e55.length-1];
-      if(dev>0.08)continue;
-      const pull=(last1.c-ll)/ll;
-      if(pull<pullMin||pull>pullMax)continue;
-      if(!(last1.c<prev1.c&&last1.c<prev1.l&&last1.h<=prev1.h))continue;
-      const body=Math.abs(last1.c-last1.o);
-      if(body/(last1.h-last1.l)<0.45)continue;
-
-      const entry=last1.c;
-      const sl=Math.max(prev1.h,last1.h)*1.003;
-      const slDist=(sl-entry)/entry;
-      if(slDist>slMax||slDist<0.004)continue;
-      const tp=ll;
-      const rr=(entry-tp)/(sl-entry);
-      if(rr<rrMin)continue;
-
-      const tp1=entry-(sl-entry)*tpR;
-      const lev=Math.min(20,2/slDist*100);
-
-      results.push({sym,direction:'SHORT',entry,sl,tp1,tp2:tp,rr,slDist,lev,bodyRatio:body/(last1.h-last1.l)});
-    }
+    scored.push({
+      sym, L:Math.round(clamp(L,0,100)), S:Math.round(clamp(S,0,100)),
+      price:last1.c, slL,tpL:hh,rrL, slS,tpS:ll,rrS,
+      riskL, riskS, adx:adxR.adx, rsi:r1, spikes, devL, devS
+    });
   }
 
-  // 渲染
-  if(results.length===0){
-    document.getElementById('results').innerHTML='<div class="empty">没有命中信号<br>当前时段可能没有符合条件的回调<br>试试把ADX降到15或回调范围放宽到2~6%</div>';
+  // 排序取TOP1
+  const valid=scored.filter(s=>s.L>-50||s.S>-50);
+  const bestL=[...valid].sort((a,b)=>b.L-a.L)[0];
+  const bestS=[...valid].sort((a,b)=>b.S-a.S)[0];
+  const p=v=>v<0.01?v.toFixed(6):v.toFixed(2);
+
+  let html='';
+  if(bestL&&bestL.L>30){
+    const s=bestL, lev=Math.min(20,2/(s.riskL*100)*100);
+    html+=`<div class="big long">
+      <div class="bhead"><span class="bsym">${s.sym}</span><span class="bdir bl">做多</span></div>
+      <div class="score"><div class="num" style="color:var(--green)">${s.L}</div><div class="lbl">多头强度分 / 100</div></div>
+      <div class="row rr"><span>盈亏比</span><b>${s.rrL.toFixed(2)} : 1</b></div>
+      <div class="row"><span>进场价</span><b>${p(s.price)}</b></div>
+      <div class="row"><span>止损</span><b>${p(s.slL)} (${(s.riskL*100).toFixed(2)}%)</b></div>
+      <div class="row"><span>止盈（近12根前高）</span><b>${p(s.tpL)}</b></div>
+      <div class="row"><span>建议杠杆</span><b>${lev.toFixed(1)}x</b></div>
+      <div class="row"><span>ADX / RSI</span><b>${s.adx.toFixed(0)} / ${s.rsi.toFixed(0)}</b></div>
+      <div class="warn">偏离EMA55 ${(s.devL*100).toFixed(1)}% · 近10根插针${s.spikes}根${s.spikes>=2?' ⚠️偏多':''}<br>仓位按账户2%风险反推，别满仓</div>
+    </div>`;
   }else{
-    document.getElementById('results').innerHTML=results.map(s=>`
-      <div class="card ${s.direction==='LONG'?'long':'short'}">
-        <div class="head">
-          <span class="sym">${s.sym}</span>
-          <span class="dir ${s.direction==='LONG'?'dir-long':'dir-short'}">${s.direction==='LONG'?'做多':'做空'}</span>
-        </div>
-        <div class="row"><span>进场</span><b>${s.entry.toFixed(s.entry<0.01?6:2)}</b></div>
-        <div class="row"><span>止损</span><b>${s.sl.toFixed(s.sl<0.01?6:2)} (-${pct(s.slDist)})</b></div>
-        <div class="row"><span>止盈① ${s.rr.toFixed(1)}R</span><b>${s.tp1.toFixed(s.tp1<0.01?6:2)}</b></div>
-        <div class="row"><span>止盈② 前高/前低</span><b>${s.tp2.toFixed(s.tp2<0.01?6:2)}</b></div>
-        <div class="row"><span>盈亏比</span><b>${s.rr.toFixed(2)}</b></div>
-        <div class="row"><span>建议杠杆</span><b>${s.lev.toFixed(1)}x</b></div>
-        <div class="row"><span>实体占比</span><b>${(s.bodyRatio*100).toFixed(0)}%</b></div>
-        <div style="margin-top:6px"><span class="tag">${s.direction==='LONG'?'4H多趋势':'4H空趋势'}</span><span class="tag">回调${(s.slDist*100/(s.rr||1)).toFixed(1)}%</span><span class="tag">${s.slDist*100<1?'紧止损':'正常止损'}</span></div>
-      </div>
-    `).join('');
+    html+=`<div class="big"><div class="empty">当前无合格多头标的<br>前50里多头分都低于30，市场偏空</div></div>`;
   }
 
-  document.getElementById('stats').innerText=`扫完 ${coins.length} 个 · 命中 ${results.length} 个信号`;
-  setBar(100);
-  running=false;
-}
+  if(bestS&&bestS.S>30){
+    const s=bestS, lev=Math.min(20,2/(s.riskS*100)*100);
+    html+=`<div class="big short">
+      <div class="bhead"><span class="bsym">${s.sym}</span><span class="bdir bs">做空</span></div>
+      <div class="score"><div class="num" style="color:var(--red)">${s.S}</div><div class="lbl">空头强度分 / 100</div></div>
+      <div class="row rr"><span>盈亏比</span><b>${s.rrS.toFixed(2)} : 1</b></div>
+      <div class="row"><span>进场价</span><b>${p(s.price)}</b></div>
+      <div class="row"><span>止损</span><b>${p(s.slS)} (${(s.riskS*100).toFixed(2)}%)</b></div>
+      <div class="row"><span>止盈（近12根前低）</span><b>${p(s.tpS)}</b></div>
+      <div class="row"><span>建议杠杆</span><b>${lev.toFixed(1)}x</b></div>
+      <div class="row"><span>ADX / RSI</span><b>${s.adx.toFixed(0)} / ${s.rsi.toFixed(0)}</b></div>
+      <div class="warn">偏离EMA55 ${(s.devS*100).toFixed(1)}% · 近10根插针${s.spikes}根${s.spikes>=2?' ⚠️偏多':''}<br>仓位按账户2%风险反推，别满仓</div>
+    </div>`;
+  }else{
+    html+=`<div class="big"><div class="empty">当前无合格空头标的<br>前50里空头分都低于30，市场偏多</div></div>`;
+  }
 
-// 自动刷新倒计时
-let autoTimer=null;
-function toggleAuto(){
-  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.querySelector('.btn-stop').innerText='⏱ 自动刷新';}
-  else{autoTimer=setInterval(start,300000);document.querySelector('.btn-stop').innerText='🛑 停止自动';start();}
+  // 附带前5名参考
+  const top5=[...valid].sort((a,b)=>Math.max(b.L,b.S)-Math.max(a.L,a.S)).slice(0,5);
+  html+=`<div class="rank">📊 综合前5：${top5.map(s=>`${s.sym}(多${s.L}/空${s.S})`).join('  ')}</div>`;
+
+  document.getElementById('results').innerHTML=html;
+  document.getElementById('ptext').innerText=`扫完 ${scored.length} 个有效标的`;
+  btn.disabled=false;btn.innerText='🚀 重新扫描';
 }
 </script>
 </body>
