@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约扫描｜专属死盯100池 (v292)</title>
+<title>欧易合约扫描｜极致极值反转 (v293)</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -33,7 +33,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </head>
 <body>
 <div class="warn">
-⚠️ 本版本已锁定为你提供的 100 个专属币种（无视全市场排名）。<br>请在窗口一抓取数据后，去窗口二进行微观狙击。
+⚠️ 本版本采用“前一根极值反转”逻辑：做空前一根必须是近10根最高点，当前确认收阴才进场。
 </div>
 <div class="win">
   <h2>窗口一 · 专属固定池 (含日线容差)</h2>
@@ -41,13 +41,12 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
   <div class="row">
     <label>日线影线容忍幅度(%)</label>
     <input type="number" id="dailyWickTol" value="1.0" step="0.1" min="0" max="5">
-    <span class="sub" style="font-size:11px">允许盘中刺破EMA5的幅度</span>
   </div>
   <div class="st" id="st1">就绪，点击上方按钮开始</div>
   <div id="out1"></div>
 </div>
 <div class="win win2">
-  <h2>窗口二 · 15F 顺势扣扳机</h2>
+  <h2>窗口二 · 15F 极值反转狙击</h2>
   <div class="row">
     <label>扫描目标池</label>
     <select id="poolSource">
@@ -56,9 +55,9 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
     </select>
   </div>
   <div class="row">
-    <label>15m极值容差(%)</label>
+    <label>极值容差(%)</label>
     <input type="number" id="extremeTol" value="1.5" step="0.1" min="0" max="10">
-    <span class="sub" style="font-size:11px">允许离前低/前高的差距</span>
+    <span class="sub" style="font-size:11px">前一根K线距离极值的误差允许范围</span>
   </div>
   <button class="btn b2" id="f2">🎯 扫描当前池（不刷新日线）</button>
   <div class="st" id="st2">等待窗口一生成币种池</div>
@@ -66,7 +65,6 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </div>
 
 <script>
-// 你提供的 100 个带后缀的精确合约代码
 const FIXED_COINS = [
   "BTCUSDT", "ETHUSDT", "SOXLUSDT", "SNDKUSDT", "ZECUSDT", "SOLUSDT", "NVDAUSDT", "XAUUSDT", "ANTUSDT", "MMTUSDT",
   "MUUSDT", "XRPUSDT", "SKHYNIXUSDT", "SOXSUSDT", "HYPEUSDT", "PIEVERSEUSDT", "BREVUSDT", "XAGUSDT", "KORUUSDT", "DOGEUSDT",
@@ -81,8 +79,8 @@ const FIXED_COINS = [
 ];
 
 const PROXIES = ["", "https://api.codetabs.com/v1/proxy?quest=", "https://corsproxy.io/?"];
-const K_LONG_POOL='okx_longpool_v19';
-const K_SHORT_POOL='okx_shortpool_v19';
+const K_LONG_POOL='okx_longpool_v20';
+const K_SHORT_POOL='okx_shortpool_v20';
 let longPool=[], shortPool=[];
 const $=i=>document.getElementById(i);
 const st=(id,h,c)=>{const e=$(id);e.innerHTML=h;e.style.color=c==='e'?'#f85149':c==='o'?'#3fb950':c==='w'?'#ffbf47':'#8b949e'};
@@ -134,7 +132,6 @@ function parseK(d){
   return{o,h,l,c};
 }
 
-// ================= 窗口一核心引擎 =================
 function dailyCheck(kData, wickTolPct){
   const {h,l,c}=kData;
   const i=c.length - 1;
@@ -196,7 +193,6 @@ async function runFullScan(){
   const tickRes=await okx('/api/v5/market/tickers?instType=SWAP');
   if(tickRes.err){ st('st1','❌'+tickRes.err,'e'); return; }
   
-  // 拼接成欧易格式 -USDT-SWAP
   const targetInstIds = FIXED_COINS.map(c => c.replace('USDT', '-USDT-SWAP'));
   
   let rawList = [];
@@ -206,7 +202,7 @@ async function runFullScan(){
         instId: x.instId,
         base: x.instId.split('-')[0],
         last: num(x.last),
-        volCcy24h: num(x.volCcy24h) * num(x.last) // 换算成真实USDT成交额
+        volCcy24h: num(x.volCcy24h) * num(x.last)
       });
     }
   });
@@ -271,7 +267,7 @@ function renderPool(rej=[]){
   $('out1').innerHTML=html;
 }
 
-// ================= 窗口二核心引擎 =================
+// ================= 窗口二核心引擎 (极致极值反转版) =================
 $('f2').onclick=async()=>{
   const poolSource=$('poolSource').value;
   const usePool = poolSource==="longPool"?longPool:shortPool;
@@ -279,7 +275,7 @@ $('f2').onclick=async()=>{
   
   const extTolPct = num($('extremeTol').value) / 100;
   const hits=[],miss=[];
-  st('st2',`<span class="sp"></span>开始15分钟微观扫描...`);
+  st('st2',`<span class="sp"></span>开始15分钟极值反转扫描...`);
   $('out2').innerHTML='';
   
   for(let i=0;i<usePool.length;i++){
@@ -293,16 +289,19 @@ $('f2').onclick=async()=>{
     const kp=parseK(kr.data);
     if(kp.err){ miss.push(`${it.base}:${kp.err}`); await sleep(200); continue; }
     
-    const {c, l, h} = kp;
+    const {c, o, l, h} = kp;
+    // idx 是当前已经走完的最后一根（确认K线）
+    // idx-1 是反转极值的那一根（信号K线）
     const idx = c.length - 1;
     const last = c[idx]; 
+    const prevK = { o: o[idx-1], c: c[idx-1], h: h[idx-1], l: l[idx-1] };
     
-    const e5_15m = ema(c, 5)[idx];
     const e20_15m = ema(c, 20)[idx];
     
+    // 找过去 10 根 (不含信号K线) 的极值
     const recent10 = [];
-    for(let j = idx-10; j < idx; j++) {
-        recent10.push({h: h[j], l: l[j]});
+    for(let j = idx-11; j < idx-1; j++) {
+        if(j >= 0) recent10.push({h: h[j], l: l[j]});
     }
     const maxH_10 = Math.max(...recent10.map(k => k.h));
     const minL_10 = Math.min(...recent10.map(k => k.l));
@@ -311,17 +310,29 @@ $('f2').onclick=async()=>{
     let stop = 0, tp = 0;
 
     if(it.kind === 'long'){
-      const distToMin = (last - minL_10) / minL_10;
-      if(last > e20_15m && c[idx] > c[idx-1] && distToMin <= extTolPct) {
+      // 做多：信号K线必须是阴线，且它的最低点必须是近10根最低
+      const isPrevRed = prevK.c < prevK.o;
+      const distToMin = (prevK.l - minL_10) / minL_10;
+      // 确认K线必须收阳，且不破 EMA20
+      const isConfirmGreen = last > prevK.c; // 或者 last > o[idx]
+      
+      if(isPrevRed && distToMin <= extTolPct && isConfirmGreen && last > e20_15m) {
         isValidEntry = true;
-        stop = l[idx] * 0.998; 
+        // 止损设在刚才那根反转K线（信号线）的最低点
+        stop = prevK.l * 0.998; 
         tp = last + (last - stop) * 3; 
       }
     } else {
-      const distToMax = (maxH_10 - last) / maxH_10;
-      if(last < e20_15m && c[idx] < c[idx-1] && distToMax <= extTolPct) {
+      // 做空：信号K线必须是阳线，且它的最高点必须是近10根最高
+      const isPrevGreen = prevK.c > prevK.o;
+      const distToMax = (maxH_10 - prevK.h) / maxH_10;
+      // 确认K线必须收阴
+      const isConfirmRed = last < prevK.c;
+      
+      if(isPrevGreen && distToMax <= extTolPct && isConfirmRed && last < e20_15m) {
         isValidEntry = true;
-        stop = h[idx] * 1.002; 
+        // 止损设在刚才那根反转K线（信号线）的最高点
+        stop = prevK.h * 1.002; 
         tp = last - (stop - last) * 3; 
       }
     }
@@ -329,7 +340,7 @@ $('f2').onclick=async()=>{
     if(isValidEntry){
       hits.push({...it, entry: last, stop, tp, risk: Math.abs(last-stop)/last});
     } else {
-      miss.push(`${it.base}:未达极值点`);
+      miss.push(`${it.base}:未达极值反转条件`);
     }
     await sleep(200);
   }
@@ -347,7 +358,7 @@ $('f2').onclick=async()=>{
         <span class="Y">风险空间: ${pc(x.risk)}</span>
       </div></div>`;
     });
-  }else html+=`<div class="empty">无符合15m极值进场条件</div>`;
+  }else html+=`<div class="empty">无符合15m极值反转进场条件</div>`;
   
   if(miss.length>0) html+=`<div class="card sub">过滤原因：${miss.slice(0,25).join('<br>')}</div>`;
   
