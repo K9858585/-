@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约 · 双窗口扫描｜Github Pages代理版</title>
+<title>欧易合约 · 双窗口扫描｜修复合约成交额计算</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -38,7 +38,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 ⚠️ Github Pages 使用公共CORS代理；公共代理不稳定，随时可能失效。<br>代理故障时请下载HTML电脑本地双击运行，本地无代理依赖。<br>本工具仅技术演示，不构成任何投资建议。
 </div>
 <div class="win">
-  <h2>窗口一 · 日线多空分离池｜抓取成交额前100</h2>
+  <h2>窗口一 · 日线多空分离池｜抓取成交额前100【已修复合约成交额计算】</h2>
   <button class="btn b1" id="f1">📥 抓取合约真实成交额前100 + 日线多空筛选</button>
   <button class="btn b3" id="refreshVol">💹 刷新成交额快照（获取最新24h量&现价，不重跑日线）</button>
   <button class="btn b3" id="f1b">🔄 强制重扫（忽略当日缓存，重跑全部日线K线）</button>
@@ -87,7 +87,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
   <div id="out2"></div>
 </div>
 <script>
-// =========代理失效就切换下面的地址，二选一，注释掉另一个=========
+//代理失效切换
 const PROXY_PREFIX = "https://api.allorigins.win/raw?url=";
 //const PROXY_PREFIX = "https://corsproxy.sh/?";
 
@@ -124,7 +124,7 @@ async function okx(path,retries=2){
 }
 
 const ema=(a,n)=>{const k=2/(n+1),o=[a[0]];for(let i=1;i<a.length;i++)o.push(a[i]*k+o[i-1]*(1-k));return o};
-const num=x=>{const v=parseFloat(x);return isFinite(v)?v:NaN};
+const num=x=>{const v=parseFloat(x);return isFinite(v)?v:0};
 
 function parseK(d){
   const o=[],h=[],l=[],c=[];
@@ -190,8 +190,12 @@ async function refreshVolumeOnly(){
   }
   const tickerMap={};
   r.data.filter(x=>x.instId.endsWith('USDT-SWAP')).forEach(x=>{
-    tickerMap[x.instId]={volUsd:num(x.volCcyQuote24h)||0, last:num(x.last)||0};
+    const volCoin=num(x.volCcy24h);
+    const lastPx=num(x.last);
+    const volUsd=volCoin*lastPx; // ✅合约正确计算USDT成交额
+    tickerMap[x.instId]={volUsd:volUsd, last:lastPx};
   });
+
   function updatePool(pool){
     let cnt=0;
     pool.forEach(it=>{
@@ -204,6 +208,7 @@ async function refreshVolumeOnly(){
   }
   const c1=updatePool(longPool);
   const c2=updatePool(shortPool);
+
   localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
   localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
   st('st1',`✅刷新快照完成｜多头池更新${c1}个币种，空头池更新${c2}个币种，榜单已重排`,'o');
@@ -213,6 +218,7 @@ async function refreshVolumeOnly(){
 async function runWindow1(force){
   const cc=Math.min(Math.max(parseInt($('cc').value)||2,1),5);
   const wickTolInput = Math.max(0,parseFloat($('ema5WickTol').value)||0);
+
   if(!force && localStorage.getItem(K_DAY)===today()){
     longPool=JSON.parse(localStorage.getItem(K_LONG_POOL)||'[]');
     shortPool=JSON.parse(localStorage.getItem(K_SHORT_POOL)||'[]');
@@ -227,11 +233,20 @@ async function runWindow1(force){
   const t0=Date.now();
   const r=await okx('/api/v5/market/tickers?instType=SWAP');
   if(r.err){ st('st1','❌抓取失败：'+r.err,'e'); return; }
-  let list=r.data.filter(x=>x.instId.endsWith('USDT-SWAP')).map(x=>{
-    const volUsd=num(x.volCcyQuote24h)||0;
-    const pr=num(x.last)||0;
-    return{instId:x.instId,base:x.instId.split('-')[0],volUsd:volUsd,last:pr};
-  }).sort((a,b)=>b.volUsd-a.volUsd).slice(0,100).map((x,i)=>({...x,rank:i+1}));
+
+  // ✅修复：SWAP合约 volUsd = volCcy24h * last，不要使用volCcyQuote24h
+  let list=r.data
+    .filter(x=>x.instId.endsWith('USDT-SWAP'))
+    .map(x=>{
+      const volCoin=num(x.volCcy24h);
+      const pr=num(x.last);
+      const volUsd=volCoin * pr;
+      return{instId:x.instId,base:x.instId.split('-')[0],volUsd:volUsd,last:pr};
+    })
+    .sort((a,b)=>b.volUsd - a.volUsd)
+    .slice(0,100)
+    .map((x,i)=>({...x,rank:i+1}));
+
   if(!list.length){ st('st1','❌过滤后没有USDT永续合约','e'); return; }
   longPool=[]; shortPool=[];
   const rej=[];let done=0;
@@ -259,9 +274,11 @@ async function runWindow1(force){
   longPool.forEach((x,i)=>x.rank=i+1);
   shortPool.sort((a,b)=>b.volUsd - a.volUsd);
   shortPool.forEach((x,i)=>x.rank=i+1);
+
   localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
   localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
   localStorage.setItem(K_DAY,today());
+
   st('st1',`✅完整扫描结束｜总扫描${list.length}只｜多头池：${longPool.length}只，空头池：${shortPool.length}只｜淘汰${rej.length}个，耗时${((Date.now()-t0)/1000).toFixed(0)}s`,'o');
   renderPool(rej);
 }
@@ -278,6 +295,7 @@ function renderPool(rej){
   }else{
     html+=`<div class="empty">🟢 日线多头池没有符合条件币种</div>`;
   }
+
   if(shortPool.length>0){
     html+=`<div class="card" style="border-color:#da3633">
       <div style="color:#f85149;font-weight:bold">🔴【日线空头留存池】EMA5<EMA20向下发散，收盘价在EMA5下方</div>
@@ -288,6 +306,7 @@ function renderPool(rej){
   }else{
     html+=`<div class="empty">🔴 日线空头池没有符合条件币种</div>`;
   }
+
   if(rej&&rej.length>0){
     html+=`<div class="card sub">淘汰明细（最多显示前30条）：<br>${rej.slice(0,30).map(x=>'· '+x).join('<br>')}</div>`;
   }
@@ -311,11 +330,14 @@ $('f2').onclick=async()=>{
       return;
     }
   }
+
   const closeTol = Math.max(0,(parseFloat($('closeTol').value)||0)/100);
   const wickExtTol = Math.max(0,(parseFloat($('extremeWickTol').value)||0)/100);
+
   const hits=[],miss=[];
   st('st2',`<span class="sp"></span>数据源：${poolSource==="longPool"?"日线多头池":"日线空头池"}，扫描模式：${scanMode==='long'?"做多":"做空"}，共${usePool.length}个币种`);
   $('out2').innerHTML='';
+
   for(let i=0;i<usePool.length;i++){
     const it=usePool[i];
     st('st2',`<span class="sp"></span>15F ${i+1}/${usePool.length} · ${it.base}`);
@@ -324,6 +346,7 @@ $('f2').onclick=async()=>{
     if(!k.data||k.data.length<11){ miss.push(it.base+'：K线数量不足'); continue; }
     const p=parseK(k.data);
     if(p.err){ miss.push(it.base+'：'+p.err); continue; }
+
     const n=p.c.length-1, L=n-9;
     let minL=Infinity,maxH=-Infinity;
     for(let j=L;j<=n;j++){
@@ -333,6 +356,7 @@ $('f2').onclick=async()=>{
     const last=p.c[n], prev=p.c[n-1];
     const drift=Math.abs(last-it.last)/it.last;
     if(drift>0.08){ miss.push(it.base+'：现价漂移'+pc(drift)); continue; }
+
     let stop,tp,risk,gap,touch;
     if(scanMode==="long"){
       const wickBreakDown = (minL - Math.min(...p.l.slice(L,n+1)))/minL;
@@ -374,6 +398,7 @@ $('f2').onclick=async()=>{
     $('out2').innerHTML=`<div class="card sub">未满足条件币种：<br>${miss.slice(0,25).map(x=>'· '+x).join('<br>')}</div>`;
     return;
   }
+
   let html='';
   hits.forEach((x,i)=>{
     if(x.scanMode==='long'){
