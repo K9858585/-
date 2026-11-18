@@ -5,39 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>欧易合约 · 今日趋势扫描</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: #0b0e11; color: #eaecef; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; padding: 14px; font-size: 14px; }
-.wrap { max-width: 560px; margin: 0 auto; }
-h1 { text-align: center; font-size: 18px; color: #f0b90b; margin-bottom: 4px; }
-.sub { text-align: center; font-size: 11px; color: #848e9c; margin-bottom: 12px; line-height: 1.5; }
-.ctrl { display: flex; gap: 6px; margin-bottom: 8px; }
-.ctrl input, .ctrl select { flex: 1; background: #151a21; color: #eaecef; border: 1px solid #232a34; border-radius: 8px; padding: 10px; font-size: 13px; }
-.ctrl button { background: #f0b90b; color: #000; font-weight: bold; border: none; border-radius: 8px; padding: 0 14px; font-size: 14px; cursor: pointer; white-space: nowrap; }
-.ctrl button:disabled { opacity: .5; cursor: not-allowed; }
-.pt { text-align: center; font-size: 11px; color: #848e9c; margin: 6px 0; min-height: 16px; }
-.box { background: #151a21; border: 1px solid #232a34; border-radius: 11px; padding: 12px; margin-bottom: 10px; }
-.box h2 { font-size: 14px; color: #f0b90b; margin-bottom: 8px; }
-.tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
-.tbl th { color: #848e9c; font-weight: normal; text-align: right; padding: 5px 3px; border-bottom: 1px solid #232a34; }
-.tbl th:first-child, .tbl td:first-child { text-align: center; }
-.tbl th:nth-child(2), .tbl td:nth-child(2) { text-align: left; }
-.tbl td { text-align: right; padding: 5px 3px; border-bottom: 1px solid #1a1f26; }
-.tbl tr:last-child td { border: 0; }
-.g { color: #0ecb81; } .r { color: #f6465d; } .y { color: #f0b90b; }
-.card { background: #151a21; border: 1px solid #f0b90b; border-radius: 11px; padding: 13px; margin-bottom: 10px; }
-.card h2 { color: #f0b90b; font-size: 16px; margin-bottom: 8px; }
-.row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #1c2229; color: #b7bfc9; gap: 8px; }
-.row:last-child { border: 0; }
-.row b { color: #eaecef; text-align: right; }
-.txt { font-size: 11.5px; line-height: 1.7; color: #c7ced6; white-space: pre-wrap; margin-top: 8px; background: #10141a; border: 1px solid #1c2229; border-radius: 8px; padding: 10px; }
-.note { font-size: 10.5px; color: #848e9c; margin-top: 6px; line-height: 1.5; }
-.empty { text-align: center; color: #848e9c; padding: 20px; font-size: 12px; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b0e11;color:#eaecef;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;padding:14px;font-size:14px}
+.wrap{max-width:560px;margin:0 auto}
+h1{text-align:center;font-size:18px;color:#f0b90b;margin-bottom:4px}
+.sub{text-align:center;font-size:11px;color:#848e9c;margin-bottom:12px;line-height:1.5}
+.ctrl{display:flex;gap:6px;margin-bottom:8px}
+.ctrl input,.ctrl select{flex:1;background:#151a21;color:#eaecef;border:1px solid #232a34;border-radius:8px;padding:10px;font-size:13px}
+.ctrl button{background:#f0b90b;color:#000;font-weight:bold;border:none;border-radius:8px;padding:0 14px;font-size:14px;cursor:pointer;white-space:nowrap}
+.ctrl button:disabled{opacity:.5;cursor:not-allowed}
+.pt{text-align:center;font-size:11px;color:#848e9c;margin:6px 0;min-height:16px}
+.box{background:#151a21;border:1px solid #232a34;border-radius:11px;padding:12px;margin-bottom:10px}
+.box h2{font-size:14px;color:#f0b90b;margin-bottom:8px}
+.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
+.tbl th{color:#848e9c;font-weight:normal;text-align:right;padding:5px 3px;border-bottom:1px solid #232a34}
+.tbl th:first-child,.tbl td:first-child{text-align:center}
+.tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
+.tbl td{text-align:right;padding:5px 3px;border-bottom:1px solid #1a1f26}
+.tbl tr:last-child td{border:0}
+.g{color:#0ecb81} .r{color:#f6465d} .y{color:#f0b90b}
+.card{background:#151a21;border:1px solid #f0b90b;border-radius:11px;padding:13px;margin-bottom:10px}
+.card h2{color:#f0b90b;font-size:16px;margin-bottom:8px}
+.row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #1c2229;color:#b7bfc9;gap:8px}
+.row:last-child{border:0}
+.row b{color:#eaecef;text-align:right}
+.txt{font-size:11.5px;line-height:1.7;color:#c7ced6;white-space:pre-wrap;margin-top:8px;background:#10141a;border:1px solid #1c2229;border-radius:8px;padding:10px}
+.note{font-size:10.5px;color:#848e9c;margin-top:6px;line-height:1.5}
+.empty{text-align:center;color:#848e9c;padding:20px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
 <h1>📡 欧易合约 · 今日趋势扫描</h1>
-<div class="sub">实时拉全市场永续 → 成交额降序 → 今日方向+日线共振 → 只推1个<br>GitHub Pages 部署 · 走 CORS 代理穿透跨域</div>
+<div class="sub">实时拉全市场永续 → 成交额降序 → 今日方向+日线共振 → 只推1个</div>
 <div class="ctrl">
   <input id="num" type="number" min="5" max="50" value="10" placeholder="Top N">
   <select id="tz"><option value="08:00" selected>UTC+8</option><option value="00:00">UTC</option></select>
@@ -48,37 +48,40 @@ h1 { text-align: center; font-size: 18px; color: #f0b90b; margin-bottom: 4px; }
 </div>
 
 <script>
-/* ===== CORS 代理池（自动轮询） ===== */
 const PROXIES = [
   u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   u => `https://thingproxy.freeboard.io/fetch/${u}`,
-  u => `https://cors-anywhere.herokuapp.com/${u}`,
 ];
 let proxyIdx = 0;
+
 async function pfetch(url, timeout = 12000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeout);
   let lastErr = '';
   for (let i = 0; i < PROXIES.length; i++) {
     const pi = (proxyIdx + i) % PROXIES.length;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
     try {
       const res = await fetch(PROXIES[pi](url), { signal: ctrl.signal });
       clearTimeout(t);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      proxyIdx = pi;
       const txt = await res.text();
-      try { return JSON.parse(txt); } catch(e) { throw new Error('JSON解析失败'); }
+      try {
+        const parsed = JSON.parse(txt);
+        proxyIdx = pi;
+        return parsed;
+      } catch(e) {
+        throw new Error('JSON解析失败');
+      }
     } catch (e) {
+      clearTimeout(t);
       lastErr = e.message;
       continue;
     }
   }
-  clearTimeout(t);
   throw new Error(`所有代理不可用(${lastErr})`);
 }
 
-/* ===== 工具 ===== */
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function fmtUsd(v) {
   if (!isFinite(v) || v <= 0) return '--';
@@ -114,7 +117,6 @@ function adxCalc(h, l, c, p = 14) {
   return { adx: 100 * Math.abs(pdi - mdi) / (pdi + mdi || 1), pdi, mdi };
 }
 
-/* ===== 主流程 ===== */
 async function scan() {
   const btn = document.getElementById('btn');
   const pt = document.getElementById('pt');
@@ -128,16 +130,14 @@ async function scan() {
   pt.innerText = '正在拉取全市场永续...';
 
   try {
-    /* 1. 拉 tickers */
     const tickUrl = 'https://www.okx.com/api/v5/market/tickers?instType=SWAP';
     let j;
     try { j = await pfetch(tickUrl, 15000); } catch(e) {
-      out.innerHTML = `<div class="box"><div class="empty">❌ 代理全部不可用<br><span style="font-size:11px">${e.message}<br>请稍后重试，或自行部署 Cloudflare Worker 代理</span></div></div>`;
+      out.innerHTML = `<div class="box"><div class="empty">❌ 代理全部不可用<br><span style="font-size:11px">${e.message}<br>请稍后重试</span></div></div>`;
       btn.disabled = false; btn.innerText = '🚀 扫描'; return;
     }
     if (!j || j.code !== '0') { out.innerHTML = '<div class="box"><div class="empty">接口返回异常</div></div>'; btn.disabled = false; btn.innerText = '🚀 扫描'; return; }
 
-    /* 2. 处理：去重 + 成交额排序 */
     const seen = {};
     const rows = [];
     for (const x of j.data) {
@@ -145,28 +145,23 @@ async function scan() {
       const last = parseFloat(x.last || 0);
       const vol24h = parseFloat(x.vol24h || 0);
       const ctVal = parseFloat(x.ctVal || 1);
-      const turn = vol24h * ctVal * last; // 张数×面值×价格
+      const turn = vol24h * ctVal * last;
       const base = x.instId.replace('-USDT-SWAP', '');
       if (seen[base] && seen[base].turn >= turn) continue;
       seen[base] = { turn };
       const sodUtc8 = parseFloat(x.sodUtc8 || 0);
-      rows.push({
-        sym: base, instId: x.instId, turn, last,
-        chg24: sodUtc8 > 0 ? (last - sodUtc8) / sodUtc8 * 100 : null
-      });
+      rows.push({ sym: base, instId: x.instId, turn, last, chg24: sodUtc8 > 0 ? (last - sodUtc8) / sodUtc8 * 100 : null });
     }
     rows.sort((a, b) => b.turn - a.turn);
     const top = rows.slice(0, N);
 
-    /* 3. 渲染 Top N 表 */
     let tbl = `<div class="box"><h2>成交额 Top ${N}</h2><table class="tbl"><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr>`;
     top.forEach((r, i) => {
       const cls = r.chg24 == null ? '' : r.chg24 > 0 ? 'g' : 'r';
       tbl += `<tr><td>${i+1}</td><td>${r.sym}</td><td>${fmtUsd(r.turn)}</td><td class="${cls}">${r.chg24 == null ? '--' : (r.chg24>0?'+':'') + r.chg24.toFixed(2) + '%'}</td></tr>`;
     });
-    tbl += `</table><div class="note">全市场 ${rows.length} 个永续 · 成交额 = vol24h × ctVal × 价格 · 同名去重</div></div>`;
+    tbl += `</table><div class="note">全市场 ${rows.length} 个永续 · 成交额 = vol24h × ctVal × 价格</div></div>`;
 
-    /* 4. 逐只拉 K 线并评分 */
     const res = [];
     const rej = [];
     for (let i = 0; i < top.length; i++) {
@@ -191,7 +186,6 @@ async function scan() {
       const vwap = (td.h + td.l + td.c) / 3;
       const vr = yd.v > 0 ? td.v / yd.v : 1;
 
-      // === 硬拦 ===
       if (chg > 5) { rej.push(r0.sym + `(今日已涨${chg.toFixed(2)}%)`); continue; }
       if (chg < -5) { rej.push(r0.sym + `(今日已跌${chg.toFixed(2)}%)`); continue; }
       if (Math.abs(chg) < 0.5) { rej.push(r0.sym + '(横盘)'); continue; }
@@ -199,15 +193,12 @@ async function scan() {
       if (chg > 0 && uw > body * 1.8) { rej.push(r0.sym + '(上影过长)'); continue; }
       if (chg < 0 && lw > body * 1.8) { rej.push(r0.sym + '(下影过长)'); continue; }
 
-      // === 趋势背景 ===
       const e20 = ema(c, 20), e50 = ema(c, 50), e200 = ema(c, Math.min(200, c.length - 1));
       const ad = adxCalc(h, l, c, 14);
       const rs = rsiVal(c, 14);
-      const dev = (c[c.length-1] - e200) / e200 * 100;
 
       if (ad.adx < 20) { rej.push(r0.sym + `(ADX ${ad.adx.toFixed(0)} 横盘)`); continue; }
 
-      // === 打分 ===
       let score = 0, dir = chg > 0 ? 'LONG' : 'SHORT', log = [];
       const ac = Math.abs(chg);
       if (ac >= 1.5 && ac <= 3) { score += 30; log.push(`今日${chg>0?'涨':'跌'}${chg.toFixed(2)}%(甜点)`); }
@@ -224,9 +215,9 @@ async function scan() {
       else if (dir === 'SHORT' && td.c < vwap) { score += 10; log.push('压在VWAP下'); }
       else { score += 3; log.push('VWAP逆向'); }
 
-      if (dir === 'LONG' && c[c.length-1] > e20 && e20 > e50) { score += 15; log.push('日线多头'); }
-      else if (dir === 'SHORT' && c[c.length-1] < e20 && e20 < e50) { score += 15; log.push('日线空头'); }
-      else if ((dir === 'LONG' && c[c.length-1] > e200) || (dir === 'SHORT' && c[c.length-1] < e200)) { score += 8; log.push('年线同向'); }
+      if (dir === 'LONG' && td.c > e20 && e20 > e50) { score += 15; log.push('日线多头'); }
+      else if (dir === 'SHORT' && td.c < e20 && e20 < e50) { score += 15; log.push('日线空头'); }
+      else if ((dir === 'LONG' && td.c > e200) || (dir === 'SHORT' && td.c < e200)) { score += 8; log.push('年线同向'); }
       else { score -= 8; log.push('日线逆势'); }
 
       if (ad.adx > 25) { score += 5; log.push(`ADX ${ad.adx.toFixed(0)}`); }
@@ -236,10 +227,9 @@ async function scan() {
       else log.push(`RSI ${rs.toFixed(0)}`);
 
       score = Math.round(Math.min(100, Math.max(0, score)));
-      res.push({ sym: r0.sym, instId: r0.instId, rank: i + 1, turn: r0.turn, dir, score, chg, open: td.o, now: td.c, hi: td.h, lo: td.l, br, vr, vwap, adx: ad.adx, rsi: rs, dev, e20, e200, log });
+      res.push({ sym: r0.sym, instId: r0.instId, rank: i + 1, turn: r0.turn, dir, score, chg, open: td.o, now: td.c, hi: td.h, lo: td.l, br, vr, vwap, adx: ad.adx, rsi: rs, e20, e200, log });
     }
 
-    /* 5. 输出结果 */
     if (!res.length) {
       out.innerHTML = tbl + `<div class="box"><div class="empty">前 ${N} 名全部被过滤<br>今日无合适标的，空仓也是仓位</div></div><div class="note">${rej.join('　')}</div>`;
       pt.innerText = `扫完 ${top.length} 只 · 0 合格`;
