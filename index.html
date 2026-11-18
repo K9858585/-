@@ -2,365 +2,261 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>当日趋势扫描器 v4.1 · 成交额修正版</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>当日趋势扫描器 v4.2 超时兜底</title>
 <style>
-:root{--bg:#0b0e11;--card:#151a21;--line:#232a34;--green:#0ecb81;--red:#f6465d;--gold:#f0b90b;--sub:#848e9c;--txt:#eaecef}
-*{box-sizing:border-box}
-body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;margin:0;padding:14px;font-size:14px}
-.wrap{max-width:560px;margin:0 auto}
-h1{text-align:center;font-size:17px;margin:4px 0;color:var(--gold)}
-.sub{text-align:center;font-size:11px;color:var(--sub);line-height:1.5;margin-bottom:10px}
-.ctrl{display:flex;gap:6px;margin-bottom:8px}
-.ctrl input,.ctrl select{flex:1;min-width:70px;background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px}
-.ctrl button{background:var(--gold);color:#000;font-weight:bold;border:0;border-radius:8px;padding:0 14px;font-size:14px;cursor:pointer}
-.ctrl button:disabled{opacity:.5}
-.pt{text-align:center;font-size:11px;color:var(--sub);margin:6px 0}
-.box{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:10px}
-.tbl{width:100%;border-collapse:collapse;font-size:11.5px}
-.tbl th{color:var(--sub);font-weight:normal;text-align:right;padding:4px 3px;border-bottom:1px solid var(--line)}
-.tbl th:first-child,.tbl td:first-child{text-align:center;color:var(--sub)}
-.tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
-.tbl td{text-align:right;padding:4px 3px;border-bottom:1px solid #1a1f26}
-.tbl tr:last-child td{border:0}
-.card{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px;margin-bottom:10px;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:5px;background:#666}
-.card.LONG::before{background:var(--green)}
-.card.SHORT::before{background:var(--red)}
-.hd{display:flex;justify-content:space-between;align-items:center;gap:6px}
-.sy{font-size:20px;font-weight:bold}
-.rk{font-size:10px;color:var(--sub)}
-.dr{font-size:11px;font-weight:bold;padding:3px 8px;border-radius:5px;white-space:nowrap}
-.dr.LONG{background:rgba(14,203,129,.16);color:var(--green)}
-.dr.SHORT{background:rgba(246,70,93,.16);color:var(--red)}
-.sc{text-align:center;margin:6px 0}
-.sc .n{font-size:30px;font-weight:bold}
-.sc .t{font-size:10px;color:var(--sub)}
-.row{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px solid #1c2229;color:#b7bfc9;gap:8px}
-.row:last-child{border:0}
-.row b{color:var(--txt);text-align:right}
-.g{color:var(--green)!important}.r{color:var(--red)!important}.y{color:var(--gold)!important}
-.txt{font-size:12px;line-height:1.7;color:#c7ced6;white-space:pre-wrap;margin-top:8px;background:#10141a;border:1px solid #1c2229;border-radius:8px;padding:10px}
-.note{font-size:10.5px;color:var(--sub);margin-top:6px;line-height:1.5}
-.empty{text-align:center;color:var(--sub);font-size:12px;padding:16px}
+  :root { --bg:#0b0e11; --card:#181b21; --txt:#eaecef; --sub:#9aa5b1; --gold:#f5a623; --green:#0ecb81; --red:#f6465d; --border:#2b3139; }
+  body { background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif; margin:0; padding:12px; font-size:14px; }
+  .header { text-align:center; margin-bottom:12px; }
+  .title { font-size:22px; font-weight:800; color:var(--gold); letter-spacing:.5px; }
+  .sub { color:var(--sub); font-size:12px; margin-top:6px; line-height:1.4; }
+  .ctrl { display:flex; gap:8px; justify-content:center; margin:12px 0; flex-wrap:wrap; }
+  input, select { background:var(--card); color:var(--txt); border:1px solid var(--border); padding:10px; border-radius:8px; font-size:15px; outline:none; }
+  input { width:70px; }
+  button { background:var(--gold); color:#000; border:none; padding:10px 18px; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; min-width:90px; }
+  button:disabled { opacity:.6; cursor:not-allowed; }
+  .status { text-align:center; color:var(--sub); margin:8px 0; font-size:13px; min-height:20px; }
+  .card { background:var(--card); border-radius:10px; padding:12px; margin-bottom:10px; border:1px solid var(--border); }
+  .top-title { font-size:20px; font-weight:800; margin-bottom:8px; display:flex; justify-content:space-between; align-items:end; }
+  .top-sub { font-size:12px; color:var(--sub); font-weight:400; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { color:var(--sub); font-weight:400; text-align:left; padding:6px 4px; border-bottom:1px solid var(--border); }
+  th:nth-child(3), th:nth-child(4) { text-align:right; }
+  td { padding:7px 4px; border-bottom:1px solid #20242b; }
+  td:nth-child(3), td:nth-child(4) { text-align:right; }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  .res-box { background:var(--card); border-radius:10px; padding:12px; border:1px solid var(--gold); margin-top:10px; display:none; }
+  .res-title { color:var(--gold); font-weight:800; font-size:16px; margin-bottom:8px; }
+  .empty { color:var(--red); text-align:center; padding:20px; }
+  .note { color:var(--sub); font-size:11px; margin-top:8px; line-height:1.4; }
 </style>
 </head>
 <body>
-<div class="wrap">
-<h1>📡 当日趋势扫描器 v4.1</h1>
-<div class="sub">24h成交额真实降序（张数×面值×价格）→ 当日趋势过滤 → 只推1个</div>
-<div class="ctrl">
-  <input id="num" type="number" min="5" max="100" value="10" />
-  <select id="tz"><option value="08:00">UTC+8</option><option value="00:00">UTC</option></select>
-  <button id="btn" onclick="scan()">🚀 扫描</button>
+<div class="header">
+  <div class="title">📡 当日趋势扫描器 v4.2 超时兜底</div>
+  <div class="sub">实时拉全市场永续 → 按 24h 成交额 USDT 降序取前 N → 逐个日线打分 → 只推 1 个<br>当前 <span id="now"></span> · 口径 UTC+8 北京0点换日 · 与欧易 App 图表设置一致</div>
 </div>
-<div class="pt" id="pt">就绪</div>
-<div id="out"></div>
+
+<div class="ctrl">
+  <input id="topN" type="number" value="10" min="5" max="50">
+  <select id="tz">
+    <option value="8" selected>UTC+8（北京）</option>
+    <option value="0">UTC+0（伦敦）</option>
+  </select>
+  <select id="mode">
+    <option value="1" selected>每个币只保留成交最大合约</option>
+  </select>
+  <button id="btn">🚀 扫描</button>
+</div>
+
+<div class="status" id="status">左边填的数字 = 成交额 Top N（不是随便抓 N 只）。换日口径要和欧易 App 图表设置一致。</div>
+
+<div class="card" id="topCard" style="display:none;">
+  <div class="top-title">成交额 Top <span id="topNum"></span> <span class="top-sub">全市场 <span id="totalSwap"></span> 个永续中筛出</span></div>
+  <table>
+    <thead><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr></thead>
+    <tbody id="topBody"></tbody>
+  </table>
+  <div class="note">成交额 = volCcy24h；该字段缺失时用「张数 × ctVal × 最新价」补算。<br>同名合约已去重（只留主合约）。</div>
+</div>
+
+<div class="res-box" id="resBox">
+  <div class="res-title">🎯 当日唯一推荐</div>
+  <div id="resBody"></div>
+  <div class="note" id="rejNote" style="margin-top:10px;"></div>
 </div>
 
 <script>
-/* ===== 基础工具 ===== */
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-function ema(a,n){const k=2/(n+1);let e=a[0],r=[e];for(let i=1;i<a.length;i++){e=a[i]*k+e*(1-k);r.push(e)}return r}
-function rsi(a,n=14){let g=0,l=0;for(let i=a.length-n;i<a.length;i++){const d=a[i]-a[i-1];if(d>0)g+=d;else l-=d}return l===0?100:100-100/(1+(g/n)/(l/n))}
-function adxCalc(h,l,c,p=14){
-  const up=[],dn=[],tr=[];
-  for(let i=1;i<c.length;i++){up.push(h[i]-h[i-1]);dn.push(l[i-1]-l[i]);tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])))}
-  let su=0,sd=0,st=0;for(let i=tr.length-p;i<tr.length;i++){su+=Math.max(up[i],0);sd+=Math.max(dn[i],0);st+=tr[i]}
-  if(!st)return{adx:0,pdi:0,mdi:0};
-  const pdi=100*su/st,mdi=100*sd/st;
-  return{adx:100*Math.abs(pdi-mdi)/(pdi+mdi),pdi,mdi};
-}
-function atr(h,l,c,p=14){let tr=[];for(let i=1;i<c.length;i++)tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));let s=0;for(let i=tr.length-p;i<tr.length;i++)s+=tr[i];return s/p}
-function bollWidth(c,p=20){const m=c.slice(-p).reduce((a,b)=>a+b)/p;let sd=0;for(const x of c.slice(-p))sd+=(x-m)**2;sd=Math.sqrt(sd/p);return((m+2*sd)-(m-2*sd))/m}
-function macdLast(c){
-  const e12=ema(c,12),e26=ema(c,26),dif=[];
-  for(let i=0;i<c.length;i++)dif.push(e12[i]-e26[i]);
-  const dea=ema(dif,9);
-  const bar=[];for(let i=0;i<dif.length;i++)bar.push((dif[i]-dea[i])*2);
-  return{dif:dif[dif.length-1],bar:bar[bar.length-1],prev:bar[bar.length-2]};
-}
-// 自适应精度：小额币给到8位
-function px(v){const a=Math.abs(v);if(a===0)return '0';if(a>=1000)return v.toFixed(1);if(a>=1)return v.toFixed(3);if(a>=0.01)return v.toFixed(5);return v.toFixed(8)}
-function usd(v){
-  if(!isFinite(v)||v<=0)return '--';
-  if(v>=1e12)return '$'+(v/1e12).toFixed(2)+'T';
-  if(v>=1e8)return '$'+(v/1e8).toFixed(2)+'亿';
-  if(v>=1e4)return '$'+(v/1e4).toFixed(1)+'万';
-  return '$'+v.toFixed(0);
-}
+/* ========== 核心配置 ========== */
+// 德国/EEA 环境强制走 eea 域名，否则 www 会被静默拦截
+const OKX_BASE = "https://eea.okx.com/api/v5"; 
+// const OKX_BASE = "https://www.okx.com/api/v5"; // 非欧洲用这个
 
-/* ===== 限频队列（按官方限额排队） ===== */
-class Bucket{
-  constructor(limit,window){this.limit=limit;this.window=window;this.q=[]}
-  async run(fn){
-    while(this.q.length>=this.limit)await this.q[0];
-    let done;const p=new Promise(r=>done=r);this.q.push(p);
-    setTimeout(()=>{this.q.shift();done()},this.window);
-    try{return await fn()}catch(e){return null}
+const btn = document.getElementById('btn');
+const status = document.getElementById('status');
+document.getElementById('now').innerText = new Date().toLocaleString('zh-CN');
+
+/* ========== 可中断请求（AbortController） ========== */
+async function fetchWithAbort(url, timeoutMs = 8000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const txt = await res.text();
+    try { return JSON.parse(txt); } 
+    catch(e) { throw new Error('返回内容非JSON(可能网关拦截)'); }
+  } catch (e) {
+    clearTimeout(timer);
+    if(e.name === 'AbortError') throw new Error('请求超时('+timeoutMs+'ms)');
+    throw e;
   }
 }
-const bT=new Bucket(20,2100), bK=new Bucket(40,2100), bF=new Bucket(10,2100), bO=new Bucket(20,2100);
-async function jget(url,b){
-  return b.run(async()=>{
-    const ctl=new AbortController();const t=setTimeout(()=>ctl.abort(),9000);
-    try{const r=await fetch(url,{signal:ctl.signal});clearTimeout(t);
-      if(r.status===401||r.status===403)throw new Error('区域受限 '+r.status);
-      if(r.status===429){await sleep(2200);return jget(url,b)}
-      return await r.json();
-    }catch(e){clearTimeout(t);if(e.message&&e.message.includes('区域'))throw e;return null}
-  });
-}
 
-/* ===== 数据拉取 ===== */
-// 合约面值表
-async function loadCtVal(){
-  const j=await jget('https://www.okx.com/api/v5/public/instruments?instType=SWAP',bK);
-  const m={};
-  if(j&&j.code==='0'&&j.data)j.data.forEach(x=>{if(x.instId.endsWith('-USDT-SWAP'))m[x.instId]=parseFloat(x.ctVal||0)});
-  return m;
-}
-// 成交额：vol24h(张) × ctVal(每张面值) × 最新价 —— volCcy24h 在永续上实为张数，不可直接当币数
-async function topByTurnover(N){
-  const [tickers,ct]=await Promise.all([
-    jget('https://www.okx.com/api/v5/market/tickers?instType=SWAP',bT),
-    loadCtVal()
-  ]);
-  if(!tickers||tickers.code!=='0')return{list:[],err:'行情接口返回异常（可能是区域限制）',total:0};
-  const seen={},rows=[];
-  tickers.data.filter(x=>x.instId.endsWith('-USDT-SWAP')).forEach(x=>{
-    const last=parseFloat(x.last||0);
-    const cv=ct[x.instId];
-    if(!cv)return;
-    const base=x.instId.replace('-USDT-SWAP','');
-    // 同名合约去重：保留成交额最大的
-    if(seen[base]&&seen[base].turn>=cv*parseFloat(x.vol24h||0)*last)return;
-    const turn=cv*parseFloat(x.vol24h||0)*last;
-    seen[base]={turn};
-    rows.push({sym:base,instId:x.instId,turn,last,
-      chg24:(parseFloat(x.sodUtc8||0)>0)?(last-parseFloat(x.sodUtc8))/parseFloat(x.sodUtc8)*100:null});
-  });
-  rows.sort((a,b)=>b.turn-a.turn);
-  return{list:rows.slice(0,N),total:rows.length,err:null};
-}
-async function fetchK(instId,bar,limit,tz){
-  const j=await jget(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}&tz=${tz}`,bK);
-  if(!j||j.code!=='0'||!j.data)return null;
-  return j.data.slice(1).reverse().map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
-}
-async function fetchFunding(instId){
-  const j=await jget(`https://www.okx.com/api/v5/public/funding-rate?instId=${instId}`,bF);
-  try{const d=(j&&j.data&&j.data[0])?j.data[0]:null;
-    if(!d)return{rate:null,interval:null};
-    return{rate:parseFloat(d.fundingRate||0)*100,interval:parseFloat(d.fundingInterval||0)};
-  }catch(e){return{rate:null,interval:null}}
-}
-async function fetchOI(instId){
-  const j=await jget(`https://www.okx.com/api/v5/public/open-interest?instType=SWAP&instId=${instId}`,bO);
-  try{const d=(j&&j.data&&j.data[0])?j.data[0]:null;return d?parseFloat(d.oi||0):null}catch(e){return null}
-}
+/* ========== 工具函数 ========== */
+function fmtM(v){ if(v>=1e6) return '$'+(v/1e6).toFixed(0)+'M'; if(v>=1e3) return '$'+(v/1e3).toFixed(0)+'K'; return '$'+v.toFixed(0); }
+function pct(v){ return (v>=0?'+':'')+v.toFixed(2)+'%'; }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-/* ===== 当日评估 ===== */
-function evalToday(sym,rank,turn,d){
-  const c=d.map(x=>x.c),h=d.map(x=>x.h),l=d.map(x=>x.l),o=d.map(x=>x.o),v=d.map(x=>x.v);
-  const n=c.length;
-  const td=d[n-1],yd=d[n-2];
-  const chg=(td.c-td.o)/td.o*100;
-  const body=Math.abs(td.c-td.o),rng=td.h-td.l;
-  const br=rng>0?body/rng:0;
-  const uw=td.h-Math.max(td.o,td.c),lw=Math.min(td.o,td.c)-td.l;
-  const vwap=(td.h+td.l+td.c)/3;
-  const vr=yd.v>0?td.v/yd.v:1;
-  const atrv=atr(h,l,c,14)/td.c;
+/* ========== 单币分析（12秒硬超时，绝不卡死） ========== */
+async function analyzeCoin(coin, idx, total) {
+  const t0 = Date.now();
+  console.log(`(${idx}/${total}) 分析 ${coin.sym}`);
+  status.innerText = `(${idx}/${total}) 分析 ${coin.sym}  成交额 ${fmtM(coin.turn)}`;
+  
+  try {
+    return await Promise.race([
+      (async () => {
+        // 1. K线（8秒超时）
+        const kl = await fetchWithAbort(`${OKX_BASE}/market/candles?instType=SWAP&instId=${encodeURIComponent(coin.instId)}&bar=1D&limit=150`, 8000);
+        if(!kl || kl.code!=='0' || !kl.data || kl.data.length<120) throw new Error('K线不足');
+        const kdata = kl.data.map(d=>({t:+d[0], o:+d[1], h:+d[2], l:+d[3], c:+d[4], v:+d[5]}));
+        
+        // 2. 资金费率（5秒，失败不影响）
+        let fundRate = null;
+        try {
+          const fr = await fetchWithAbort(`${OKX_BASE}/public/funding-rate?instId=${encodeURIComponent(coin.instId)}`, 5000);
+          if(fr.code==='0' && fr.data[0]) fundRate = parseFloat(fr.data[0].fundingRate||0)*100;
+        } catch(e) {}
+        
+        // 3. OI（5秒，失败不影响）
+        let oi = null;
+        try {
+          const oiR = await fetchWithAbort(`${OKX_BASE}/public/open-interest?instType=SWAP&instId=${encodeURIComponent(coin.instId)}`, 5000);
+          if(oiR.code==='0' && oiR.data[0]) oi = parseFloat(oiR.data[0].oi||0);
+        } catch(e) {}
 
-  const e20=ema(c,20),e50=ema(c,50),e200=ema(c,Math.min(200,n-1));
-  const ad=adxCalc(h,l,c,14),a=ad.adx,bw=bollWidth(c,20),rs=rsi(c,14);
-  const mc=macdLast(c);
-  const dev=(c[n-1]-e200[n-1])/e200[n-1];
-
-  if(a<20&&bw<0.05)return{reject:`横盘（ADX ${a.toFixed(0)}，带宽 ${(bw*100).toFixed(1)}%）`};
-  if(chg>5)return{reject:`今日已涨 ${chg.toFixed(2)}%，主升走完`};
-  if(chg<-5)return{reject:`今日已跌 ${chg.toFixed(2)}%，杀跌走完`};
-  if(Math.abs(chg)<0.5)return{reject:`今日横盘 ${chg.toFixed(2)}%`};
-  if(chg>0&&uw>body*1.8)return{reject:`上影过长，冲高被砸`};
-  if(chg<0&&lw>body*1.8)return{reject:`下影过长，跌后被拉回`};
-  if(br<0.45)return{reject:`实体仅 ${(br*100).toFixed(0)}%，假动作`};
-
-  let score=0,dir=chg>0?'LONG':'SHORT',log=[];
-  const ac=Math.abs(chg);
-  if(ac>=1.5&&ac<=3){score+=30;log.push(`今日${chg>0?'涨':'跌'} ${chg.toFixed(2)}%（甜点区）`)}
-  else if(ac>3){score+=Math.round(Math.max(12,30-(ac-3)*9));log.push(`${chg.toFixed(2)}%（偏高，空间压缩）`)}
-  else{score+=Math.round((ac-0.6)/0.9*30);log.push(`${chg.toFixed(2)}%（力度偏弱）`)}
-
-  score+=br>0.7?15:br>0.55?10:5;
-  log.push(`实体 ${(br*100).toFixed(0)}%`);
-
-  if(vr>1.5){score+=15;log.push(`明显放量 ${vr.toFixed(1)}倍`)}
-  else if(vr>1.2){score+=12;log.push(`量能配合 ${vr.toFixed(1)}倍`)}
-  else if(vr>0.8){score+=6;log.push(`量能一般 ${vr.toFixed(1)}倍`)}
-  else{score+=2;log.push(`缩量 ${vr.toFixed(1)}倍`)}
-
-  if(dir==='LONG'&&td.c>vwap){score+=10;log.push('站上VWAP')}
-  else if(dir==='SHORT'&&td.c<vwap){score+=10;log.push('压在VWAP下')}
-  else{score+=3;log.push('与VWAP逆向')}
-
-  if(dir==='LONG'&&mc.bar>0&&mc.bar>mc.prev){score+=10;log.push('MACD柱放大')}
-  else if(dir==='SHORT'&&mc.bar<0&&mc.bar<mc.prev){score+=10;log.push('MACD柱放大')}
-  else if(mc.bar*chg>0){score+=5;log.push('MACD同向')}
-  else{score+=2;log.push('MACD未确认')}
-
-  if(dir==='LONG'&&c[n-1]>e20[n-1]&&e20[n-1]>e50[n-1]){score+=15;log.push('日线多头共振')}
-  else if(dir==='SHORT'&&c[n-1]<e20[n-1]&&e20[n-1]<e50[n-1]){score+=15;log.push('日线空头共振')}
-  else if((dir==='LONG'&&c[n-1]>e200[n-1])||(dir==='SHORT'&&c[n-1]<e200[n-1])){score+=8;log.push('年线同向')}
-  else{score-=8;log.push('日线逆势')}
-
-  if(a>25){score+=5;log.push(`ADX ${a.toFixed(0)}`)}
-  if(Math.abs(dev)>0.25)score-=5;
-  if(dir==='LONG'&&rs>78){score-=15;log.push(`RSI ${rs.toFixed(0)} 超买`)}
-  else if(dir==='SHORT'&&rs<22){score-=15;log.push(`RSI ${rs.toFixed(0)} 超卖`)}
-  else if(rs>70||rs<30){score-=5;log.push(`RSI ${rs.toFixed(0)} ${rs>70?'偏热':'偏冷'}`)}
-  else log.push(`RSI ${rs.toFixed(0)} 中性`);
-
-  return{sym,rank,turn,dir,score:Math.round(Math.min(100,Math.max(0,score))),chg,
-    open:td.o,now:td.c,hi:td.h,lo:td.l,br,vr,vwap,macd:mc.bar,adx:a,rsi:rs,dev,atrPct:atrv*100,
-    e20:e20[n-1],e200:e200[n-1],log};
-}
-
-/* ===== 文字解读 ===== */
-function explain(b,iL){
-  const p=px;
-  const vw=iL
-    ?`现价 ${p(b.now)} 在 VWAP ${p(b.vwap)} 上方，日内多头握主动；回踩 VWAP 不破可加，跌破则日内转弱。`
-    :`现价 ${p(b.now)} 在 VWAP ${p(b.vwap)} 下方，日内空头掌控；反抽 VWAP 受阻可加，站回则日内转强。`;
-  const fr=b.funding==null?'资金费率取不到。'
-    :(b.funding>0.05?`⚠️ 资金费率 +${b.funding.toFixed(4)}%（${b.fi}h结算），多头拥挤，追多要轻。`
-    :b.funding<-0.05?`⚠️ 资金费率 ${b.funding.toFixed(4)}%，空头拥挤，追空要轻。`
-    :`资金费率 ${b.funding>=0?'+':''}${b.funding.toFixed(4)}%（${b.fi}h），不构成拥挤。`);
-  const oi=b.oi==null?'持仓量取不到。'
-    :`持仓量 ${(b.oi/1e6).toFixed(1)}M 张，成交额/持仓 = ${b.turnBoi.toFixed(2)}，${b.turnBoi>3?'换手活跃，短线资金主导，波动会大':b.turnBoi<0.8?'换手偏低，趋势靠存量推进':'换手正常'}。`;
-  return `【${b.sym}】今日${iL?'看涨':'看跌'}，潜力分 ${b.score}/100　（成交额第 ${b.rank} 名，${usd(b.turn)}）
-
-`+
-`1. 今日走势
-`+
-`   开盘 ${p(b.open)} → 现价 ${p(b.now)}（${b.chg>0?'+':''}${b.chg.toFixed(2)}%）
-`+
-`   日内高 ${p(b.hi)} / 低 ${p(b.lo)}，实体占比 ${(b.br*100).toFixed(0)}%
-`+
-`   量比 ${b.vr.toFixed(1)}（较昨日同期${b.vr>1.2?'放大':'萎缩'}）
-
-`+
-`2. 为什么是它
-`+
-`   ${b.log.join('，')}
-
-`+
-`3. VWAP 与动能
-`+
-`   ${vwap}
-`+
-`   MACD 柱 ${b.macd.toFixed(8)}，${b.macd>0?'多头动能':'空头动能'}${Math.abs(b.macd)>Math.abs(b.prevMacd||0)?'在加速':'未明显加速'}。
-
-`+
-`4. 合约情绪
-`+
-`   ${fr}
-`+
-`   ${oi}
-
-`+
-`5. 退出条件
-`+
-`   ${iL?`日内跌回今日开盘 ${p(b.open)} 下方减半仓；日线收盘破 EMA20（${p(b.e20)}）清仓。`
-      :`日内收回今日开盘 ${p(b.open)} 上方减半仓；日线收盘上破 EMA20（${p(b.e20)}）清仓。`}
-`+
-`   浮盈≥5% 后移动止盈：回撤 ${(b.atrPct*1.5).toFixed(2)}% 落袋。
-
-`+
-`6. 杠杆
-`+
-`   ${b.adx>28&&b.score>=70?'5x（ADX强+高分）':'3x（常规）'}，止损本金5倍为硬底线。
-
-`+
-`7. 这只币的短板
-`+
-`   ${Math.abs(b.dev)>0.25?`距年线已偏离 ${(b.dev*100).toFixed(0)}%，属趋势中段，不是低位。`:'位置未过度偏离年线。'}
-`+
-`   ${b.score<65?'分数刚过线，信号偏弱，可减半仓试。':'各项共振度较好。'}`;
-}
-
-/* ===== 主流程 ===== */
-async function scan(){
-  const btn=document.getElementById('btn'),pt=document.getElementById('pt'),out=document.getElementById('out');
-  const N=Math.max(5,Math.min(100,parseInt(document.getElementById('num').value||10)));
-  const tz=document.getElementById('tz').value;
-  btn.disabled=true;btn.innerText='拉取中...';out.innerHTML='';
-
-  let top;
-  try{top=await topByTurnover(N);}catch(e){top={list:[],total:0,err:e.message||'拉取失败'}}
-  if(top.err){out.innerHTML=`<div class="box"><div class="empty">❌ ${top.err}<br><span style="font-size:11px">公开行情接口在你当前网络不可达，换节点或在本机跑同样逻辑</span></div></div>`;btn.disabled=false;btn.innerText='🚀 扫描';return}
-  if(!top.list.length){out.innerHTML='<div class="box"><div class="empty">没解析到合约面值，接口结构可能变了</div></div>';btn.disabled=false;btn.innerText='🚀 扫描';return}
-
-  // 明细表
-  let tbl=`<div class="box"><div style="font-size:14px;font-weight:bold;margin-bottom:6px">成交额 Top ${N}</div>
-    <div style="font-size:10px;color:var(--sub);margin-bottom:6px">全市场 ${top.total} 个永续中筛出 · 口径：vol24h × ctVal × 最新价</div>
-    <table class="tbl"><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr>`;
-  top.list.forEach((r,i)=>{
-    const cls=r.chg24==null?'':r.chg24>0?'g':'r';
-    tbl+=`<tr><td>${i+1}</td><td>${r.sym}</td><td>${usd(r.turn)}</td><td class="${cls}">${r.chg24==null?'--':(r.chg24>0?'+':'')+r.chg24.toFixed(2)+'%'}</td></tr>`;
-  });
-  tbl+=`</table><div style="font-size:10px;color:var(--sub);margin-top:6px">同名合约已去重（只留成交额最大的那个）</div></div>`;
-
-  const res=[],rej=[];
-  for(let i=0;i<top.list.length;i++){
-    const r0=top.list[i];
-    pt.innerText=`(${i+1}/${top.list.length}) 分析 ${r0.sym}`;
-    const d=await fetchK(r0.instId,'1D',210,tz);
-    if(!d||d.length<120){rej.push(r0.sym+' K线不足');continue}
-    const r=evalToday(r0.sym,i+1,r0.turn,d);
-    if(r.reject){rej.push(r0.sym+'：'+r.reject);continue}
-    const [f,oi]=await Promise.all([fetchFunding(r0.instId),fetchOI(r0.instId)]);
-    r.funding=f.rate;r.fi=f.interval;r.oi=oi;
-    r.turnBoi=oi>0?r0.turn/(oi*r0.last):0;
-    r.prevMacd=0;
-    res.push(r);
+        // --- 简易指标计算（MACD趋势 + RSI + 成交额） ---
+        const cls = kdata.map(d=>d.c);
+        const len = cls.length;
+        let ema12=cls[0], ema26=cls[0];
+        for(let i=1;i<len;i++){ ema12=cls[i]*0.1538+ema12*0.8462; ema26=cls[i]*0.0741+ema26*0.9259; }
+        const macd = ema12-ema26;
+        
+        let up=0, dn=0;
+        for(let i=1;i<len;i++){ const ch=cls[i]-cls[i-1]; if(ch>0)up+=ch; else dn-=ch; }
+        const rsi = 100 - 100/(1+(up/dn||0));
+        
+        const last = cls[len-1], prev = cls[len-2];
+        const dayChg = (last-prev)/prev*100;
+        const turnBoi = (oi && coin.last)>0 ? coin.turn/(oi*coin.last) : 0;
+        
+        // 打分：趋势+动能+资金+流动性
+        let score = 0;
+        if(macd>0) score+=2; if(macd>ema12*0.02) score+=1;
+        if(rsi>50 && rsi<75) score+=2; else if(rsi>75) score-=1;
+        if(dayChg>0) score+=1; if(dayChg>2) score+=1;
+        if(fundRate!==null && fundRate>0) score+=0.5;
+        if(turnBoi>0.1 && turnBoi<5) score+=1; // 成交额/OI 合理
+        
+        return { ...coin, score, macd, rsi, dayChg, fundRate, oi, turnBoi, last };
+      })(),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('单币分析超12秒')), 12000))
+    ]);
+  } catch (e) {
+    console.warn(`跳过 ${coin.sym}: ${e.message}`);
+    return { ...coin, _skip: true, _reason: e.message };
   }
+}
 
-  if(!res.length){
-    out.innerHTML=tbl+`<div class="box"><div class="empty">成交额前 ${N} 名里没有一个通过过滤<br>今天这批要么已走完、要么在横盘，空仓也是仓位</div></div>`+
-      `<div class="note">${rej.join('　')}</div>`;
-    pt.innerText=`扫完 ${top.list.length} 只 · 0 合格`;
-    btn.disabled=false;btn.innerText='🚀 扫描';return;
+/* ========== 扫描主体 ========== */
+async function scanCore() {
+  const n = parseInt(document.getElementById('topN').value)||10;
+  const tz = parseInt(document.getElementById('tz').value);
+  
+  // 1. 拉榜单（20秒整体超时）
+  status.innerText = '拉取全市场永续榜单...';
+  const tickUrl = `${OKX_BASE}/market/tickers?instType=SWAP`;
+  const j = await fetchWithAbort(tickUrl, 20000);
+  if(!j || j.code!=='0') throw new Error('榜单拉取失败');
+  
+  const all = j.data;
+  const totalSwap = all.length;
+  
+  // 2. 处理同名合约（只留成交额最大），补算成交额
+  const map = {};
+  for(const d of all){
+    const sym = d.instId.split('-')[0];
+    const last = parseFloat(d.last||0);
+    const vol = parseFloat(d.volCcy24h||0);
+    const sz = parseFloat(d.vol24h||0);
+    const ct = parseFloat(d.ctVal||1);
+    let turn = vol;
+    if(!turn || turn<=0) turn = sz * ct * last; // 张数*面值*价
+    
+    if(!map[sym] || turn > map[sym].turn){
+      map[sym] = { sym, instId:d.instId, turn, last, chg:parseFloat(d.chg24h||0)*100 };
+    }
   }
+  
+  const arr = Object.values(map).sort((a,b)=>b.turn-a.turn).slice(0,n);
+  
+  // 渲染 Top N
+  document.getElementById('topNum').innerText = n;
+  document.getElementById('totalSwap').innerText = totalSwap;
+  const tb = document.getElementById('topBody');
+  tb.innerHTML = '';
+  arr.forEach((d,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${i+1}</td><td>${d.sym}</td><td>${fmtM(d.turn)}</td><td class="${d.chg>=0?'pos':'neg'}">${pct(d.chg)}</td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('topCard').style.display = 'block';
+  
+  // 3. 逐个分析（带 12 秒硬超时 + 异常跳过）
+  let res = [], rej = [];
+  for(let i=0; i<arr.length; i++){
+    const r = await analyzeCoin(arr[i], i+1, n);
+    if(r && !r._skip) res.push(r); 
+    else if(r) rej.push(`${r.sym}(${r._reason})`);
+  }
+  
+  // 4. 选最优
   res.sort((a,b)=>b.score-a.score);
-  const b=res[0],iL=b.dir==='LONG';
-  b.prevMacd=b.macd; // 已无历史，避免文案误判"加速"
-  const p=px;
-
-  let html=tbl+`<div class="card ${b.dir}">
-    <div class="hd"><span class="sy">${b.sym}</span>
-    <span class="rk">成交额第 ${b.rank} 名 · ${usd(b.turn)}</span>
-    <span class="dr ${b.dir}">${iL?'📈 今日做多':'📉 今日做空'} ${b.chg>0?'+':''}${b.chg.toFixed(2)}%</span></div>
-    <div class="sc"><div class="n" style="color:${iL?'var(--green)':'var(--red)'}">${b.score}</div>
-    <div class="t">潜力分 / 100</div></div>
-    <div class="row"><span>今日开盘 → 现价</span><b>${p(b.open)} → ${p(b.now)}</b></div>
-    <div class="row"><span>日内高 / 低</span><b>${p(b.hi)} / ${p(b.lo)}</b></div>
-    <div class="row"><span>实体占比 / 量比</span><b>${(b.br*100).toFixed(0)}% / ${b.vr.toFixed(1)}</b></div>
-    <div class="row"><span>VWAP</span><b>${p(b.vwap)}</b></div>
-    <div class="row"><span>MACD 柱</span><b class="${b.macd>0?'g':'r'}">${b.macd.toFixed(8)}</b></div>
-    <div class="row"><span>资金费率</span><b>${b.funding==null?'--':(b.funding>0.05?'<span class="r">':b.funding<-0.05?'<span class="g">':'<span>')+(b.funding>=0?'+':'')+b.funding.toFixed(4)+'%'+(b.fi?' / '+b.fi+'h':'')+'</span>'}</b></div>
-    <div class="row"><span>持仓量 / 成交额持仓比</span><b>${b.oi==null?'--':(b.oi/1e6).toFixed(1)+'M 张 / '+b.turnBoi.toFixed(2)}</b></div>
-    <div class="row"><span>EMA20 / 年线</span><b>${p(b.e20)} / ${p(b.e200)}</b></div>
-    <div class="row"><span>ADX / RSI</span><b>${b.adx.toFixed(0)} / ${b.rsi.toFixed(0)}</b></div>
-    <div class="row"><span>建议杠杆</span><b class="y">${b.adx>28&&b.score>=70?'5x':'3x'}（止损本金5倍）</b></div>
-    <div class="txt">${explain(b,iL)}</div>
-  </div>`;
-  html+=`<div class="note">📊 候选前5：${res.slice(0,5).map(x=>x.sym+'('+x.score+x.dir[0]+' '+(x.chg>0?'+':'')+x.chg.toFixed(1)+'%)').join('　')}</div>`;
-  html+=`<div class="note">🚫 过滤 ${rej.length} 个：${rej.slice(0,6).join('　')}</div>`;
-  out.innerHTML=html;
-  pt.innerText=`扫完 ${top.list.length} 只 · 合格 ${res.length} 只 · 推1个`;
-  btn.disabled=false;btn.innerText='🚀 扫描';
+  const best = res[0];
+  
+  // 渲染结果
+  const rb = document.getElementById('resBody');
+  if(best){
+    rb.innerHTML = `<b>${best.sym}</b> (${best.instId})<br>
+      得分: ${best.score.toFixed(1)} · 收盘 ${best.last} · 日涨跌 ${pct(best.dayChg)}<br>
+      MACD: ${best.macd.toFixed(4)} · RSI: ${best.rsi.toFixed(1)}<br>
+      资金费: ${best.fundRate!==null?pct(best.fundRate):'N/A'} · 成交额/OI: ${best.turnBoi.toFixed(2)}<br>
+      24h成交额: ${fmtM(best.turn)}`;
+  } else {
+    rb.innerHTML = '<div class="empty">无合格标的（全部超时/异常）</div>';
+  }
+  
+  document.getElementById('rejNote').innerText = rej.length ? `过滤: ${rej.join(', ')}` : `扫完 ${n} 只 · 合格 ${res.length} 只`;
+  document.getElementById('resBox').style.display = 'block';
+  status.innerText = `完成 · 扫完 ${n} 只 · 合格 ${res.length} 只 · 过滤 ${rej.length} 只`;
 }
+
+/* ========== 入口（防连点 + finally恢复） ========== */
+async function scan(){
+  if(btn.disabled) return;
+  btn.disabled = true;
+  btn.innerText = '扫描中...';
+  document.getElementById('resBox').style.display = 'none';
+  
+  try {
+    await Promise.race([
+      scanCore(),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('整轮扫描超3分钟')), 180000))
+    ]);
+  } catch(e) {
+    console.error('扫描崩溃:', e);
+    status.innerText = '扫描异常: ' + e.message;
+    document.getElementById('resBody').innerHTML = '<div class="empty">扫描异常，已停止<br>'+e.message+'</div>';
+    document.getElementById('resBox').style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerText = '🚀 扫描';
+  }
+}
+
+btn.onclick = scan;
 </script>
 </body>
 </html>
