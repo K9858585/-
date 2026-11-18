@@ -29,11 +29,12 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 @keyframes r{to{transform:rotate(360deg)}}
 .warn{background:#2d1a00;border:1px solid #8b6914;color:#ffbf47;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.6;margin:8px 0}
 .empty{color:#8b949e;font-size:13px;padding:10px;text-align:center;border:1px dashed #30363d;border-radius:10px}
+.checkRow{align-items:center;}
 </style>
 </head>
 <body>
 <div class="warn">
-⚠️窗口二改为1小时K；信号K涨跌幅≥1.2%；实体对比向前10根同色K；无确认K、无EMA20过滤。
+⚠️窗口二：1H信号K涨跌幅≥1.2%；新增EMA20过滤开关，默认关闭。
 </div>
 <div class="win">
   <h2>窗口一 · 专属固定池 (含日线容差)</h2>
@@ -58,6 +59,13 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
     <label>极值容差(%)</label>
     <input type="number" id="extremeTol" value="1.5" step="0.1" min="0" max="10">
     <span class="sub" style="font-size:11px">K线距离极值的误差允许范围</span>
+  </div>
+  <div class="row checkRow">
+    <label></label>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="useEma20Filter">
+      <span style="font-size:13px;color:#8b949e;">启用1H‑EMA20过滤（做多>EMA20 / 做空&lt;EMA20）</span>
+    </div>
   </div>
   <button class="btn b2" id="f2">🎯 扫描当前池（不刷新日线）</button>
   <div class="st" id="st2">等待窗口一生成币种池</div>
@@ -250,10 +258,11 @@ function renderPool(rej=[]){
   }
   $('out1').innerHTML=html;
 }
-// =================窗口二｜1小时K线，涨跌幅阈值1.2%，向前对比10根=================
+// =================窗口二｜1小时K线，新增EMA20开关=================
 $('f2').onclick=async()=>{
   const poolSource=$('poolSource').value;
   const usePool = poolSource==="longPool"?longPool:shortPool;
+  const useEmaFilter = $('useEma20Filter').checked;
   if(usePool.length===0){ st('st2','⚠️池子为空，请先在窗口一点击扫描','e'); return; }
 
   const extTolPct = num($('extremeTol').value) / 100;
@@ -275,6 +284,7 @@ $('f2').onclick=async()=>{
     const {c, o, l, h} = kp;
     const idx = c.length - 1;
     const sigK = { o: o[idx], c: c[idx], h: h[idx], l: l[idx] };
+    const e20_1h = ema(c,20)[idx];
 
     let isValidEntry = false;
     let stop = 0, tp = 0;
@@ -317,7 +327,13 @@ $('f2').onclick=async()=>{
           sigIsRedLowest = false;
       }
 
-      if(isSigBigRed && sigIsRedLowest) {
+      //EMA20开关判断：开启则要求信号K收盘价大于1H‑EMA20
+      let emaOk = true;
+      if(useEmaFilter){
+          emaOk = sigK.c > e20_1h;
+      }
+
+      if(isSigBigRed && sigIsRedLowest && emaOk) {
         isValidEntry = true;
         stop = sigK.l * 0.998;
         const entry = sigK.c;
@@ -361,7 +377,13 @@ $('f2').onclick=async()=>{
           sigIsGreenHighest = false;
       }
 
-      if(isSigBigGreen && sigIsGreenHighest) {
+      //EMA20开关判断：开启则要求信号K收盘价小于1H‑EMA20
+      let emaOk = true;
+      if(useEmaFilter){
+          emaOk = sigK.c < e20_1h;
+      }
+
+      if(isSigBigGreen && sigIsGreenHighest && emaOk) {
         isValidEntry = true;
         stop = sigK.h * 1.002;
         const entry = sigK.c;
