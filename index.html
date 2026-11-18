@@ -3,272 +3,339 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>OKX 榜单推荐</title>
+<title>OKX 双均线入场点扫描</title>
 <style>
-:root{--bg:#0b0f14;--card:#121821;--line:#1f2937;--txt:#e5e7eb;--sub:#9ca3af;--up:#22c55e;--down:#ef4444}
-body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px;margin:0}
-.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-.btn{display:block;width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;font-weight:700;margin-bottom:10px;cursor:pointer}
-.btn-o{background:#f59e0b;color:#000}
-.btn-o:disabled{opacity:.6}
-.btn-d{background:#1f2937;color:var(--txt);margin-bottom:0}
-.row{display:flex;align-items:center;gap:10px;margin:14px 0}
-input,select{background:#0b0f14;border:1px solid var(--line);color:var(--txt);padding:10px;border-radius:8px;font-size:15px}
-select{width:130px}
-.status{margin-top:12px;color:#f59e0b;font-size:14px;word-break:break-all}
-.card{background:#0f1419;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
-.sym{font-size:22px;font-weight:800}
-.sub{color:var(--sub);font-size:12px;margin-top:4px}
-.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
-.dir{font-size:18px;font-weight:700;text-align:right}
-.dir.up{color:var(--up)} .dir.down{color:var(--down)} .dir.none{color:var(--sub)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px}
-.grid div{color:var(--sub)} .grid b{font-weight:600}
-.toggle{margin-top:10px;color:#f59e0b;font-size:13px;cursor:pointer}
-.reason{margin-top:8px;font-size:13px;color:var(--txt);line-height:1.6}
-.hidden{display:none}
-.top10{margin-top:10px;color:var(--sub);font-size:12px}
+  :root{--bg:#0b0f14;--card:#121821;--line:#1f2937;--txt:#e5e7eb;--sub:#9ca3af;--up:#22c55e;--down:#ef4444;--yel:#f59e0b}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px;margin:0}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .btn{display:block;width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;font-weight:700;margin-bottom:10px;cursor:pointer}
+  .btn-y{background:var(--yel);color:#000}.btn-y:disabled{opacity:.6}
+  .btn-d{background:#1f2937;color:var(--txt);margin-bottom:0}
+  .row{display:flex;align-items:center;gap:10px;margin:12px 0;flex-wrap:wrap}
+  .row span{color:var(--sub);font-size:13px}
+  input,select{background:#0b0f14;border:1px solid var(--line);color:var(--txt);padding:10px;border-radius:8px;font-size:15px}
+  input{width:70px;text-align:center}select{width:120px}
+  #status{margin-top:12px;color:var(--yel);font-size:14px;word-break:break-all}
+  .card{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:16px;background:#0f1419}
+  .sym{font-size:24px;font-weight:800}.sub{color:var(--sub);font-size:12px;margin-top:4px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+  .dir{text-align:right;font-size:20px;font-weight:700}.dir.up{color:var(--up)}.dir.down{color:var(--down)}.dir.none{color:var(--sub)}
+  .sec{margin-top:12px;padding-top:10px;border-top:1px dashed var(--line)}
+  .sec h4{margin:0 0 8px;font-size:13px;color:var(--yel)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;font-size:13px}
+  .grid div{color:var(--sub)}.grid b{color:var(--txt);font-weight:600}
+  .toggle{margin-top:12px;color:var(--yel);font-size:13px;cursor:pointer}
+  .reason{margin-top:8px;font-size:12px;color:var(--sub);line-height:1.7}.reason div{margin-bottom:2px}
+  .hidden{display:none}.top10{margin-top:10px;color:var(--sub);font-size:12px;line-height:1.6}
+  .entry{background:#0b0f14;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:10px;font-size:13px}
+  .entry div{display:flex;justify-content:space-between;margin:3px 0}
 </style>
 </head>
 <body>
 <div class="box">
-  <button class="btn btn-o" id="btnList">📥 抓取今日成交额前100（每日一次）</button>
-  <button class="btn btn-o" id="btnRec">🎯 推荐一只（轻量刷新实时价 + 前N评分）</button>
+  <button class="btn btn-y" id="btnList">📥 抓取今日成交额前100（每日一次）</button>
+  <button class="btn btn-y" id="btnRec">🎯 找最佳入场点（日线定方向 + 1H定回调）</button>
   <button class="btn btn-d" id="btnClear">🗑 清空缓存</button>
-  <div class="row"><span>推荐范围：前</span><input id="rangeIn" value="20" style="width:70px"><span>名（留空=100）</span></div>
-  <div class="row"><span>K线周期：</span>
-    <select id="barIn">
-      <option value="1D" selected>日线 (1D)</option>
-      <option value="4H">4小时 (4H)</option>
-      <option value="1H">1小时 (1H)</option>
-      <option value="15m">15分钟 (15m)</option>
-    </select>
+  <div class="row"><span>扫描范围：前</span><input id="rangeIn" value="20"><span>名（留空=100）</span></div>
+  <div class="row"><span>方向：</span>
+    <select id="sideIn"><option value="long">只做多</option><option value="short">只做空</option><option value="both">多空都看</option></select>
   </div>
-  <div class="status" id="status">初始化...</div>
+  <div id="status">初始化...</div>
 </div>
 <div id="result"></div>
 
 <script>
-const $=(id)=>document.getElementById(id);
-const STORE='okx_top100_v2';
-let cache=null;
+const $ = i => document.getElementById(i);
+const STORE = 'okx_ema5_20_v1';
+let cache = null;
 
-// 稳定币/锚定币黑名单：这些币价格波动接近0，评分无意义
-const STABLE = ['USDT','USDC','DAI','FDUSD','TUSD','USDD','USDP','PAXG','XAUT','EURT','EURS','AEUR','PYUSD','GUSD','LUSD','SUSD','FRAX','BUSD','CUSD','CEUR'];
+const STABLE = ['USDT','USDC','DAI','FDUSD','TUSD','USDD','USDP','PAXG','XAUT','PYUSD','GUSD','LUSD','FRAX','BUSD','EURS','AEUR'];
 
-const bjDate=()=>new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
-const fmt=n=>n?n.toLocaleString(undefined,{maximumFractionDigits:0}):'0';
-const px=(p,s)=>parseFloat(p).toFixed(s==='BTC'||s==='ETH'?2:4);
-const pct=p=>(p>=0?'+':'')+(p*100).toFixed(2)+'%';
+const bjDate = () => new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
+const fmt = n => n ? n.toLocaleString('en',{maximumFractionDigits:0}) : '0';
+const px = (p,b) => !p ? '-' : (+p < 1 ? (+p).toFixed(5) : (+p).toFixed(b==='BTC'?1:2));
+const pct = v => (v>=0?'+':'') + (v*100).toFixed(2) + '%';
 
-function loadCache(){try{const d=localStorage.getItem(STORE);return d?JSON.parse(d):null}catch{return null}}
-function saveCache(list){localStorage.setItem(STORE,JSON.stringify({date:bjDate(),list}))}
+const loadCache = () => { try{ const c=JSON.parse(localStorage.getItem(STORE)); return c&&c.list?c:null; }catch{ return null; } };
+const saveCache = l => localStorage.setItem(STORE, JSON.stringify({date:bjDate(), list:l}));
 
-async function fetchWithTimeout(url,ms=6000){
-  const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);
-  try{const r=await fetch(url,{signal:c.signal});clearTimeout(t);return r}catch(e){clearTimeout(t);throw e}
+async function getJSON(url, ms=7000){
+  const c = new AbortController(); const t = setTimeout(()=>c.abort(), ms);
+  try{
+    const r = await fetch(url, {signal:c.signal, cache:'no-store'});
+    clearTimeout(t);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return await r.json();
+  }catch(e){ clearTimeout(t); throw e; }
 }
-async function getJSON(url){
-  const r=await fetchWithTimeout(url);
-  if(!r.ok)throw new Error('HTTP '+r.status);
-  return r.json();
+// 直连失败走代理（github.io 跨域兜底）
+async function api(path){
+  try{ return await getJSON('https://www.okx.com'+path); }
+  catch(e){
+    const p = 'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://www.okx.com'+path);
+    return await getJSON(p, 12000);
+  }
 }
 
-// 把原始 ticker 转成榜单项，带稳定币过滤 + 名次
-function buildList(data){
-  const seen={};
-  const rows=[];
-  for(const x of data){
-    if(!x.instId.endsWith('-USDT')) continue;      // 只要 USDT 计价
-    const base=x.instId.split('-')[0];
-    if(STABLE.includes(base)) continue;            // 剔除稳定币/锚定币
-    if(seen[base]) continue;                       // 同币只留第一条（成交额更大者在前）
-    seen[base]=1;
-    const last=parseFloat(x.last)||0;
-    rows.push({
-      base,
-      instId:x.instId,
-      volCcy24h:x.volCcy24h,
-      last,
-      chgPct:x.chgPct,
-      usd:last*(parseFloat(x.volCcy24h)||0)
-    });
+/* ---------- 指标：只要 EMA / MACD / RSI ---------- */
+const EMA = (a,n) => { const k=2/(n+1); let e=a[0]; for(let i=1;i<a.length;i++) e = a[i]*k + e*(1-k); return e; };
+const EMA_ARR = (a,n) => { const k=2/(n+1); const o=[a[0]]; for(let i=1;i<a.length;i++) o.push(a[i]*k + o[i-1]*(1-k)); return o; };
+function MACD_ARR(c){
+  const e12 = EMA_ARR(c,12), e26 = EMA_ARR(c,26);
+  const dif = c.map((_,i)=>e12[i]-e26[i]);
+  const dea = EMA_ARR(dif,9);
+  return { dif, dea, bar: dif.map((v,i)=>(v-dea[i])*2) };
+}
+function RSI_ARR(c,n=14){
+  let g=0,b=0; const out=[];
+  for(let i=0;i<c.length;i++){
+    if(i===0){ out.push(50); continue; }
+    const d = c[i]-c[i-1];
+    g = g*(n-1)/n + (d>0?d:0);
+    b = b*(n-1)/n + (d<0?-d:0);
+    out.push(100 - 100/(1 + g/(b||1e-9)));
+  }
+  return out;
+}
+
+/* ---------- 抓取榜单 ---------- */
+async function fetchList(){
+  $('status').innerText = '抓取全市场现货...';
+  const j = await api('/api/v5/market/tickers?instType=SPOT');
+  const seen = {}; const rows = [];
+  for(const x of (j.data||[])){
+    if(!x.instId.endsWith('-USDT')) continue;
+    const base = x.instId.split('-')[0];
+    if(STABLE.includes(base) || seen[base]) continue;
+    seen[base] = 1;
+    const last = parseFloat(x.last)||0;
+    rows.push({ base, instId:x.instId, usd: last*(parseFloat(x.volCcy24h)||0) });
   }
   rows.sort((a,b)=>b.usd-a.usd);
-  // 名次在过滤后确定，所以第1名一定是真波动币
-  rows.forEach((r,i)=>r.rank=i+1);
-  return rows.slice(0,100);
+  rows.forEach((r,i)=>r.rank = i+1);
+  const list = rows.slice(0,100);
+  saveCache(list); cache = {date:bjDate(), list};
+  $('status').innerText = `✅ 已存 ${list.length} 只（已滤稳定币）· ${cache.date} · 可直接点推荐`;
 }
 
-async function fetchList(){
-  $('status').innerText='抓取榜单中(已过滤稳定币)...';
-  const url='https://www.okx.com/api/v5/market/tickers?instType=SPOT';
-  let data;
-  try{
-    data=await getJSON(url);
-  }catch(e){
-    // 直连失败（跨域/网络）走代理兜底
-    const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent(url);
-    data=await getJSON(proxy);
+/* ---------- 单币分析 ---------- */
+async function analyze(it, side){
+  const [d1, h1] = await Promise.all([
+    api(`/api/v5/market/candles?instId=${it.instId}&bar=1D&limit=120`),
+    api(`/api/v5/market/candles?instId=${it.instId}&bar=1H&limit=120`)
+  ]);
+  if(!d1.data || !h1.data || d1.data.length < 40 || h1.data.length < 60) return null;
+
+  const dc = d1.data.map(x=>+x[4]).reverse();
+  const dh = d1.data.map(x=>+x[2]).reverse();
+  const dl = d1.data.map(x=>+x[3]).reverse();
+  const hc = h1.data.map(x=>+x[4]).reverse();
+  const hh = h1.data.map(x=>+x[2]).reverse();
+  const hl = h1.data.map(x=>+x[3]).reverse();
+
+  const e5  = EMA_ARR(dc,5), e20 = EMA_ARR(dc,20);
+  const price = dc[dc.length-1];
+  const E5 = e5[e5.length-1], E20 = e20[e20.length-1];
+  const E5p = e5[e5.length-2], E20p = e20[e20.length-2];
+  const spread = (E5-E20)/price;                 // 发散度
+  const rising = E5 > E5p && E20 > E20p;
+  const falling = E5 < E5p && E20 < E20p;
+
+  // 稳站：最近3根收盘不破EMA20，且现价在EMA5同侧
+  const last3 = dc.slice(-3), e20l3 = e20.slice(-3);
+  const holdUp   = last3.every((c,i)=> c >= e20l3[i]) && price >= E5;
+  const holdDown = last3.every((c,i)=> c <= e20l3[i]) && price <= E5;
+
+  // age：首次连续站上双线距今几根（上限10）
+  let age = 0;
+  for(let i=dc.length-1; i>=1; i--){
+    const up = dc[i] > e5[i] && dc[i] > e20[i] && e5[i] > e20[i];
+    const dn = dc[i] < e5[i] && dc[i] < e20[i] && e5[i] < e20[i];
+    if(up || dn) age++; else break;
   }
-  const list=buildList(data.data||[]);
-  if(!list.length) throw new Error('过滤后为空，接口数据异常');
-  cache={date:bjDate(),list};
-  saveCache(list);
-  $('status').innerText=`✅ 榜单已存(${list.length}只，已剔除稳定币) · ${cache.date}`;
-}
 
-async function getCandle(instId,bar){
-  const url=`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=200`;
-  try{return await getJSON(url)}catch{
-    const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent(url);
-    return await getJSON(proxy)
+  const hE5 = EMA_ARR(hc,5), hE20 = EMA_ARR(hc,20);
+  const hMacd = MACD_ARR(hc), hRsi = RSI_ARR(hc);
+  const hi = hh.length-1;
+  const H = Math.max(...hh.slice(-48)), L = Math.min(...hl.slice(-48));
+  const hp = hc[hi], hE5v = hE5[hi], hE20v = hE20[hi];
+  const depth = (H-hp)/H;                        // 回调深度
+
+  let dScore=0, hScore=0, R=[], ok=true, block='';
+  const isLong = side==='long' || (side==='both' && E5>E20);
+
+  /* 日线 55 */
+  if(isLong){
+    if(E5 > E20 && rising){ dScore += 20; R.push(`日线多头，EMA5 ${px(E5,it.base)} > EMA20 ${px(E20,it.base)}，两线同步抬升 +20`); }
+    else { ok=false; block = E5<=E20 ? '日线EMA5未在EMA20上方' : '日线两线未同步上行'; }
+    if(spread >= 0.003){ dScore += 15; R.push(`发散度 ${(spread*100).toFixed(2)}%，两线整齐张开 +15`); }
+    else if(ok){ ok=false; block='两线缠绕（发散度<0.3%），方向不清'; }
+    if(holdUp){ dScore += 15; R.push('收盘稳站双线上方，近3根未破EMA20 +15'); }
+    else if(ok){ ok=false; block='未稳站（近3根有收盘跌破EMA20）'; }
+    if(age>=1 && age<=3){ dScore += 5; R.push(`刚站上第 ${age} 根，处于起爆窗口 +5`); }
+    else if(age<=6){ dScore += 2; R.push(`站上已 ${age} 根，窗口偏后 +2`); }
+    else if(ok){ dScore += 0; R.push(`站上 ${age} 根，老趋势，拐头风险，不加分`); }
+  } else {
+    if(E5 < E20 && falling){ dScore += 20; R.push(`日线空头，EMA5 ${px(E5,it.base)} < EMA20 ${px(E20,it.base)}，两线同步下行 +20`); }
+    else { ok=false; block='日线不满足空头排列'; }
+    if(spread <= -0.003){ dScore += 15; R.push(`发散度 ${(spread*100).toFixed(2)}%，向下张开 +15`); }
+    else if(ok){ ok=false; block='两线缠绕，不做空'; }
+    if(holdDown){ dScore += 15; R.push('收盘压在双线下方，近3根未收复EMA20 +15'); }
+    else if(ok){ ok=false; block='未稳压（近3根有收盘收回EMA20上方）'; }
+    if(age>=1 && age<=3){ dScore += 5; R.push(`刚跌破第 ${age} 根，起跌窗口 +5`); }
+    else if(age<=6){ dScore += 2; R.push(`跌破已 ${age} 根，窗口偏后 +2`); }
+    else R.push(`跌破 ${age} 根，老趋势，不加分`);
   }
-}
 
-function ema(arr,n){let e=arr[0],k=2/(n+1);for(let i=1;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e}
-function macd(c){const e12=ema(c,12),e26=ema(c,26);return e12-e26}
-function rsi(c,n=14){let g=0,b=0;for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else b-=d}if(!g&&!b)return 50;return 100-(100/(1+(g/(b||1))))}
-function adx(h,l,c,n=14){
-  let tr=[],dmP=[],dmM=[];
-  for(let i=1;i<c.length;i++){
-    tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));
-    const up=h[i]-h[i-1],dn=l[i-1]-l[i];
-    dmP.push(up>dn&&up>0?up:0); dmM.push(dn>up&&dn>0?dn:0);
+  /* 1H 45：回调深度 */
+  if(isLong){
+    if(depth < 0.008){ hScore += 5; R.push(`1H几乎无回调（${(depth*100).toFixed(2)}%），属追高 +5`); }
+    else if(depth <= 0.04){ hScore += 20; R.push(`回调 ${(depth*100).toFixed(2)}%，落在0.8%~4%黄金区 +20`); }
+    else if(hp >= hE20v){ hScore += 14; R.push(`回调 ${(depth*100).toFixed(2)}%， but 守住1H EMA20 健康回踩 +14`); }
+    else { hScore += 4; R.push(`回调 ${(depth*100).toFixed(2)}% 已破1H EMA20，趋势受损 +4`); }
+    if(hp >= hE20v){ hScore += 5; R.push('1H现价在EMA20上方，回调未破坏结构 +5'); }
+    if(hE5v > hE20v){ hScore += 5; R.push('1H EMA5>EMA20，短线已转强 +5'); }
+  } else {
+    const reb = (hp-L)/L;
+    if(reb < 0.008){ hScore += 5; R.push(`1H几乎无反弹（${(reb*100).toFixed(2)}%），追空 +5`); }
+    else if(reb <= 0.04){ hScore += 20; R.push(`反弹 ${(reb*100).toFixed(2)}%，理想做空区 +20`); }
+    else if(hp <= hE20v){ hScore += 14; R.push(`反弹 ${(reb*100).toFixed(2)}%，受压1H EMA20 +14`); }
+    else { hScore += 4; R.push(`反弹 ${(reb*100).toFixed(2)}% 已收复1H EMA20 +4`); }
+    if(hp <= hE20v){ hScore += 5; R.push('1H现价在EMA20下方，反弹受压 +5'); }
+    if(hE5v < hE20v){ hScore += 5; R.push('1H EMA5<EMA20，短线转弱 +5'); }
   }
-  const atr=tr.slice(-n).reduce((a,b)=>a+b,0)/n||1;
-  const p=dmP.slice(-n).reduce((a,b)=>a+b,0)/atr, m=dmM.slice(-n).reduce((a,b)=>a+b,0)/atr;
-  return Math.min(100,Math.abs(p-m)/(p+m||1)*100);
+
+  /* 1H MACD */
+  const bar = hMacd.bar, dif = hMacd.dif, dea = hMacd.dea;
+  const b0 = bar[hi], b1 = bar[hi-1], b2 = bar[hi-2];
+  const crossUp = b1 <= 0 && b0 > 0, crossDn = b1 >= 0 && b0 < 0;
+  if(isLong){
+    if(crossUp){ hScore += 10; R.push('1H MACD柱刚翻红，回调结束 +10'); }
+    else if(b0 > 0 && b0 > b1 && b1 >= b2){ hScore += 8; R.push('1H MACD水上连续放大 +8'); }
+    else if(b0 < 0 && b0 > b1){ hScore += 4; R.push('1H MACD水下缩量，待翻红 +4'); }
+    else { hScore += 0; R.push('1H MACD柱仍在放大向下，未止跌 +0'); }
+  } else {
+    if(crossDn){ hScore += 10; R.push('1H MACD柱刚翻绿，反弹结束 +10'); }
+    else if(b0 < 0 && b0 < b1 && b1 <= b2){ hScore += 8; R.push('1H MACD水下连续放大 +8'); }
+    else if(b0 > 0 && b0 < b1){ hScore += 4; R.push('1H MACD水上缩量，待翻绿 +4'); }
+    else { hScore += 0; R.push('1H MACD柱仍向上，未止涨 +0'); }
+  }
+
+  /* 1H RSI */
+  const r = hRsi[hi], r1 = hRsi[hi-1];
+  if(isLong){
+    if(r >= 40 && r <= 55 && r > r1){ hScore += 10; R.push(`1H RSI ${r.toFixed(0)} 从低位拐上，洗盘到位 +10`); }
+    else if(r > 55 && r <= 65){ hScore += 5; R.push(`1H RSI ${r.toFixed(0)} 偏强，位置尚可 +5`); }
+    else if(r < 30){ hScore += 1; R.push(`1H RSI ${r.toFixed(0)} 超卖，仍在下杀 +1`); }
+    else if(r > 70){ hScore += 1; R.push(`1H RSI ${r.toFixed(0)} 超买，追高风险 +1`); }
+    else { hScore += 6; R.push(`1H RSI ${r.toFixed(0)} 中性 +6`); }
+  } else {
+    if(r <= 60 && r >= 45 && r < r1){ hScore += 10; R.push(`1H RSI ${r.toFixed(0)} 从高位掉头 +10`); }
+    else if(r < 45 && r >= 35){ hScore += 5; R.push(`1H RSI ${r.toFixed(0)} 偏弱 +5`); }
+    else if(r > 70){ hScore += 1; R.push(`1H RSI ${r.toFixed(0)} 超买未回头 +1`); }
+    else if(r < 30){ hScore += 1; R.push(`1H RSI ${r.toFixed(0)} 超卖，易反抽 +1`); }
+    else { hScore += 6; R.push(`1H RSI ${r.toFixed(0)} 中性 +6`); }
+  }
+
+  const score = Math.max(0, Math.min(100, Math.round(dScore + hScore)));
+  const dir = !ok ? 'none' : (isLong ? 'up' : 'down');
+  const stop = isLong ? Math.max(E20, Math.min(...dl.slice(-5))) : Math.min(E20, Math.max(...dh.slice(-5)));
+  const risk = Math.abs(price - stop);
+  const tp = isLong ? price + risk*1.5 : price - risk*1.5;
+
+  return { ...it, price, E5, E20, spread, age, hold: isLong?holdUp:holdDown,
+           hE5v, hE20v, depth: isLong?depth:(hp-L)/L, rsi:r, dif:dif[hi], dea:dea[hi], bar:b0,
+           score, dir, reasons:R, blocked: ok?'':block,
+           stop, tp, rr: risk>0 ? 1.5 : 0, riskPct: risk/price };
 }
 
-async function scoreOne(item,bar){
-  try{
-    const k=await getCandle(item.instId,bar);
-    if(!k.data||k.data.length<50)return null;
-    const closes=k.data.map(x=>parseFloat(x[4])).reverse();
-    const highs =k.data.map(x=>parseFloat(x[2])).reverse();
-    const lows  =k.data.map(x=>parseFloat(x[3])).reverse();
-    const vols  =k.data.map(x=>parseFloat(x[5])).reverse();
-    const e20=ema(closes,20),e50=ema(closes,50),e200=closes.length>=200?ema(closes,200):e50;
-    const dif=macd(closes),rs=rsi(closes),ad=adx(highs,lows,closes);
-    const last=closes[closes.length-1],prev=closes[closes.length-2]||last;
-    const h=highs[highs.length-1],l=lows[lows.length-1];
-    const rng=h-l||1;
-    const upSh=Math.max(0,h-Math.max(last,prev))/rng;
-    const dnSh=Math.max(0,Math.min(last,prev)-l)/rng;
-    const volR=(vols.slice(-5).reduce((a,b)=>a+b,0)/5)/((vols.slice(-20,-5).reduce((a,b)=>a+b,0)/15)||1);
-    let score=0,reasons=[],maDir='none';
-
-    // EMA 25
-    if(last>e20&&e20>e50){score+=25;maDir='up';reasons.push('EMA多头排列 +25')}
-    else if(last<e20&&e20<e50){score+=25;maDir='down';reasons.push('EMA空头排列 +25')}
-    else if(last>e50){score+=12;maDir='up';reasons.push('价在EMA50上 +12')}
-    else{score+=12;maDir='down';reasons.push('价在EMA50下 +12')}
-
-    // MACD 20
-    if(dif>0){score+=20;reasons.push('MACD零轴上 +20')}else{score+=20;reasons.push('MACD零轴下 +20')}
-
-    // ADX 20
-    if(ad>25){score+=20;reasons.push('ADX>25 趋势成立 +20')}
-    else if(ad>20){score+=10;reasons.push('ADX 20-25 趋势偏弱 +10')}
-    else{reasons.push('ADX<20 震荡市 +0')}
-
-    // RSI 15
-    if(rs>50&&rs<75){score+=15;reasons.push('RSI 50-75 健康偏强 +15')}
-    else if(rs>=75){score+=5;reasons.push('RSI>75 超买追高风险 +5')}
-    else if(rs<25){score+=8;reasons.push('RSI<25 超卖易反抽 +8')}
-    else{score+=10;reasons.push('RSI 25-50 偏弱 +10')}
-
-    // 量比 10
-    if(volR>1.5){score+=10;reasons.push('量比>1.5 放量确认 +10')}
-    else if(volR>1.2){score+=6;reasons.push('量比>1.2 温和放量 +6')}
-    else if(volR<0.7){score-=5;reasons.push('量比<0.7 缩量 -5')}
-
-    // 影线 10
-    if(upSh>0.5){score-=8;reasons.push('长上影 冲高被砸 -8')}
-    else if(dnSh>0.5){score-=8;reasons.push('长下影 杀跌被接 -8')}
-    else{score+=10;reasons.push('影线短 实体干净 +10')}
-
-    // 站上年线 5
-    if(last>e200){score+=5;reasons.push('站上年线 +5')}
-
-    score=Math.max(0,Math.min(100,score));
-
-    // 方向：均线定方向，MACD 需共振；背离则不给方向
-    let dir='none';
-    if(maDir==='up'&&dif>0)dir='up';
-    else if(maDir==='down'&&dif<0)dir='down';
-    else reasons.push('均线与MACD背离，方向降级为无');
-    if(score<55)dir='none';
-
-    return{...item,e20,e50,e200,dif,rsi:rs,adx:ad,volR,upSh,dnSh,score,dir,reasons,
-           realLast:last,realChgPct:(last/prev-1),realUsd:item.usd};
-  }catch{return null}
-}
-
+/* ---------- 推荐 ---------- */
 async function recommend(){
-  cache=loadCache();
-  if(!cache){$('status').innerText='⚠️ 无缓存，先点【抓取】';return}
-  if(cache.date!==bjDate()){
-    $('status').innerText='⚠️ 榜单是 '+cache.date+' 的，已过期，请先重新抓取';return;
-  }
-  const range=parseInt($('rangeIn').value)||100;
-  const bar=$('barIn').value;
-  const topN=cache.list.slice(0,range);
-  let scored=[],done=0;
-  for(const it of topN){
-    done++;
-    $('status').innerText=`评分中 ${done}/${topN.length} · ${it.base}...`;
-    const s=await scoreOne(it,bar);
-    if(s)scored.push(s);
-  }
-  if(!scored.length){$('status').innerText='⚠️ 全部失败，可能网络/代理受限';return}
-  scored.sort((a,b)=>b.score-a.score);
-  const top=scored[0];
-  const isNone=top.score<55||top.dir==='none';
-  const fail=top.dir==='up'?Math.min(top.e20,top.e50):Math.max(top.e20,top.e50);
-  const listStr=scored.slice(0,10).map((s,i)=>`${i+1}.${s.base}(${s.score})`).join('  ');
+  if(!cache) cache = loadCache();
+  if(!cache){ $('status').innerText='⚠️ 无缓存，先点【抓取】'; return; }
+  if(cache.date !== bjDate()){ $('status').innerText='⚠️ 榜单是 '+cache.date+' 的，请重新抓取'; return; }
 
-  $('result').innerHTML=`
+  const range = Math.min(100, Math.max(1, parseInt($('rangeIn').value)||100));
+  const side = $('sideIn').value;
+  const pool = cache.list.slice(0, range);
+  let done=0; const out=[];
+  for(const it of pool){
+    done++;
+    $('status').innerText = `扫描 ${done}/${pool.length} · ${it.base}（日线+1H 双请求）...`;
+    try{ const a = await analyze(it, side); if(a) out.push(a); }catch(e){}
+  }
+  if(!out.length){ $('status').innerText='⚠️ 全部失败，检查网络/代理'; return; }
+
+  const passed = out.filter(x=>x.dir!=='none').sort((a,b)=>b.score-a.score);
+  const top = passed[0];
+  const rejected = out.length - passed.length;
+
+  if(!top){
+    $('result').innerHTML = `<div class="card"><div class="sub">本次扫描 ${out.length} 只，<b>没有任何一只同时满足</b>「EMA5/20 整齐发散 + 稳站双线 + 站上不超过3根」。<br><br>按你的规则，答案就是不入场。可以放宽范围到前50/100，或换个方向再看。</div></div>`;
+    $('status').innerText = `✅ 扫完 ${out.length} 只 · 0 只达标 · 今日不宜入场`;
+    return;
+  }
+
+  const lv = top.score>=80 ? '🔥 极佳入场窗口' : top.score>=68 ? '✅ 可入场' : '⚠️ 次优，等更好的位置';
+  const listStr = passed.slice(0,10).map((x,i)=>`${i+1}.${x.base}(${x.score})`).join('  ');
+
+  $('result').innerHTML = `
     <div class="card">
-      <div class="top"><div><div class="sym">${top.base}</div>
-        <div class="sub">成交额第${top.rank}名 / 前${range} · 榜单${cache.list.length}只（已剔除稳定币）</div></div>
-        <div class="dir ${isNone?'none':top.dir}">${isNone?'无明确方向':(top.dir==='up'?'偏涨 ▲':'偏跌 ▼')}<br><span class="sub">${pct(top.realChgPct)} · ${top.score}分</span></div></div>
-      <div class="grid">
-        <div>现价</div><b>${px(top.realLast,top.base)}</b>
-        <div>24h额</div><b>$${fmt(top.realUsd)}</b>
-        <div>EMA20/50/200</div><b>${px(top.e20,top.base)} / ${px(top.e50,top.base)} / ${px(top.e200,top.base)}</b>
-        <div>MACD/RSI/ADX</div><b>${top.dif.toFixed(4)} / ${top.rsi.toFixed(0)} / ${top.adx.toFixed(0)}</b>
-        <div>量比/影线</div><b>${top.volR.toFixed(2)} / 上${top.upSh.toFixed(2)} 下${top.dnSh.toFixed(2)}</b>
-        <div>失效位</div><b>${top.dir==='none'?'-':(top.dir==='down'?'站回 ':'跌破 ')+px(fail,top.base)}</b>
+      <div class="top">
+        <div><div class="sym">${top.base}</div>
+        <div class="sub">成交额第${top.rank}名 / 扫描前${range}（共${cache.list.length}只）</div></div>
+        <div class="dir ${top.dir}">${top.dir==='up'?'做多 ▲':'做空 ▼'}<br><span class="sub">${top.score}分</span></div>
       </div>
-      <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 展开推理 ▼</div>
+      <div class="sub" style="color:var(--yel);font-size:13px">${lv}</div>
+
+      <div class="entry">
+        <div><span>入场参考</span><b>${px(top.price,top.base)}</b></div>
+        <div><span>止损（EMA20/近5根极值）</span><b style="color:var(--down)">${px(top.stop,top.base)}（${(top.riskPct*100).toFixed(2)}%）</b></div>
+        <div><span>止盈（1.5R）</span><b style="color:var(--up)">${px(top.tp,top.base)}</b></div>
+        <div><span>盈亏比</span><b>1 : ${top.rr.toFixed(2)}</b></div>
+      </div>
+
+      <div class="sec">
+        <h4>日线 · 方向（EMA5 / EMA20）</h4>
+        <div class="grid">
+          <div>现价</div><b>${px(top.price,top.base)}</b>
+          <div>EMA5 / EMA20</div><b>${px(top.E5,top.base)} / ${px(top.E20,top.base)}</b>
+          <div>发散度</div><b>${(top.spread*100).toFixed(2)}%</b>
+          <div>站上第几根</div><b>${top.age} 根</b>
+          <div>稳站双线</div><b>${top.hold?'是':'否'}</b>
+          <div>24h成交额</div><b>$${fmt(top.usd)}</b>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h4>1H · 入场点（回调 / MACD / RSI）</h4>
+        <div class="grid">
+          <div>EMA5 / EMA20</div><b>${px(top.hE5v,top.base)} / ${px(top.hE20v,top.base)}</b>
+          <div>回调深度</div><b>${(top.depth*100).toFixed(2)}%</b>
+          <div>MACD 柱 / DIF</div><b>${top.bar.toFixed(4)} / ${top.dif.toFixed(4)}</b>
+          <div>RSI(14)</div><b>${top.rsi.toFixed(0)}</b>
+        </div>
+      </div>
+
+      <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 展开评分明细 ▼</div>
       <div class="reason hidden">${top.reasons.map(r=>`<div>· ${r}</div>`).join('')}</div>
-      <div class="top10">TOP10评分：${listStr}</div>
-      <div class="top10">完成${scored.length}只 · 最高${top.score}分 · ${isNone?'⚠ &lt;55 或方向背离，最优解是不做':top.score>=70?'🔥 强信号':'弱信号，小仓或观望'}</div>
+
+      <div class="top10">达标 ${passed.length} 只，淘汰 ${rejected} 只（不满足发散/稳站/窗口）<br>TOP10：${listStr}</div>
+      <div class="top10" style="color:var(--sub)">评分 = 日线55（排列20+发散15+稳站15+窗口5）+ 1H45（回调20+结构5+短线5+MACD10+RSI10）。<br>分数越高＝方向越干净且回调越到位，止损距离越近，盈亏比越有保障。不构成投资建议。</div>
     </div>`;
-  $('status').innerText=`✅ 完成 · 前${range} · 最高${top.score}分 · ${new Date().toLocaleTimeString()}`;
+  $('status').innerText = `✅ 完成 · 扫 ${out.length} 只 · 达标 ${passed.length} · 首选 ${top.base} ${top.score}分`;
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  cache=loadCache();
-  $('status').innerText=cache
-    ? `✅ 榜单已存(${cache.list.length}只，已滤稳定币) · ${cache.date}${cache.date!==bjDate()?' · 需重抓':''} · 点推荐将轻量刷新`
+  cache = loadCache();
+  $('status').innerText = cache
+    ? `✅ 榜单已存 ${cache.list.length} 只 · ${cache.date}${cache.date!==bjDate()?' · 需重抓':''} · 直接点推荐即可`
     : '无缓存，先点【抓取】';
-  $('btnList').addEventListener('click',async()=>{
-    $('btnList').disabled=true;
-    try{await fetchList()}catch(e){$('status').innerText='⚠️ 抓取失败: '+e.message}
-    $('btnList').disabled=false;
-  });
-  $('btnRec').addEventListener('click',async()=>{
-    $('btnRec').disabled=true;
-    try{await recommend()}catch(e){$('status').innerText='⚠️ 推荐报错: '+e.message}
-    $('btnRec').disabled=false;
-  });
-  $('btnClear').addEventListener('click',()=>{
-    localStorage.removeItem(STORE);cache=null;$('status').innerText='缓存已清，请重新抓取';
-    $('result').innerHTML='';
-  });
+  $('btnList').onclick = async()=>{ const b=$('btnList'); b.disabled=true;
+    try{ await fetchList(); }catch(e){ $('status').innerText='⚠️ 抓取失败: '+e.message; } b.disabled=false; };
+  $('btnRec').onclick = async()=>{ const b=$('btnRec'); b.disabled=true;
+    try{ await recommend(); }catch(e){ $('status').innerText='⚠️ 推荐报错: '+e.message; } b.disabled=false; };
+  $('btnClear').onclick = ()=>{ localStorage.removeItem(STORE); cache=null; $('status').innerText='缓存已清，请重新抓取'; $('result').innerHTML=''; };
 });
 </script>
 </body>
