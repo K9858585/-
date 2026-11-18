@@ -33,7 +33,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </head>
 <body>
 <div class="warn">
-⚠️ 信号K=当前已收盘最后一根K；移除确认K、移除EMA20过滤。
+⚠️窗口二改为1小时K；信号K涨跌幅≥1.2%；实体对比向前10根同色K；无确认K、无EMA20过滤。
 </div>
 <div class="win">
   <h2>窗口一 · 专属固定池 (含日线容差)</h2>
@@ -46,7 +46,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
   <div id="out1"></div>
 </div>
 <div class="win win2">
-  <h2>窗口二 · 15F 极值反转狙击</h2>
+  <h2>窗口二 · 1H 极值反转狙击</h2>
   <div class="row">
     <label>扫描目标池</label>
     <select id="poolSource">
@@ -250,7 +250,7 @@ function renderPool(rej=[]){
   }
   $('out1').innerHTML=html;
 }
-// ================= 窗口二核心引擎｜无确认K，信号K=最后已收盘K，无EMA20过滤 =================
+// =================窗口二｜1小时K线，涨跌幅阈值1.2%，向前对比10根=================
 $('f2').onclick=async()=>{
   const poolSource=$('poolSource').value;
   const usePool = poolSource==="longPool"?longPool:shortPool;
@@ -258,13 +258,13 @@ $('f2').onclick=async()=>{
 
   const extTolPct = num($('extremeTol').value) / 100;
   const hits=[],miss=[];
-  st('st2',`<span class="sp"></span>开始15分钟极值反转扫描...`);
+  st('st2',`<span class="sp"></span>开始1小时极值反转扫描...`);
   $('out2').innerHTML='';
 
   for(let i=0;i<usePool.length;i++){
     const it=usePool[i];
     st('st2',`<span class="sp"></span>扫描 ${i+1}/${usePool.length}｜${it.base}`);
-    const kr=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=20`);
+    const kr=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=1H&limit=40`);
 
     if(kr.err){ miss.push(`${it.base}:${kr.err}`); await sleep(200); continue; }
     if(!kr.data||kr.data.length<15){ miss.push(`${it.base}:K线不足`); await sleep(200); continue; }
@@ -273,18 +273,30 @@ $('f2').onclick=async()=>{
     if(kp.err){ miss.push(`${it.base}:${kp.err}`); await sleep(200); continue; }
 
     const {c, o, l, h} = kp;
-    // idx：信号K = 当前已经收盘的最后一根K，不再使用确认K
     const idx = c.length - 1;
     const sigK = { o: o[idx], c: c[idx], h: h[idx], l: l[idx] };
-
-    const e20_15m = ema(c, 20)[idx];
 
     let isValidEntry = false;
     let stop = 0, tp = 0;
 
     if(it.kind === 'long'){
-      // 做多：信号K为大阴线；取信号K之前10根K，只收集阴线低点，阳线排除，无确认K
-      const isSigBigRed = (sigK.o - sigK.c) / sigK.o > 0.015;
+      //做多：信号大阴线，跌幅≥1.2%，实体≥前10根阴线最大实体*1.5
+      const sigBody = sigK.o - sigK.c;
+      const cond1 = (sigK.o - sigK.c) / sigK.o >= 0.012;
+
+      let maxPrevRedBody = 0;
+      for(let j = idx-10; j < idx; j++){
+        if(j < 0) continue;
+        const ko = o[j];
+        const kc = c[j];
+        if(kc < ko){
+          const body = ko - kc;
+          if(body > maxPrevRedBody) maxPrevRedBody = body;
+        }
+      }
+      const cond2 = (maxPrevRedBody > 0) && (sigBody >= maxPrevRedBody * 1.5);
+      const isSigBigRed = cond1 && cond2;
+
       const redLowList = [];
       for(let j = idx-11; j < idx; j++) {
           if(j >= 0){
@@ -312,8 +324,23 @@ $('f2').onclick=async()=>{
         tp = entry + (entry - stop) * 3;
       }
     } else {
-      // 做空：信号K为大阳线；取信号K之前10根K，只收集阳线高点，阴线排除，无确认K
-      const isSigBigGreen = (sigK.c - sigK.o) / sigK.o > 0.015;
+      //做空：信号大阳线，涨幅≥1.2%，实体≥前10根阳线最大实体*1.5
+      const sigBody = sigK.c - sigK.o;
+      const cond1 = (sigK.c - sigK.o) / sigK.o >= 0.012;
+
+      let maxPrevGreenBody = 0;
+      for(let j = idx-10; j < idx; j++){
+        if(j < 0) continue;
+        const ko = o[j];
+        const kc = c[j];
+        if(kc > ko){
+          const body = kc - ko;
+          if(body > maxPrevGreenBody) maxPrevGreenBody = body;
+        }
+      }
+      const cond2 = (maxPrevGreenBody > 0) && (sigBody >= maxPrevGreenBody * 1.5);
+      const isSigBigGreen = cond1 && cond2;
+
       const greenHighList = [];
       for(let j = idx-11; j < idx; j++) {
           if(j >= 0){
@@ -363,7 +390,7 @@ $('f2').onclick=async()=>{
         <span class="Y">风险空间: ${pc(x.risk)}</span>
       </div></div>`;
     });
-  }else html+=`<div class="empty">无符合15m极值反转进场条件</div>`;
+  }else html+=`<div class="empty">无符合1H极值反转进场条件</div>`;
 
   if(miss.length>0) html+=`<div class="card sub">过滤原因：${miss.slice(0,25).join('<br>')}</div>`;
 
