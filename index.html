@@ -2,261 +2,281 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>当日趋势扫描器 v4.2 超时兜底</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>欧易合约 · 今日趋势扫描</title>
 <style>
-  :root { --bg:#0b0e11; --card:#181b21; --txt:#eaecef; --sub:#9aa5b1; --gold:#f5a623; --green:#0ecb81; --red:#f6465d; --border:#2b3139; }
-  body { background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif; margin:0; padding:12px; font-size:14px; }
-  .header { text-align:center; margin-bottom:12px; }
-  .title { font-size:22px; font-weight:800; color:var(--gold); letter-spacing:.5px; }
-  .sub { color:var(--sub); font-size:12px; margin-top:6px; line-height:1.4; }
-  .ctrl { display:flex; gap:8px; justify-content:center; margin:12px 0; flex-wrap:wrap; }
-  input, select { background:var(--card); color:var(--txt); border:1px solid var(--border); padding:10px; border-radius:8px; font-size:15px; outline:none; }
-  input { width:70px; }
-  button { background:var(--gold); color:#000; border:none; padding:10px 18px; border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; min-width:90px; }
-  button:disabled { opacity:.6; cursor:not-allowed; }
-  .status { text-align:center; color:var(--sub); margin:8px 0; font-size:13px; min-height:20px; }
-  .card { background:var(--card); border-radius:10px; padding:12px; margin-bottom:10px; border:1px solid var(--border); }
-  .top-title { font-size:20px; font-weight:800; margin-bottom:8px; display:flex; justify-content:space-between; align-items:end; }
-  .top-sub { font-size:12px; color:var(--sub); font-weight:400; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { color:var(--sub); font-weight:400; text-align:left; padding:6px 4px; border-bottom:1px solid var(--border); }
-  th:nth-child(3), th:nth-child(4) { text-align:right; }
-  td { padding:7px 4px; border-bottom:1px solid #20242b; }
-  td:nth-child(3), td:nth-child(4) { text-align:right; }
-  .pos { color:var(--green); } .neg { color:var(--red); }
-  .res-box { background:var(--card); border-radius:10px; padding:12px; border:1px solid var(--gold); margin-top:10px; display:none; }
-  .res-title { color:var(--gold); font-weight:800; font-size:16px; margin-bottom:8px; }
-  .empty { color:var(--red); text-align:center; padding:20px; }
-  .note { color:var(--sub); font-size:11px; margin-top:8px; line-height:1.4; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0b0e11; color: #eaecef; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; padding: 14px; font-size: 14px; }
+.wrap { max-width: 560px; margin: 0 auto; }
+h1 { text-align: center; font-size: 18px; color: #f0b90b; margin-bottom: 4px; }
+.sub { text-align: center; font-size: 11px; color: #848e9c; margin-bottom: 12px; line-height: 1.5; }
+.ctrl { display: flex; gap: 6px; margin-bottom: 8px; }
+.ctrl input, .ctrl select { flex: 1; background: #151a21; color: #eaecef; border: 1px solid #232a34; border-radius: 8px; padding: 10px; font-size: 13px; }
+.ctrl button { background: #f0b90b; color: #000; font-weight: bold; border: none; border-radius: 8px; padding: 0 14px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.ctrl button:disabled { opacity: .5; cursor: not-allowed; }
+.pt { text-align: center; font-size: 11px; color: #848e9c; margin: 6px 0; min-height: 16px; }
+.box { background: #151a21; border: 1px solid #232a34; border-radius: 11px; padding: 12px; margin-bottom: 10px; }
+.box h2 { font-size: 14px; color: #f0b90b; margin-bottom: 8px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.tbl th { color: #848e9c; font-weight: normal; text-align: right; padding: 5px 3px; border-bottom: 1px solid #232a34; }
+.tbl th:first-child, .tbl td:first-child { text-align: center; }
+.tbl th:nth-child(2), .tbl td:nth-child(2) { text-align: left; }
+.tbl td { text-align: right; padding: 5px 3px; border-bottom: 1px solid #1a1f26; }
+.tbl tr:last-child td { border: 0; }
+.g { color: #0ecb81; } .r { color: #f6465d; } .y { color: #f0b90b; }
+.card { background: #151a21; border: 1px solid #f0b90b; border-radius: 11px; padding: 13px; margin-bottom: 10px; }
+.card h2 { color: #f0b90b; font-size: 16px; margin-bottom: 8px; }
+.row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #1c2229; color: #b7bfc9; gap: 8px; }
+.row:last-child { border: 0; }
+.row b { color: #eaecef; text-align: right; }
+.txt { font-size: 11.5px; line-height: 1.7; color: #c7ced6; white-space: pre-wrap; margin-top: 8px; background: #10141a; border: 1px solid #1c2229; border-radius: 8px; padding: 10px; }
+.note { font-size: 10.5px; color: #848e9c; margin-top: 6px; line-height: 1.5; }
+.empty { text-align: center; color: #848e9c; padding: 20px; font-size: 12px; }
 </style>
 </head>
 <body>
-<div class="header">
-  <div class="title">📡 当日趋势扫描器 v4.2 超时兜底</div>
-  <div class="sub">实时拉全市场永续 → 按 24h 成交额 USDT 降序取前 N → 逐个日线打分 → 只推 1 个<br>当前 <span id="now"></span> · 口径 UTC+8 北京0点换日 · 与欧易 App 图表设置一致</div>
-</div>
-
+<div class="wrap">
+<h1>📡 欧易合约 · 今日趋势扫描</h1>
+<div class="sub">实时拉全市场永续 → 成交额降序 → 今日方向+日线共振 → 只推1个<br>GitHub Pages 部署 · 走 CORS 代理穿透跨域</div>
 <div class="ctrl">
-  <input id="topN" type="number" value="10" min="5" max="50">
-  <select id="tz">
-    <option value="8" selected>UTC+8（北京）</option>
-    <option value="0">UTC+0（伦敦）</option>
-  </select>
-  <select id="mode">
-    <option value="1" selected>每个币只保留成交最大合约</option>
-  </select>
-  <button id="btn">🚀 扫描</button>
+  <input id="num" type="number" min="5" max="50" value="10" placeholder="Top N">
+  <select id="tz"><option value="08:00" selected>UTC+8</option><option value="00:00">UTC</option></select>
+  <button id="btn" onclick="scan()">🚀 扫描</button>
 </div>
-
-<div class="status" id="status">左边填的数字 = 成交额 Top N（不是随便抓 N 只）。换日口径要和欧易 App 图表设置一致。</div>
-
-<div class="card" id="topCard" style="display:none;">
-  <div class="top-title">成交额 Top <span id="topNum"></span> <span class="top-sub">全市场 <span id="totalSwap"></span> 个永续中筛出</span></div>
-  <table>
-    <thead><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr></thead>
-    <tbody id="topBody"></tbody>
-  </table>
-  <div class="note">成交额 = volCcy24h；该字段缺失时用「张数 × ctVal × 最新价」补算。<br>同名合约已去重（只留主合约）。</div>
-</div>
-
-<div class="res-box" id="resBox">
-  <div class="res-title">🎯 当日唯一推荐</div>
-  <div id="resBody"></div>
-  <div class="note" id="rejNote" style="margin-top:10px;"></div>
+<div class="pt" id="pt">就绪 · 点击扫描开始</div>
+<div id="out"></div>
 </div>
 
 <script>
-/* ========== 核心配置 ========== */
-// 德国/EEA 环境强制走 eea 域名，否则 www 会被静默拦截
-const OKX_BASE = "https://eea.okx.com/api/v5"; 
-// const OKX_BASE = "https://www.okx.com/api/v5"; // 非欧洲用这个
-
-const btn = document.getElementById('btn');
-const status = document.getElementById('status');
-document.getElementById('now').innerText = new Date().toLocaleString('zh-CN');
-
-/* ========== 可中断请求（AbortController） ========== */
-async function fetchWithAbort(url, timeoutMs = 8000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timer);
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    const txt = await res.text();
-    try { return JSON.parse(txt); } 
-    catch(e) { throw new Error('返回内容非JSON(可能网关拦截)'); }
-  } catch (e) {
-    clearTimeout(timer);
-    if(e.name === 'AbortError') throw new Error('请求超时('+timeoutMs+'ms)');
-    throw e;
-  }
-}
-
-/* ========== 工具函数 ========== */
-function fmtM(v){ if(v>=1e6) return '$'+(v/1e6).toFixed(0)+'M'; if(v>=1e3) return '$'+(v/1e3).toFixed(0)+'K'; return '$'+v.toFixed(0); }
-function pct(v){ return (v>=0?'+':'')+v.toFixed(2)+'%'; }
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-/* ========== 单币分析（12秒硬超时，绝不卡死） ========== */
-async function analyzeCoin(coin, idx, total) {
-  const t0 = Date.now();
-  console.log(`(${idx}/${total}) 分析 ${coin.sym}`);
-  status.innerText = `(${idx}/${total}) 分析 ${coin.sym}  成交额 ${fmtM(coin.turn)}`;
-  
-  try {
-    return await Promise.race([
-      (async () => {
-        // 1. K线（8秒超时）
-        const kl = await fetchWithAbort(`${OKX_BASE}/market/candles?instType=SWAP&instId=${encodeURIComponent(coin.instId)}&bar=1D&limit=150`, 8000);
-        if(!kl || kl.code!=='0' || !kl.data || kl.data.length<120) throw new Error('K线不足');
-        const kdata = kl.data.map(d=>({t:+d[0], o:+d[1], h:+d[2], l:+d[3], c:+d[4], v:+d[5]}));
-        
-        // 2. 资金费率（5秒，失败不影响）
-        let fundRate = null;
-        try {
-          const fr = await fetchWithAbort(`${OKX_BASE}/public/funding-rate?instId=${encodeURIComponent(coin.instId)}`, 5000);
-          if(fr.code==='0' && fr.data[0]) fundRate = parseFloat(fr.data[0].fundingRate||0)*100;
-        } catch(e) {}
-        
-        // 3. OI（5秒，失败不影响）
-        let oi = null;
-        try {
-          const oiR = await fetchWithAbort(`${OKX_BASE}/public/open-interest?instType=SWAP&instId=${encodeURIComponent(coin.instId)}`, 5000);
-          if(oiR.code==='0' && oiR.data[0]) oi = parseFloat(oiR.data[0].oi||0);
-        } catch(e) {}
-
-        // --- 简易指标计算（MACD趋势 + RSI + 成交额） ---
-        const cls = kdata.map(d=>d.c);
-        const len = cls.length;
-        let ema12=cls[0], ema26=cls[0];
-        for(let i=1;i<len;i++){ ema12=cls[i]*0.1538+ema12*0.8462; ema26=cls[i]*0.0741+ema26*0.9259; }
-        const macd = ema12-ema26;
-        
-        let up=0, dn=0;
-        for(let i=1;i<len;i++){ const ch=cls[i]-cls[i-1]; if(ch>0)up+=ch; else dn-=ch; }
-        const rsi = 100 - 100/(1+(up/dn||0));
-        
-        const last = cls[len-1], prev = cls[len-2];
-        const dayChg = (last-prev)/prev*100;
-        const turnBoi = (oi && coin.last)>0 ? coin.turn/(oi*coin.last) : 0;
-        
-        // 打分：趋势+动能+资金+流动性
-        let score = 0;
-        if(macd>0) score+=2; if(macd>ema12*0.02) score+=1;
-        if(rsi>50 && rsi<75) score+=2; else if(rsi>75) score-=1;
-        if(dayChg>0) score+=1; if(dayChg>2) score+=1;
-        if(fundRate!==null && fundRate>0) score+=0.5;
-        if(turnBoi>0.1 && turnBoi<5) score+=1; // 成交额/OI 合理
-        
-        return { ...coin, score, macd, rsi, dayChg, fundRate, oi, turnBoi, last };
-      })(),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('单币分析超12秒')), 12000))
-    ]);
-  } catch (e) {
-    console.warn(`跳过 ${coin.sym}: ${e.message}`);
-    return { ...coin, _skip: true, _reason: e.message };
-  }
-}
-
-/* ========== 扫描主体 ========== */
-async function scanCore() {
-  const n = parseInt(document.getElementById('topN').value)||10;
-  const tz = parseInt(document.getElementById('tz').value);
-  
-  // 1. 拉榜单（20秒整体超时）
-  status.innerText = '拉取全市场永续榜单...';
-  const tickUrl = `${OKX_BASE}/market/tickers?instType=SWAP`;
-  const j = await fetchWithAbort(tickUrl, 20000);
-  if(!j || j.code!=='0') throw new Error('榜单拉取失败');
-  
-  const all = j.data;
-  const totalSwap = all.length;
-  
-  // 2. 处理同名合约（只留成交额最大），补算成交额
-  const map = {};
-  for(const d of all){
-    const sym = d.instId.split('-')[0];
-    const last = parseFloat(d.last||0);
-    const vol = parseFloat(d.volCcy24h||0);
-    const sz = parseFloat(d.vol24h||0);
-    const ct = parseFloat(d.ctVal||1);
-    let turn = vol;
-    if(!turn || turn<=0) turn = sz * ct * last; // 张数*面值*价
-    
-    if(!map[sym] || turn > map[sym].turn){
-      map[sym] = { sym, instId:d.instId, turn, last, chg:parseFloat(d.chg24h||0)*100 };
+/* ===== CORS 代理池（自动轮询） ===== */
+const PROXIES = [
+  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  u => `https://thingproxy.freeboard.io/fetch/${u}`,
+  u => `https://cors-anywhere.herokuapp.com/${u}`,
+];
+let proxyIdx = 0;
+async function pfetch(url, timeout = 12000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  let lastErr = '';
+  for (let i = 0; i < PROXIES.length; i++) {
+    const pi = (proxyIdx + i) % PROXIES.length;
+    try {
+      const res = await fetch(PROXIES[pi](url), { signal: ctrl.signal });
+      clearTimeout(t);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      proxyIdx = pi;
+      const txt = await res.text();
+      try { return JSON.parse(txt); } catch(e) { throw new Error('JSON解析失败'); }
+    } catch (e) {
+      lastErr = e.message;
+      continue;
     }
   }
-  
-  const arr = Object.values(map).sort((a,b)=>b.turn-a.turn).slice(0,n);
-  
-  // 渲染 Top N
-  document.getElementById('topNum').innerText = n;
-  document.getElementById('totalSwap').innerText = totalSwap;
-  const tb = document.getElementById('topBody');
-  tb.innerHTML = '';
-  arr.forEach((d,i)=>{
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i+1}</td><td>${d.sym}</td><td>${fmtM(d.turn)}</td><td class="${d.chg>=0?'pos':'neg'}">${pct(d.chg)}</td>`;
-    tb.appendChild(tr);
-  });
-  document.getElementById('topCard').style.display = 'block';
-  
-  // 3. 逐个分析（带 12 秒硬超时 + 异常跳过）
-  let res = [], rej = [];
-  for(let i=0; i<arr.length; i++){
-    const r = await analyzeCoin(arr[i], i+1, n);
-    if(r && !r._skip) res.push(r); 
-    else if(r) rej.push(`${r.sym}(${r._reason})`);
-  }
-  
-  // 4. 选最优
-  res.sort((a,b)=>b.score-a.score);
-  const best = res[0];
-  
-  // 渲染结果
-  const rb = document.getElementById('resBody');
-  if(best){
-    rb.innerHTML = `<b>${best.sym}</b> (${best.instId})<br>
-      得分: ${best.score.toFixed(1)} · 收盘 ${best.last} · 日涨跌 ${pct(best.dayChg)}<br>
-      MACD: ${best.macd.toFixed(4)} · RSI: ${best.rsi.toFixed(1)}<br>
-      资金费: ${best.fundRate!==null?pct(best.fundRate):'N/A'} · 成交额/OI: ${best.turnBoi.toFixed(2)}<br>
-      24h成交额: ${fmtM(best.turn)}`;
-  } else {
-    rb.innerHTML = '<div class="empty">无合格标的（全部超时/异常）</div>';
-  }
-  
-  document.getElementById('rejNote').innerText = rej.length ? `过滤: ${rej.join(', ')}` : `扫完 ${n} 只 · 合格 ${res.length} 只`;
-  document.getElementById('resBox').style.display = 'block';
-  status.innerText = `完成 · 扫完 ${n} 只 · 合格 ${res.length} 只 · 过滤 ${rej.length} 只`;
+  clearTimeout(t);
+  throw new Error(`所有代理不可用(${lastErr})`);
 }
 
-/* ========== 入口（防连点 + finally恢复） ========== */
-async function scan(){
-  if(btn.disabled) return;
+/* ===== 工具 ===== */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function fmtUsd(v) {
+  if (!isFinite(v) || v <= 0) return '--';
+  if (v >= 1e12) return '$' + (v/1e12).toFixed(2) + 'T';
+  if (v >= 1e8) return '$' + (v/1e8).toFixed(2) + '亿';
+  if (v >= 1e4) return '$' + (v/1e4).toFixed(1) + '万';
+  return '$' + v.toFixed(0);
+}
+function fmtPx(v) {
+  const a = Math.abs(v);
+  if (a >= 1000) return v.toFixed(2);
+  if (a >= 1) return v.toFixed(4);
+  if (a >= 0.01) return v.toFixed(6);
+  return v.toFixed(8);
+}
+function ema(arr, n) { const k = 2/(n+1); let e = arr[0]; for (let i = 1; i < arr.length; i++) e = arr[i]*k + e*(1-k); return e; }
+function rsiVal(arr, n = 14) {
+  let g = 0, l = 0;
+  for (let i = arr.length - n; i < arr.length; i++) { const d = arr[i] - arr[i-1]; if (d > 0) g += d; else l -= d; }
+  if (l === 0) return 100;
+  return 100 - 100/(1 + (g/n)/(l/n));
+}
+function adxCalc(h, l, c, p = 14) {
+  let tr = 0, plus = 0, minus = 0;
+  for (let i = 1; i < c.length; i++) {
+    tr += Math.max(h[i]-l[i], Math.abs(h[i]-c[i-1]), Math.abs(l[i]-c[i-1]));
+    plus += Math.max(h[i]-h[i-1], 0);
+    minus += Math.max(l[i-1]-l[i], 0);
+  }
+  const atr = tr / Math.min(p, c.length - 1);
+  const pdi = 100 * (plus / Math.min(p, c.length - 1)) / atr;
+  const mdi = 100 * (minus / Math.min(p, c.length - 1)) / atr;
+  return { adx: 100 * Math.abs(pdi - mdi) / (pdi + mdi || 1), pdi, mdi };
+}
+
+/* ===== 主流程 ===== */
+async function scan() {
+  const btn = document.getElementById('btn');
+  const pt = document.getElementById('pt');
+  const out = document.getElementById('out');
+  const N = Math.max(5, Math.min(50, parseInt(document.getElementById('num').value) || 10));
+  const tz = document.getElementById('tz').value;
+
   btn.disabled = true;
-  btn.innerText = '扫描中...';
-  document.getElementById('resBox').style.display = 'none';
-  
-  try {
-    await Promise.race([
-      scanCore(),
-      new Promise((_,r)=>setTimeout(()=>r(new Error('整轮扫描超3分钟')), 180000))
-    ]);
-  } catch(e) {
-    console.error('扫描崩溃:', e);
-    status.innerText = '扫描异常: ' + e.message;
-    document.getElementById('resBody').innerHTML = '<div class="empty">扫描异常，已停止<br>'+e.message+'</div>';
-    document.getElementById('resBox').style.display = 'block';
-  } finally {
-    btn.disabled = false;
-    btn.innerText = '🚀 扫描';
-  }
-}
+  btn.innerText = '拉取中...';
+  out.innerHTML = '';
+  pt.innerText = '正在拉取全市场永续...';
 
-btn.onclick = scan;
+  try {
+    /* 1. 拉 tickers */
+    const tickUrl = 'https://www.okx.com/api/v5/market/tickers?instType=SWAP';
+    let j;
+    try { j = await pfetch(tickUrl, 15000); } catch(e) {
+      out.innerHTML = `<div class="box"><div class="empty">❌ 代理全部不可用<br><span style="font-size:11px">${e.message}<br>请稍后重试，或自行部署 Cloudflare Worker 代理</span></div></div>`;
+      btn.disabled = false; btn.innerText = '🚀 扫描'; return;
+    }
+    if (!j || j.code !== '0') { out.innerHTML = '<div class="box"><div class="empty">接口返回异常</div></div>'; btn.disabled = false; btn.innerText = '🚀 扫描'; return; }
+
+    /* 2. 处理：去重 + 成交额排序 */
+    const seen = {};
+    const rows = [];
+    for (const x of j.data) {
+      if (!x.instId.endsWith('-USDT-SWAP')) continue;
+      const last = parseFloat(x.last || 0);
+      const vol24h = parseFloat(x.vol24h || 0);
+      const ctVal = parseFloat(x.ctVal || 1);
+      const turn = vol24h * ctVal * last; // 张数×面值×价格
+      const base = x.instId.replace('-USDT-SWAP', '');
+      if (seen[base] && seen[base].turn >= turn) continue;
+      seen[base] = { turn };
+      const sodUtc8 = parseFloat(x.sodUtc8 || 0);
+      rows.push({
+        sym: base, instId: x.instId, turn, last,
+        chg24: sodUtc8 > 0 ? (last - sodUtc8) / sodUtc8 * 100 : null
+      });
+    }
+    rows.sort((a, b) => b.turn - a.turn);
+    const top = rows.slice(0, N);
+
+    /* 3. 渲染 Top N 表 */
+    let tbl = `<div class="box"><h2>成交额 Top ${N}</h2><table class="tbl"><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr>`;
+    top.forEach((r, i) => {
+      const cls = r.chg24 == null ? '' : r.chg24 > 0 ? 'g' : 'r';
+      tbl += `<tr><td>${i+1}</td><td>${r.sym}</td><td>${fmtUsd(r.turn)}</td><td class="${cls}">${r.chg24 == null ? '--' : (r.chg24>0?'+':'') + r.chg24.toFixed(2) + '%'}</td></tr>`;
+    });
+    tbl += `</table><div class="note">全市场 ${rows.length} 个永续 · 成交额 = vol24h × ctVal × 价格 · 同名去重</div></div>`;
+
+    /* 4. 逐只拉 K 线并评分 */
+    const res = [];
+    const rej = [];
+    for (let i = 0; i < top.length; i++) {
+      const r0 = top[i];
+      pt.innerText = `(${i+1}/${top.length}) 分析 ${r0.sym}...`;
+      let k;
+      try {
+        const kUrl = `https://www.okx.com/api/v5/market/candles?instId=${encodeURIComponent(r0.instId)}&bar=1D&limit=150&tz=${tz}`;
+        const kj = await pfetch(kUrl, 10000);
+        if (kj && kj.code === '0' && kj.data && kj.data.length >= 2) {
+          k = kj.data.slice(1).reverse().map(d => ({ o: +d[1], h: +d[2], l: +d[3], c: +d[4], v: +d[5] }));
+        }
+      } catch(e) { rej.push(r0.sym + '(K线拉取失败)'); continue; }
+      if (!k || k.length < 30) { rej.push(r0.sym + '(K线不足)'); continue; }
+
+      const c = k.map(x => x.c), h = k.map(x => x.h), l = k.map(x => x.l), o = k.map(x => x.o), v = k.map(x => x.v);
+      const td = k[k.length - 1], yd = k[k.length - 2];
+      const chg = (td.c - td.o) / td.o * 100;
+      const body = Math.abs(td.c - td.o), rng = td.h - td.l;
+      const br = rng > 0 ? body / rng : 0;
+      const uw = td.h - Math.max(td.o, td.c), lw = Math.min(td.o, td.c) - td.l;
+      const vwap = (td.h + td.l + td.c) / 3;
+      const vr = yd.v > 0 ? td.v / yd.v : 1;
+
+      // === 硬拦 ===
+      if (chg > 5) { rej.push(r0.sym + `(今日已涨${chg.toFixed(2)}%)`); continue; }
+      if (chg < -5) { rej.push(r0.sym + `(今日已跌${chg.toFixed(2)}%)`); continue; }
+      if (Math.abs(chg) < 0.5) { rej.push(r0.sym + '(横盘)'); continue; }
+      if (br < 0.45) { rej.push(r0.sym + `(实体${(br*100).toFixed(0)}%)`); continue; }
+      if (chg > 0 && uw > body * 1.8) { rej.push(r0.sym + '(上影过长)'); continue; }
+      if (chg < 0 && lw > body * 1.8) { rej.push(r0.sym + '(下影过长)'); continue; }
+
+      // === 趋势背景 ===
+      const e20 = ema(c, 20), e50 = ema(c, 50), e200 = ema(c, Math.min(200, c.length - 1));
+      const ad = adxCalc(h, l, c, 14);
+      const rs = rsiVal(c, 14);
+      const dev = (c[c.length-1] - e200) / e200 * 100;
+
+      if (ad.adx < 20) { rej.push(r0.sym + `(ADX ${ad.adx.toFixed(0)} 横盘)`); continue; }
+
+      // === 打分 ===
+      let score = 0, dir = chg > 0 ? 'LONG' : 'SHORT', log = [];
+      const ac = Math.abs(chg);
+      if (ac >= 1.5 && ac <= 3) { score += 30; log.push(`今日${chg>0?'涨':'跌'}${chg.toFixed(2)}%(甜点)`); }
+      else if (ac > 3) { score += Math.max(12, 30 - (ac - 3) * 9); log.push(`${chg.toFixed(2)}%(偏高)`); }
+      else { score += (ac - 0.6) / 0.9 * 30; log.push(`${chg.toFixed(2)}%(偏弱)`); }
+
+      score += br > 0.7 ? 15 : br > 0.55 ? 10 : 5; log.push(`实体${(br*100).toFixed(0)}%`);
+      if (vr > 1.5) { score += 15; log.push(`放量${vr.toFixed(1)}x`); }
+      else if (vr > 1.2) { score += 12; log.push(`量能配合${vr.toFixed(1)}x`); }
+      else if (vr > 0.8) { score += 6; log.push(`量能一般${vr.toFixed(1)}x`); }
+      else { score += 2; log.push(`缩量${vr.toFixed(1)}x`); }
+
+      if (dir === 'LONG' && td.c > vwap) { score += 10; log.push('站上VWAP'); }
+      else if (dir === 'SHORT' && td.c < vwap) { score += 10; log.push('压在VWAP下'); }
+      else { score += 3; log.push('VWAP逆向'); }
+
+      if (dir === 'LONG' && c[c.length-1] > e20 && e20 > e50) { score += 15; log.push('日线多头'); }
+      else if (dir === 'SHORT' && c[c.length-1] < e20 && e20 < e50) { score += 15; log.push('日线空头'); }
+      else if ((dir === 'LONG' && c[c.length-1] > e200) || (dir === 'SHORT' && c[c.length-1] < e200)) { score += 8; log.push('年线同向'); }
+      else { score -= 8; log.push('日线逆势'); }
+
+      if (ad.adx > 25) { score += 5; log.push(`ADX ${ad.adx.toFixed(0)}`); }
+      if (dir === 'LONG' && rs > 78) { score -= 15; log.push(`RSI ${rs.toFixed(0)}超买`); }
+      else if (dir === 'SHORT' && rs < 22) { score -= 15; log.push(`RSI ${rs.toFixed(0)}超卖`); }
+      else if (rs > 70 || rs < 30) { score -= 5; log.push(`RSI ${rs.toFixed(0)}`); }
+      else log.push(`RSI ${rs.toFixed(0)}`);
+
+      score = Math.round(Math.min(100, Math.max(0, score)));
+      res.push({ sym: r0.sym, instId: r0.instId, rank: i + 1, turn: r0.turn, dir, score, chg, open: td.o, now: td.c, hi: td.h, lo: td.l, br, vr, vwap, adx: ad.adx, rsi: rs, dev, e20, e200, log });
+    }
+
+    /* 5. 输出结果 */
+    if (!res.length) {
+      out.innerHTML = tbl + `<div class="box"><div class="empty">前 ${N} 名全部被过滤<br>今日无合适标的，空仓也是仓位</div></div><div class="note">${rej.join('　')}</div>`;
+      pt.innerText = `扫完 ${top.length} 只 · 0 合格`;
+      btn.disabled = false; btn.innerText = '🚀 扫描'; return;
+    }
+    res.sort((a, b) => b.score - a.score);
+    const b = res[0];
+    const iL = b.dir === 'LONG';
+
+    let html = tbl;
+    html += `<div class="card"><h2>🎯 推荐：${b.sym} ${b.dir === 'LONG' ? '📈 做多' : '📉 做空'}</h2>`;
+    html += `<div style="text-align:center;margin:6px 0"><span style="font-size:32px;font-weight:bold;color:${iL?'#0ecb81':'#f6465d'}">${b.score}</span><span style="font-size:12px;color:#848e9c"> /100分</span></div>`;
+    html += `<div class="row"><span>排名</span><b>成交额第 ${b.rank} · ${fmtUsd(b.turn)}</b></div>`;
+    html += `<div class="row"><span>今日</span><b class="${b.chg>0?'g':'r'}">${b.chg>0?'+':''}${b.chg.toFixed(2)}%</b></div>`;
+    html += `<div class="row"><span>开盘→现价</span><b>${fmtPx(b.open)} → ${fmtPx(b.now)}</b></div>`;
+    html += `<div class="row"><span>高低</span><b>${fmtPx(b.hi)} / ${fmtPx(b.lo)}</b></div>`;
+    html += `<div class="row"><span>实体/量比</span><b>${(b.br*100).toFixed(0)}% / ${b.vr.toFixed(1)}x</b></div>`;
+    html += `<div class="row"><span>VWAP</span><b>${fmtPx(b.vwap)}</b></div>`;
+    html += `<div class="row"><span>ADX / RSI</span><b>${b.adx.toFixed(0)} / ${b.rsi.toFixed(0)}</b></div>`;
+    html += `<div class="row"><span>EMA20 / 年线</span><b>${fmtPx(b.e20)} / ${fmtPx(b.e200)}</b></div>`;
+    html += `<div class="row"><span>杠杆</span><b class="y">${b.adx>28 && b.score>=70 ? '5x' : '3x'}</b></div>`;
+    html += `<div class="txt">${b.log.join('　')}</div>`;
+    html += `</div>`;
+    html += `<div class="note">候选前5：${res.slice(0,5).map(x => x.sym + '(' + x.score + x.dir[0] + ' ' + (x.chg>0?'+':'') + x.chg.toFixed(1) + '%)').join('　')}</div>`;
+    html += `<div class="note">过滤 ${rej.length} 个：${rej.slice(0, 8).join('　')}</div>`;
+
+    out.innerHTML = html;
+    pt.innerText = `扫完 ${top.length} 只 · 合格 ${res.length} 只 · 推1个`;
+
+  } catch (e) {
+    out.innerHTML = `<div class="box"><div class="empty">扫描异常：${e.message}</div></div>`;
+    pt.innerText = '异常终止';
+  }
+
+  btn.disabled = false;
+  btn.innerText = '🚀 扫描';
+}
 </script>
 </body>
 </html>
