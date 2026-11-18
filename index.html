@@ -3,17 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约 · 今日趋势扫描</title>
+<title>欧易合约 · 趋势扫描 v3</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0b0e11;color:#eaecef;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;padding:14px;font-size:14px}
-.wrap{max-width:560px;margin:0 auto}
+.wrap{max-width:600px;margin:0 auto}
 h1{text-align:center;font-size:18px;color:#f0b90b;margin-bottom:4px}
 .sub{text-align:center;font-size:11px;color:#848e9c;margin-bottom:12px;line-height:1.5}
-.ctrl{display:flex;gap:6px;margin-bottom:8px}
-.ctrl input,.ctrl select{flex:1;background:#151a21;color:#eaecef;border:1px solid #232a34;border-radius:8px;padding:10px;font-size:13px}
-.ctrl button{background:#f0b90b;color:#000;font-weight:bold;border:none;border-radius:8px;padding:0 14px;font-size:14px;cursor:pointer;white-space:nowrap}
-.ctrl button:disabled{opacity:.5;cursor:not-allowed}
+.card{background:#151a21;border:1px solid #232a34;border-radius:11px;padding:12px;margin-bottom:10px}
+.card h2{font-size:14px;color:#f0b90b;margin-bottom:8px}
+.row1{display:flex;gap:6px}
+.row1 input,.row1 select{flex:1;background:#0f1319;color:#eaecef;border:1px solid #232a34;border-radius:8px;padding:10px;font-size:13px;min-width:0}
+.row1 button{background:#f0b90b;color:#000;font-weight:bold;border:none;border-radius:8px;padding:0 12px;font-size:13px;cursor:pointer;white-space:nowrap}
+.row1 button:disabled{opacity:.5;cursor:not-allowed}
+.card .lbl{font-size:11px;color:#848e9c;margin-bottom:5px}
 .pt{text-align:center;font-size:11px;color:#848e9c;margin:6px 0;min-height:16px}
 .box{background:#151a21;border:1px solid #232a34;border-radius:11px;padding:12px;margin-bottom:10px}
 .box h2{font-size:14px;color:#f0b90b;margin-bottom:8px}
@@ -23,32 +26,57 @@ h1{text-align:center;font-size:18px;color:#f0b90b;margin-bottom:4px}
 .tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
 .tbl td{text-align:right;padding:5px 3px;border-bottom:1px solid #1a1f26}
 .tbl tr:last-child td{border:0}
-.g{color:#0ecb81} .r{color:#f6465d} .y{color:#f0b90b}
-.card{background:#151a21;border:1px solid #f0b90b;border-radius:11px;padding:13px;margin-bottom:10px}
-.card h2{color:#f0b90b;font-size:16px;margin-bottom:8px}
-.row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #1c2229;color:#b7bfc9;gap:8px}
-.row:last-child{border:0}
-.row b{color:#eaecef;text-align:right}
-.txt{font-size:11.5px;line-height:1.7;color:#c7ced6;white-space:pre-wrap;margin-top:8px;background:#10141a;border:1px solid #1c2229;border-radius:8px;padding:10px}
+.g{color:#0ecb81} .r{color:#f6465d} .y{color:#f0b90b} .b{color:#4a9eff}
+.res{border:1px solid #f0b90b}
+.res h2{color:#f0b90b;font-size:16px;margin-bottom:8px}
+.line{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #1c2229;color:#b7bfc9;gap:8px}
+.line:last-child{border:0}
+.line b{color:#eaecef;text-align:right}
+.txt{font-size:11.5px;line-height:1.75;color:#c7ced6;white-space:pre-wrap;margin-top:8px;background:#10141a;border:1px solid #1c2229;border-radius:8px;padding:10px}
 .note{font-size:10.5px;color:#848e9c;margin-top:6px;line-height:1.5}
-.empty{text-align:center;color:#848e9c;padding:20px;font-size:12px}
+.empty{text-align:center;color:#848e9c;padding:18px;font-size:12px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>📡 欧易合约 · 今日趋势扫描</h1>
-<div class="sub">实时拉全市场永续 → 成交额降序 → 今日方向+日线共振 → 只推1个</div>
-<div class="ctrl">
-  <input id="num" type="number" min="5" max="50" value="10" placeholder="Top N">
-  <select id="tz"><option value="08:00" selected>UTC+8</option><option value="00:00">UTC</option></select>
-  <button id="btn" onclick="scan()">🚀 扫描</button>
+<h1>📡 欧易合约 · 趋势扫描 v3</h1>
+<div class="sub">① 成交额扫描　② 单币走势判定　③ 抄底雷达</div>
+
+<div class="card">
+  <div class="row1">
+    <input id="num" type="number" min="5" max="100" value="50" placeholder="拉取数量">
+    <button id="btn1" onclick="scan()">🚀 扫描</button>
+  </div>
 </div>
-<div class="pt" id="pt">就绪 · 点击扫描开始</div>
+
+<div class="card">
+  <div class="lbl">单币走势判定 · 输入币种 → 选周期</div>
+  <div class="row1" style="margin-top:6px">
+    <input id="coin" placeholder="BTC" style="text-transform:uppercase">
+    <select id="tf">
+      <option value="15m">15分 · 超短</option>
+      <option value="1H">1小时 · 日内</option>
+      <option value="4H" selected>4小时 · 波段</option>
+      <option value="1D">日线 · 长线</option>
+    </select>
+    <button id="btn2" onclick="judge()">🔍 判定</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="lbl">抄底雷达 · 成交额前 N 名里找超跌反转</div>
+  <div class="row1" style="margin-top:6px">
+    <input id="rnum" type="number" min="10" max="100" value="30" placeholder="扫描前N名">
+    <button id="btn3" onclick="radar()">📡 雷达搜索</button>
+  </div>
+</div>
+
+<div class="pt" id="pt">就绪</div>
 <div id="out"></div>
 </div>
 
 <script>
-/* ===== 裸连，不绕代理 ===== */
+/* ===== 裸连 OKX ===== */
 async function pfetch(url, timeout = 12000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
@@ -57,198 +85,209 @@ async function pfetch(url, timeout = 12000) {
     clearTimeout(t);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
-  } catch(e) {
-    clearTimeout(t);
-    throw e;
-  }
+  } catch(e) { clearTimeout(t); throw e; }
+}
+const B = 'https://www.okx.com/api/v5';
+
+/* ===== 指标 ===== */
+function ema(a,n){const k=2/(n+1);let e=a[0];for(let i=1;i<a.length;i++)e=a[i]*k+e*(1-k);return e}
+function emaArr(a,n){const k=2/(n+1);const o=[a[0]];for(let i=1;i<a.length;i++)o.push(a[i]*k+o[i-1]*(1-k));return o}
+function rsi(a,n=14){let g=0,l=0;for(let i=a.length-n;i<a.length;i++){const d=a[i]-a[i-1];if(d>0)g+=d;else l-=d}if(l===0)return 100;return 100-100/(1+(g/n)/(l/n))}
+function adxD(h,l,c,p=14){let tr=0,pl=0,mn=0;for(let i=1;i<c.length;i++){tr+=Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1]));pl+=Math.max(h[i]-h[i-1],0);mn+=Math.max(l[i-1]-l[i],0)}const atr=tr/Math.min(p,c.length-1);const pdi=100*(pl/Math.min(p,c.length-1))/atr,mdi=100*(mn/Math.min(p,c.length-1))/atr;return{adx:100*Math.abs(pdi-mdi)/(pdi+mdi||1),pdi,mdi}}
+function stdev(a){const m=a.reduce((x,y)=>x+y,0)/a.length;return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/a.length)}
+function fmtUsd(v){if(!isFinite(v)||v<=0)return'--';if(v>=1e12)return'$'+(v/1e12).toFixed(2)+'T';if(v>=1e8)return'$'+(v/1e8).toFixed(2)+'亿';if(v>=1e4)return'$'+(v/1e4).toFixed(1)+'万';return'$'+v.toFixed(0)}
+function fmtPx(v){const a=Math.abs(v);if(a>=1000)return v.toFixed(2);if(a>=1)return v.toFixed(4);if(a>=0.01)return v.toFixed(6);return v.toFixed(8)}
+async function getK(instId,bar,limit){const j=await pfetch(`${B}/market/candles?instId=${encodeURIComponent(instId)}&bar=${bar}&limit=${limit}&tz=08:00`,10000);if(!j||j.code!=='0'||!j.data||!j.data.length)throw new Error('无K线');return j.data.slice(1).reverse().map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}))}
+async function getTiers(){const j=await pfetch(`${B}/market/tickers?instType=SWAP`,15000);if(!j||j.code!=='0')throw new Error('接口异常');const seen={},rows=[];for(const x of j.data){if(!x.instId.endsWith('-USDT-SWAP'))continue;const last=+x.last||0,turn=(+x.vol24h||0)*(+x.ctVal||1)*last,base=x.instId.replace('-USDT-SWAP','');if(seen[base]&&seen[base].turn>=turn)continue;seen[base]={turn};const s=+x.sodUtc8||0;rows.push({sym:base,instId:x.instId,turn,last,chg24:s>0?(last-s)/s*100:null})}return rows.sort((a,b)=>b.turn-a.turn)}
+const TFN = {'15m':'15分钟','1H':'1小时','4H':'4小时','1D':'日线'};
+
+/* ===== ① 成交额扫描 ===== */
+async function scan(){
+  const btn=document.getElementById('btn1'),pt=document.getElementById('pt'),out=document.getElementById('out');
+  const N=Math.max(5,Math.min(100,+document.getElementById('num').value||50));
+  btn.disabled=true;btn.innerText='拉取中...';out.innerHTML='';pt.innerText='拉取全市场永续...';
+  try{
+    const rows=await getTiers();
+    const top=rows.slice(0,N);
+    let h=`<div class="box"><h2>成交额 Top ${top.length}</h2><table class="tbl"><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr>`;
+    top.forEach((r,i)=>{const c=r.chg24==null?'':r.chg24>0?'g':'r';h+=`<tr><td>${i+1}</td><td>${r.sym}</td><td>${fmtUsd(r.turn)}</td><td class="${c}">${r.chg24==null?'--':(r.chg24>0?'+':'')+r.chg24.toFixed(2)+'%'}</td></tr>`});
+    h+=`</table><div class="note">全市场 ${rows.length} 个永续 · 成交额 = vol24h × ctVal × 价格 · 点②判定单币走势</div></div>`;
+    out.innerHTML=h;pt.innerText=`拉完 ${top.length} 只`;
+  }catch(e){out.innerHTML=`<div class="box"><div class="empty">❌ ${e.message}</div></div>`;pt.innerText='失败'}
+  btn.disabled=false;btn.innerText='🚀 扫描';
 }
 
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-function fmtUsd(v) {
-  if (!isFinite(v) || v <= 0) return '--';
-  if (v >= 1e12) return '$' + (v/1e12).toFixed(2) + 'T';
-  if (v >= 1e8) return '$' + (v/1e8).toFixed(2) + '亿';
-  if (v >= 1e4) return '$' + (v/1e4).toFixed(1) + '万';
-  return '$' + v.toFixed(0);
+/* ===== ② 单币走势判定 ===== */
+async function judge(){
+  const btn=document.getElementById('btn2'),pt=document.getElementById('pt'),out=document.getElementById('out');
+  const sym=(document.getElementById('coin').value||'').trim().toUpperCase().replace('/USDT','').replace('-USDT-SWAP','');
+  const tf=document.getElementById('tf').value;
+  if(!sym){pt.innerText='请先输入币种';return}
+  btn.disabled=true;btn.innerText='判定中...';out.innerHTML='';pt.innerText=`拉取 ${sym} ${TFN[tf]}K线...`;
+  try{
+    const k=await getK(sym+'-USDT-SWAP',tf,200);
+    const c=k.map(x=>x.c),h=k.map(x=>x.h),l=k.map(x=>x.l),v=k.map(x=>x.v);
+    const last=c[c.length-1],open=k[0].o;
+    const chg=(last-open)/open*100;
+    const td=k[k.length-1];
+    const body=Math.abs(td.c-td.o),rng=td.h-td.l,br=rng>0?body/rng:0;
+    const e20=ema(c,20),e50=ema(c,50),e200=ema(c,Math.min(200,c.length-1));
+    const e20a=emaArr(c,20),e50a=emaArr(c,50);
+    const difArr=e20a.map((x,i)=>x-e50a[i]),deaArr=emaArr(difArr,9);
+    const macdNow=2*(difArr[difArr.length-1]-deaArr[deaArr.length-1]);
+    const macdPrev=2*(difArr[difArr.length-2]-deaArr[deaArr.length-2]);
+    const rs=rsi(c,14),ad=adxD(h,l,c,14);
+    const mid=(Math.max(...h.slice(-20))+Math.min(...l.slice(-20)))/2;
+    const bw=stdev(c.slice(-20))/mid*100;
+    const vwap=c.reduce((s,x,i)=>s+x*v[i],0)/v.reduce((a,b)=>a+b,0);
+    const vr=v[v.length-1]/(v.slice(-6,-1).reduce((a,b)=>a+b,0)/5);
+    const hiN=Math.max(...h),loN=Math.min(...l);
+    const pos=(last-loN)/(hiN-loN||1)*100;
+
+    let score=0,tags=[],why=[];
+    if(last>e20&&e20>e50){score+=25;tags.push('多头排列');why.push('价格>'+TFN[tf]+'EMA20>EMA50，趋势向上')}
+    else if(last<e20&&e20<e50){score-=25;tags.push('空头排列');why.push('价格<EMA20<EMA50，趋势向下')}
+    else{tags.push('均线纠缠');why.push('EMA20与EMA50未形成排列，方向未定')}
+
+    if(macdNow>0&&macdNow>macdPrev){score+=15;why.push('MACD红柱放大，动能增强')}
+    else if(macdNow>0){score+=5;why.push('MACD在零轴上方但柱体缩短，动能衰减')}
+    else if(macdNow<0&&macdNow<macdPrev){score-=15;why.push('MACD绿柱放大，下跌加速')}
+    else{score-=5;why.push('MACD在零轴下方但绿柱缩短，跌势放缓')}
+
+    if(ad.adx>=25){tags.push('趋势明确');why.push(`ADX ${ad.adx.toFixed(0)} > 25，趋势行情，顺势为主`)}
+    else{tags.push('震荡市');why.push(`ADX ${ad.adx.toFixed(0)} < 25，无明确趋势，追单容易被来回打`)}
+    if(ad.pdi>ad.mdi)why.push(`+DI ${ad.pdi.toFixed(0)} > -DI ${ad.mdi.toFixed(0)}，多方主导`);
+    else why.push(`-DI ${ad.mdi.toFixed(0)} > +DI ${ad.pdi.toFixed(0)}，空方主导`);
+
+    if(rs>78){score-=15;tags.push('超买');why.push(`RSI ${rs.toFixed(0)} > 78，短线过热，追多风险高`)}
+    else if(rs<22){score+=15;tags.push('超卖');why.push(`RSI ${rs.toFixed(0)} < 22，短线超跌，反弹概率上升`)}
+    else if(rs>60&&rs<78){score+=8;why.push(`RSI ${rs.toFixed(0)} 偏强但未超买`)}
+    else if(rs>22&&rs<40){score-=8;why.push(`RSI ${rs.toFixed(0)} 偏弱`)}
+    else why.push(`RSI ${rs.toFixed(0)} 中性区`);
+
+    if(bw<2){tags.push('布林收窄');why.push(`带宽 ${bw.toFixed(1)}%，波动被压缩，大概率即将变盘，等突破再动`)}
+    else if(bw>8){tags.push('高波动');why.push(`带宽 ${bw.toFixed(1)}%，波动放大，止损要放宽`)}
+    else why.push(`带宽 ${bw.toFixed(1)}%，波动正常`);
+
+    if(vr>1.5)why.push(`放量 ${vr.toFixed(1)}倍于近5根均值，资金认可这根K线`);
+    else if(vr<0.7)why.push(`缩量 ${vr.toFixed(1)}倍，参与度低，信号可信度打折`);
+    else why.push(`量能正常 ${vr.toFixed(1)}倍`);
+
+    if(chg>5)why.push(`本周期已涨 ${chg.toFixed(2)}%，主升段可能走完，别追`);
+    else if(chg<-5)why.push(`本周期已跌 ${chg.toFixed(2)}%，杀跌段可能走完，别接飞刀`);
+
+    let act,actCls;
+    if(score>=35&&ad.adx>=25){act='顺势做多';actCls='g'}
+    else if(score>=15){act='偏多 · 等回踩EMA20再进';actCls='g'}
+    else if(score<=-35&&ad.adx>=25){act='顺势做空';actCls='r'}
+    else if(score<=-15){act='偏空 · 等反弹到EMA20再空';actCls='r'}
+    else{act='观望 · 多空都没优势';actCls='y'}
+
+    let h=`<div class="box res"><h2>${sym} · ${TFN[tf]}走势判定</h2>`;
+    h+=`<div style="text-align:center;margin:4px 0 10px"><span style="font-size:30px;font-weight:bold;color:${score>0?'#0ecb81':score<0?'#f6465d':'#f0b90b'}">${score>0?'+':''}${score}</span><span style="font-size:12px;color:#848e9c"> /100</span>　<span class="${actCls}" style="font-size:15px;font-weight:bold">${act}</span></div>`;
+    h+=`<div class="line"><span>现价</span><b>${fmtPx(last)}</b></div>`;
+    h+=`<div class="line"><span>本周期涨跌</span><b class="${chg>0?'g':'r'}">${chg>0?'+':''}${chg.toFixed(2)}%</b></div>`;
+    h+=`<div class="line"><span>区间位置</span><b>${pos.toFixed(0)}%（0=区间最低，100=最高）</b></div>`;
+    h+=`<div class="line"><span>EMA20 / EMA50</span><b>${fmtPx(e20)} / ${fmtPx(e50)}</b></div>`;
+    h+=`<div class="line"><span>EMA200</span><b>${fmtPx(e200)}</b></div>`;
+    h+=`<div class="line"><span>VWAP 均价</span><b class="${last>vwap?'g':'r'}">${fmtPx(vwap)}（${last>vwap?'价在均价上':'价在均价下'}）</b></div>`;
+    h+=`<div class="line"><span>MACD 柱</span><b>${macdNow.toFixed(4)} ${macdNow>macdPrev?'↑放大':'↓缩短'}</b></div>`;
+    h+=`<div class="line"><span>RSI / ADX</span><b>${rs.toFixed(0)} / ${ad.adx.toFixed(0)}</b></div>`;
+    h+=`<div class="line"><span>标签</span><b>${tags.join(' · ')||'无'}</b></div>`;
+    h+=`<div class="txt">${why.join('\n')}</div>`;
+    h+=`<div class="note">长线看1D、波段看4H、日内看1H/15m。周期越短信号越多但噪音越大，短周期方向要和日线同向才可靠。</div></div>`;
+    out.innerHTML=h;pt.innerText=`${sym} 判定完成`;
+  }catch(e){out.innerHTML=`<div class="box"><div class="empty">❌ ${e.message}<br><span style="font-size:11px">检查币种名，格式如 BTC、ETH、SOL</span></div></div>`;pt.innerText='判定失败'}
+  btn.disabled=false;btn.innerText='🔍 判定';
 }
-function fmtPx(v) {
-  const a = Math.abs(v);
-  if (a >= 1000) return v.toFixed(2);
-  if (a >= 1) return v.toFixed(4);
-  if (a >= 0.01) return v.toFixed(6);
-  return v.toFixed(8);
-}
-function ema(arr, n) { const k = 2/(n+1); let e = arr[0]; for (let i = 1; i < arr.length; i++) e = arr[i]*k + e*(1-k); return e; }
-function rsiVal(arr, n = 14) {
-  let g = 0, l = 0;
-  for (let i = arr.length - n; i < arr.length; i++) { const d = arr[i] - arr[i-1]; if (d > 0) g += d; else l -= d; }
-  if (l === 0) return 100;
-  return 100 - 100/(1 + (g/n)/(l/n));
-}
-function adxCalc(h, l, c, p = 14) {
-  let tr = 0, plus = 0, minus = 0;
-  for (let i = 1; i < c.length; i++) {
-    tr += Math.max(h[i]-l[i], Math.abs(h[i]-c[i-1]), Math.abs(l[i]-c[i-1]));
-    plus += Math.max(h[i]-h[i-1], 0);
-    minus += Math.max(l[i-1]-l[i], 0);
-  }
-  const atr = tr / Math.min(p, c.length - 1);
-  const pdi = 100 * (plus / Math.min(p, c.length - 1)) / atr;
-  const mdi = 100 * (minus / Math.min(p, c.length - 1)) / atr;
-  return { adx: 100 * Math.abs(pdi - mdi) / (pdi + mdi || 1), pdi, mdi };
-}
 
-async function scan() {
-  const btn = document.getElementById('btn');
-  const pt = document.getElementById('pt');
-  const out = document.getElementById('out');
-  const N = Math.max(5, Math.min(50, parseInt(document.getElementById('num').value) || 10));
-  const tz = document.getElementById('tz').value;
-
-  btn.disabled = true;
-  btn.innerText = '拉取中...';
-  out.innerHTML = '';
-  pt.innerText = '正在拉取全市场永续...';
-
-  try {
-    const tickUrl = 'https://www.okx.com/api/v5/market/tickers?instType=SWAP';
-    let j;
-    try { j = await pfetch(tickUrl, 15000); } catch(e) {
-      out.innerHTML = `<div class="box"><div class="empty">❌ 连接失败<br><span style="font-size:11px">${e.message}<br>你的网络环境直连 OKX 被拦了<br>需要走 Cloudflare Worker 代理</span></div></div>`;
-      btn.disabled = false; btn.innerText = '🚀 扫描'; return;
-    }
-    if (!j || j.code !== '0') { out.innerHTML = '<div class="box"><div class="empty">接口返回异常</div></div>'; btn.disabled = false; btn.innerText = '🚀 扫描'; return; }
-
-    const seen = {};
-    const rows = [];
-    for (const x of j.data) {
-      if (!x.instId.endsWith('-USDT-SWAP')) continue;
-      const last = parseFloat(x.last || 0);
-      const vol24h = parseFloat(x.vol24h || 0);
-      const ctVal = parseFloat(x.ctVal || 1);
-      const turn = vol24h * ctVal * last;
-      const base = x.instId.replace('-USDT-SWAP', '');
-      if (seen[base] && seen[base].turn >= turn) continue;
-      seen[base] = { turn };
-      const sodUtc8 = parseFloat(x.sodUtc8 || 0);
-      rows.push({ sym: base, instId: x.instId, turn, last, chg24: sodUtc8 > 0 ? (last - sodUtc8) / sodUtc8 * 100 : null });
-    }
-    rows.sort((a, b) => b.turn - a.turn);
-    const top = rows.slice(0, N);
-
-    let tbl = `<div class="box"><h2>成交额 Top ${N}</h2><table class="tbl"><tr><th>#</th><th>币</th><th>24h成交额</th><th>24h涨跌</th></tr>`;
-    top.forEach((r, i) => {
-      const cls = r.chg24 == null ? '' : r.chg24 > 0 ? 'g' : 'r';
-      tbl += `<tr><td>${i+1}</td><td>${r.sym}</td><td>${fmtUsd(r.turn)}</td><td class="${cls}">${r.chg24 == null ? '--' : (r.chg24>0?'+':'') + r.chg24.toFixed(2) + '%'}</td></tr>`;
-    });
-    tbl += `</table><div class="note">全市场 ${rows.length} 个永续 · 成交额 = vol24h × ctVal × 价格</div></div>`;
-
-    const res = [];
-    const rej = [];
-    for (let i = 0; i < top.length; i++) {
-      const r0 = top[i];
-      pt.innerText = `(${i+1}/${top.length}) 分析 ${r0.sym}...`;
+/* ===== ③ 抄底雷达 ===== */
+async function radar(){
+  const btn=document.getElementById('btn3'),pt=document.getElementById('pt'),out=document.getElementById('out');
+  const N=Math.max(10,Math.min(100,+document.getElementById('rnum').value||30));
+  btn.disabled=true;btn.innerText='扫描中...';out.innerHTML='';pt.innerText='拉取成交额前 '+N+' 名...';
+  try{
+    const rows=await getTiers();
+    const top=rows.slice(0,N);
+    const cand=[],rej=[];
+    for(let i=0;i<top.length;i++){
+      const r0=top[i];
+      pt.innerText=`(${i+1}/${top.length}) 雷达扫描 ${r0.sym}...`;
       let k;
-      try {
-        const kUrl = `https://www.okx.com/api/v5/market/candles?instId=${encodeURIComponent(r0.instId)}&bar=1D&limit=150&tz=${tz}`;
-        const kj = await pfetch(kUrl, 10000);
-        if (kj && kj.code === '0' && kj.data && kj.data.length >= 2) {
-          k = kj.data.slice(1).reverse().map(d => ({ o: +d[1], h: +d[2], l: +d[3], c: +d[4], v: +d[5] }));
-        }
-      } catch(e) { rej.push(r0.sym + '(K线拉取失败)'); continue; }
-      if (!k || k.length < 30) { rej.push(r0.sym + '(K线不足)'); continue; }
+      try{k=await getK(r0.instId,'1D',200)}catch(e){rej.push(r0.sym+'(K线失败)');continue}
+      if(k.length<60){rej.push(r0.sym+'(数据不足)');continue}
+      const c=k.map(x=>x.c),h=k.map(x=>x.h),l=k.map(x=>x.l),v=k.map(x=>x.v);
+      const last=c[c.length-1];
+      const e20=ema(c,20),e50=ema(c,50),e200=ema(c,Math.min(200,c.length-1));
+      const rs=rsi(c,14),ad=adxD(h,l,c,14);
+      const E=Math.sqrt(e200);
+      const dev=(last-e200)/e200*100;            // 偏离年线
+      const upDev=(E-last)/E*100;                // 距上轨空间
+      const dnDev=(last-Math.pow(e200,0.5)*0.618)/last*100;
 
-      const c = k.map(x => x.c), h = k.map(x => x.h), l = k.map(x => x.l), o = k.map(x => x.o), v = k.map(x => x.v);
-      const td = k[k.length - 1], yd = k[k.length - 2];
-      const chg = (td.c - td.o) / td.o * 100;
-      const body = Math.abs(td.c - td.o), rng = td.h - td.l;
-      const br = rng > 0 ? body / rng : 0;
-      const uw = td.h - Math.max(td.o, td.c), lw = Math.min(td.o, td.c) - td.l;
-      const vwap = (td.h + td.l + td.c) / 3;
-      const vr = yd.v > 0 ? td.v / yd.v : 1;
+      // 硬拦：不接飞刀
+      const chg7=(last-c[c.length-8])/c[c.length-8]*100;
+      if(chg7<-18){rej.push(r0.sym+'(7日暴跌'+chg7.toFixed(0)+'%)');continue}
+      if(ad.adx>35&&last<e20&&e20<e50){rej.push(r0.sym+'(强下跌趋势)');continue}
+      if(rs<12){rej.push(r0.sym+'(RSI'+rs.toFixed(0)+' 极端弱)');continue}
 
-      if (chg > 5) { rej.push(r0.sym + `(今日已涨${chg.toFixed(2)}%)`); continue; }
-      if (chg < -5) { rej.push(r0.sym + `(今日已跌${chg.toFixed(2)}%)`); continue; }
-      if (Math.abs(chg) < 0.5) { rej.push(r0.sym + '(横盘)'); continue; }
-      if (br < 0.45) { rej.push(r0.sym + `(实体${(br*100).toFixed(0)}%)`); continue; }
-      if (chg > 0 && uw > body * 1.8) { rej.push(r0.sym + '(上影过长)'); continue; }
-      if (chg < 0 && lw > body * 1.8) { rej.push(r0.sym + '(下影过长)'); continue; }
+      let s=0,why=[];
+      // 1. 超跌程度（越跌分越高，但有上限）
+      const d=Math.min(Math.abs(dev),40);
+      if(dev<0){s+=d*1.2;why.push(`低于年线${Math.abs(dev).toFixed(1)}%`)}
+      else{s+=Math.max(0,10-dev*0.5);why.push(`高于年线${dev.toFixed(1)}%`)}
+      // 2. RSI 从超卖区回升
+      const rsMin=Math.min(...c.slice(-14).map((_,i)=>rsi(c.slice(0,c.length-14+i+1),14)));
+      if(rs<30){s+=25;why.push(`RSI ${rs.toFixed(0)} 超卖`)}
+      else if(rs<40){s+=15;why.push(`RSI ${rs.toFixed(0)} 偏低`)}
+      if(rs>rsMin+5){s+=10;why.push('RSI已拐头回升')}
+      // 3. 止跌形态：最近3根不再创新低
+      const low3=Math.min(...l.slice(-3)),lowPrev=Math.min(...l.slice(-10,-3));
+      if(low3>lowPrev){s+=20;why.push('近3根守住前低，止跌信号')}
+      else why.push('仍在创新低');
+      // 4. 缩量企稳
+      const vr=v[v.length-1]/(v.slice(-10,-1).reduce((a,b)=>a+b,0)/9);
+      if(vr<0.8){s+=10;why.push(`缩量${vr.toFixed(1)}x，抛压减轻`)}
+      else if(vr>1.5&&c[c.length-1]>c[c.length-2]){s+=15;why.push(`放量反弹${vr.toFixed(1)}x`)}
+      // 5. 均线修复
+      if(last>e20){s+=15;why.push('已收回EMA20')}
+      else if(last>e20*0.97){s+=5;why.push('逼近EMA20')}
+      // 6. 流动性
+      if(r0.turn>5e8)s+=10;else if(r0.turn<5e7)s-=10;
+      // 7. 上行空间
+      s+=Math.min(10,upDev*0.4);
 
-      const e20 = ema(c, 20), e50 = ema(c, 50), e200 = ema(c, Math.min(200, c.length - 1));
-      const ad = adxCalc(h, l, c, 14);
-      const rs = rsiVal(c, 14);
-
-      if (ad.adx < 20) { rej.push(r0.sym + `(ADX ${ad.adx.toFixed(0)} 横盘)`); continue; }
-
-      let score = 0, dir = chg > 0 ? 'LONG' : 'SHORT', log = [];
-      const ac = Math.abs(chg);
-      if (ac >= 1.5 && ac <= 3) { score += 30; log.push(`今日${chg>0?'涨':'跌'}${chg.toFixed(2)}%(甜点)`); }
-      else if (ac > 3) { score += Math.max(12, 30 - (ac - 3) * 9); log.push(`${chg.toFixed(2)}%(偏高)`); }
-      else { score += (ac - 0.6) / 0.9 * 30; log.push(`${chg.toFixed(2)}%(偏弱)`); }
-
-      score += br > 0.7 ? 15 : br > 0.55 ? 10 : 5; log.push(`实体${(br*100).toFixed(0)}%`);
-      if (vr > 1.5) { score += 15; log.push(`放量${vr.toFixed(1)}x`); }
-      else if (vr > 1.2) { score += 12; log.push(`量能配合${vr.toFixed(1)}x`); }
-      else if (vr > 0.8) { score += 6; log.push(`量能一般${vr.toFixed(1)}x`); }
-      else { score += 2; log.push(`缩量${vr.toFixed(1)}x`); }
-
-      if (dir === 'LONG' && td.c > vwap) { score += 10; log.push('站上VWAP'); }
-      else if (dir === 'SHORT' && td.c < vwap) { score += 10; log.push('压在VWAP下'); }
-      else { score += 3; log.push('VWAP逆向'); }
-
-      if (dir === 'LONG' && td.c > e20 && e20 > e50) { score += 15; log.push('日线多头'); }
-      else if (dir === 'SHORT' && td.c < e20 && e20 < e50) { score += 15; log.push('日线空头'); }
-      else if ((dir === 'LONG' && td.c > e200) || (dir === 'SHORT' && td.c < e200)) { score += 8; log.push('年线同向'); }
-      else { score -= 8; log.push('日线逆势'); }
-
-      if (ad.adx > 25) { score += 5; log.push(`ADX ${ad.adx.toFixed(0)}`); }
-      if (dir === 'LONG' && rs > 78) { score -= 15; log.push(`RSI ${rs.toFixed(0)}超买`); }
-      else if (dir === 'SHORT' && rs < 22) { score -= 15; log.push(`RSI ${rs.toFixed(0)}超卖`); }
-      else if (rs > 70 || rs < 30) { score -= 5; log.push(`RSI ${rs.toFixed(0)}`); }
-      else log.push(`RSI ${rs.toFixed(0)}`);
-
-      score = Math.round(Math.min(100, Math.max(0, score)));
-      res.push({ sym: r0.sym, instId: r0.instId, rank: i + 1, turn: r0.turn, dir, score, chg, open: td.o, now: td.c, hi: td.h, lo: td.l, br, vr, vwap, adx: ad.adx, rsi: rs, e20, e200, log });
+      cand.push({sym:r0.sym,instId:r0.instId,turn:r0.turn,last,score:Math.round(Math.min(100,Math.max(0,s))),dev,rs,adx:ad.adx,e20,e200,low3,lowPrev,vr,why});
     }
 
-    if (!res.length) {
-      out.innerHTML = tbl + `<div class="box"><div class="empty">前 ${N} 名全部被过滤<br>今日无合适标的，空仓也是仓位</div></div><div class="note">${rej.join('　')}</div>`;
-      pt.innerText = `扫完 ${top.length} 只 · 0 合格`;
-      btn.disabled = false; btn.innerText = '🚀 扫描'; return;
+    if(!cand.length){
+      out.innerHTML=`<div class="box"><div class="empty">前 ${top.length} 名里没有抄底候选<br>市场可能整体在趋势中，趋势市别抄底</div></div><div class="note">${rej.join('　')}</div>`;
+      pt.innerText=`扫完 ${top.length} 只 · 0 候选`;btn.disabled=false;btn.innerText='📡 雷达搜索';return;
     }
-    res.sort((a, b) => b.score - a.score);
-    const b = res[0];
-    const iL = b.dir === 'LONG';
-
-    let html = tbl;
-    html += `<div class="card"><h2>🎯 推荐：${b.sym} ${b.dir === 'LONG' ? '📈 做多' : '📉 做空'}</h2>`;
-    html += `<div style="text-align:center;margin:6px 0"><span style="font-size:32px;font-weight:bold;color:${iL?'#0ecb81':'#f6465d'}">${b.score}</span><span style="font-size:12px;color:#848e9c"> /100分</span></div>`;
-    html += `<div class="row"><span>排名</span><b>成交额第 ${b.rank} · ${fmtUsd(b.turn)}</b></div>`;
-    html += `<div class="row"><span>今日</span><b class="${b.chg>0?'g':'r'}">${b.chg>0?'+':''}${b.chg.toFixed(2)}%</b></div>`;
-    html += `<div class="row"><span>开盘→现价</span><b>${fmtPx(b.open)} → ${fmtPx(b.now)}</b></div>`;
-    html += `<div class="row"><span>高低</span><b>${fmtPx(b.hi)} / ${fmtPx(b.lo)}</b></div>`;
-    html += `<div class="row"><span>实体/量比</span><b>${(b.br*100).toFixed(0)}% / ${b.vr.toFixed(1)}x</b></div>`;
-    html += `<div class="row"><span>VWAP</span><b>${fmtPx(b.vwap)}</b></div>`;
-    html += `<div class="row"><span>ADX / RSI</span><b>${b.adx.toFixed(0)} / ${b.rsi.toFixed(0)}</b></div>`;
-    html += `<div class="row"><span>EMA20 / 年线</span><b>${fmtPx(b.e20)} / ${fmtPx(b.e200)}</b></div>`;
-    html += `<div class="row"><span>杠杆</span><b class="y">${b.adx>28 && b.score>=70 ? '5x' : '3x'}</b></div>`;
-    html += `<div class="txt">${b.log.join('　')}</div>`;
-    html += `</div>`;
-    html += `<div class="note">候选前5：${res.slice(0,5).map(x => x.sym + '(' + x.score + x.dir[0] + ' ' + (x.chg>0?'+':'') + x.chg.toFixed(1) + '%)').join('　')}</div>`;
-    html += `<div class="note">过滤 ${rej.length} 个：${rej.slice(0, 8).join('　')}</div>`;
-
-    out.innerHTML = html;
-    pt.innerText = `扫完 ${top.length} 只 · 合格 ${res.length} 只 · 推1个`;
-
-  } catch (e) {
-    out.innerHTML = `<div class="box"><div class="empty">扫描异常：${e.message}</div></div>`;
-    pt.innerText = '异常终止';
-  }
-
-  btn.disabled = false;
-  btn.innerText = '🚀 扫描';
+    cand.sort((a,b)=>b.score-a.score);
+    let h=`<div class="box res"><h2>📡 抄底雷达 · Top ${Math.min(5,cand.length)}</h2>`;
+    h+=`<div class="note" style="margin-bottom:8px">逻辑：年线偏离 + RSI超卖回升 + 守住前低 + 缩量/放量反弹 + 收回EMA20，并剔除7日暴跌与强下跌趋势</div>`;
+    cand.slice(0,5).forEach((x,i)=>{
+      const cls=x.score>=65?'g':x.score>=50?'y':'b';
+      h+=`<div style="border:1px solid #232a34;border-radius:9px;padding:10px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <b style="font-size:15px">${i+1}. ${x.sym}</b>
+          <span><span class="${cls}" style="font-size:20px;font-weight:bold">${x.score}</span><span style="font-size:11px;color:#848e9c">分</span></span>
+        </div>
+        <div class="line"><span>现价 / 成交额</span><b>${fmtPx(x.last)} · ${fmtUsd(x.turn)}</b></div>
+        <div class="line"><span>年线偏离 / RSI</span><b class="${x.dev<0?'b':'r'}">${x.dev>0?'+':''}${x.dev.toFixed(1)}% / ${x.rs.toFixed(0)}</b></div>
+        <div class="line"><span>EMA20 / ADX</span><b>${fmtPx(x.e20)} / ${x.adx.toFixed(0)}</b></div>
+        <div class="line"><span>前低防守</span><b class="${x.low3>x.lowPrev?'g':'r'}">${x.low3>x.lowPrev?'守住了':'未守住'}</b></div>
+        <div class="txt">${x.why.join('\n')}</div>
+        <div class="note">🛑 止损参考：跌破前低 ${fmtPx(Math.min(x.low3,x.lowPrev))} 即判定抄底失败</div>
+      </div>`;
+    });
+    h+=`<div class="note">共扫 ${top.length} 只 · 候选 ${cand.length} 只 · 过滤 ${rej.length} 只：${rej.slice(0,6).join('　')}</div>`;
+    h+=`<div class="note">抄底=逆势，胜率天然低于顺势。分批建仓，单次不超计划仓位1/3。</div>`;
+    out.innerHTML=h;pt.innerText=`扫完 ${top.length} 只 · 候选 ${cand.length} 只`;
+  }catch(e){out.innerHTML=`<div class="box"><div class="empty">❌ ${e.message}</div></div>`;pt.innerText='雷达失败'}
+  btn.disabled=false;btn.innerText='📡 雷达搜索';
 }
 </script>
 </body>
 </html>
-
