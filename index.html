@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约扫描｜极端单边瀑布捕获器 (v288)</title>
+<title>欧易合约扫描｜极端单边瀑布 + 双容差调节 (v290)</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -15,7 +15,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .b1{background:#ff9f0a;color:#000}.b2{background:#238636;color:#fff}.b3{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
 .b4{background:#da3633;color:#fff;}
 .row{display:flex;align-items:center;margin:9px 0;gap:8px;flex-wrap:wrap}
-.row label{color:#8b949e;font-size:13px;min-width:110px}
+.row label{color:#8b949e;font-size:13px;min-width:120px}
 .row input,.row select{flex:1;min-width:110px;padding:9px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;font-size:14px}
 .st{margin:10px 0;padding:10px 12px;background:#161b22;border-radius:8px;font-size:13px;line-height:1.6;word-break:break-all; min-height:42px}
 .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px;margin:8px 0}
@@ -34,33 +34,43 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </head>
 <body>
 <div class="warn">
-⚠️ 本扫描器专抓“EMA陡峭发散，K线不回头”的极端单边行情。<br>震荡市极难出信号，一旦出信号必有妖。
+⚠️ 本扫描器专抓极端单边瀑布/火箭行情。<br>窗口一决定“大方向”，窗口二负责“精准狙击”，库存锁定，杜绝频繁全市场刷接口。
 </div>
 <div class="win">
-  <h2>窗口一 · 极端单边池（瀑布/火箭）</h2>
-  <button class="btn b1" id="f1">📥 扫描前100单边极值</button>
+  <h2>窗口一 · 极端单边池（含日线影线容差）</h2>
+  <button class="btn b1" id="f1">📥 扫描全市场并刷新库存</button>
   <button class="btn b3" id="f2c">🗑 清空本地缓存</button>
+  <div class="row">
+    <label>日线影线容忍幅度(%)</label>
+    <input type="number" id="dailyWickTol" value="1.0" step="0.1" min="0" max="5">
+    <span class="sub" style="font-size:11px">允许盘中刺破EMA5的幅度</span>
+  </div>
   <div class="st" id="st1">就绪，点击上方按钮开始</div>
   <div id="out1"></div>
 </div>
 <div class="win win2">
-  <h2>窗口二 · 15F 顺势扣扳机</h2>
+  <h2>窗口二 · 15F 顺势扣扳机（含极值容差）</h2>
   <div class="row">
-    <label>数据源池</label>
+    <label>扫描目标池</label>
     <select id="poolSource">
-      <option value="longPool">🟢 使用多头火箭池</option>
-      <option value="shortPool">🔴 使用空头瀑布池</option>
+      <option value="longPool">🟢 多头火箭池</option>
+      <option value="shortPool">🔴 空头瀑布池</option>
     </select>
   </div>
-  <button class="btn b2" id="f2">🎯 执行15分钟顺势回踩扫描</button>
+  <div class="row">
+    <label>15m极值容差(%)</label>
+    <input type="number" id="extremeTol" value="1.5" step="0.1" min="0" max="10">
+    <span class="sub" style="font-size:11px">允许离前低/前高的差距</span>
+  </div>
+  <button class="btn b2" id="f2">🎯 扫描当前池（不刷新日线）</button>
   <div class="st" id="st2">等待窗口一生成币种池</div>
   <div id="out2"></div>
 </div>
 
 <script>
 const PROXIES = ["", "https://api.codetabs.com/v1/proxy?quest=", "https://corsproxy.io/?"];
-const K_LONG_POOL='okx_longpool_v15';
-const K_SHORT_POOL='okx_shortpool_v15';
+const K_LONG_POOL='okx_longpool_v17';
+const K_SHORT_POOL='okx_shortpool_v17';
 let longPool=[], shortPool=[];
 const $=i=>document.getElementById(i);
 const st=(id,h,c)=>{const e=$(id);e.innerHTML=h;e.style.color=c==='e'?'#f85149':c==='o'?'#3fb950':c==='w'?'#ffbf47':'#8b949e'};
@@ -102,7 +112,9 @@ const ema = (arr, n) => {
 
 function parseK(d){
   const o=[],h=[],l=[],c=[];
-  const data=[...d].reverse();
+  // 严格剔除未收盘K线
+  const closedData = d.filter(x => x[8] === '1');
+  const data=[...closedData].reverse();
   for(const x of data){
     const co=num(x[1]),hi=num(x[2]),lo=num(x[3]),cl=num(x[4]);
     if(!isFinite(co)||!isFinite(hi)||!isFinite(lo)||!isFinite(cl)) return{err:'K线异常'};
@@ -111,8 +123,8 @@ function parseK(d){
   return{o,h,l,c};
 }
 
-// ================= 核心打分引擎 (极端单边判定) =================
-function dailyCheck(kData){
+// ================= 窗口一核心引擎 (带日线影线容差) =================
+function dailyCheck(kData, wickTolPct){
   const {h,l,c}=kData;
   const i=c.length - 1;
   const E5=ema(c,5),E20=ema(c,20);
@@ -120,15 +132,14 @@ function dailyCheck(kData){
   
   if(!isFinite(last)||!isFinite(e5)||!isFinite(e20)) return{err:'EMA异常'};
   
-  // 1. 均线发散度检查：EMA5 与 EMA20 必须有一定距离（当前价格的 2% 以上）
   const divergence = Math.abs(e5 - e20) / e20;
-  if(divergence < 0.02) return{err:'均线粘合，无单边趋势'};
+  if(divergence < 0.015) return{err:'均线粘合'};
   
-  // 2. 趋势连贯性：过去 5 天的涨跌幅必须大于 10%
   const change5d = Math.abs(last - c[i-5]) / c[i-5];
-  if(change5d < 0.10) return{err:'近期波动太小，无爆发力'};
+  if(change5d < 0.07) return{err:'无爆发力'};
 
-  // 3. 极度单边：最近 3 根日 K，收盘价绝不能越过 EMA5（也就是连碰都不碰一下）
+  const wickTol = wickTolPct / 100;
+
   let isRocket = true;
   let isWaterfall = true;
   for(let j=i-2; j<=i; j++){
@@ -136,25 +147,44 @@ function dailyCheck(kData){
     if(c[j] >= E5[j] || c[j] >= E20[j]) isWaterfall = false;
   }
 
-  // 4. EMA 必须陡峭（连续 4 天同向）
   let up5=0, dn5=0, up20=0, dn20=0;
-  for(let j=i;j>i-4&&j>=1;j--){
+  for(let j=i;j>i-3&&j>=1;j--){
     if(E5[j]>E5[j-1]) up5++; else dn5++;
     if(E20[j]>E20[j-1]) up20++; else dn20++;
   }
 
-  if(isRocket && up5===4 && up20===4) {
-    return{kind:'long',last,e5,e20,change5d};
+  // 做多条件 + 影线容差
+  if(isRocket && up5>=2 && up20>=2) {
+    let wickBreach = false;
+    for(let j=i-2; j<=i; j++){
+      // 如果盘中最低价跌破了 EMA5
+      if(l[j] < E5[j]) {
+        const breachPct = (E5[j] - l[j]) / E5[j];
+        // 如果跌破幅度超过了设定容差，则淘汰
+        if(breachPct > wickTol) wickBreach = true;
+      }
+    }
+    if(!wickBreach) return{kind:'long',last,e5,e20,change5d};
   }
   
-  if(isWaterfall && dn5===4 && dn20===4) {
-    return{kind:'short',last,e5,e20,change5d};
+  // 做空条件 + 影线容差
+  if(isWaterfall && dn5>=2 && dn20>=2) {
+    let wickBreach = false;
+    for(let j=i-2; j<=i; j++){
+      // 如果盘中最高价突破了 EMA5
+      if(h[j] > E5[j]) {
+        const breachPct = (h[j] - E5[j]) / E5[j];
+        if(breachPct > wickTol) wickBreach = true;
+      }
+    }
+    if(!wickBreach) return{kind:'short',last,e5,e20,change5d};
   }
   
-  return{err:'非单边极值趋势'};
+  return{err:'非单边极值'};
 }
 
 async function runFullScan(){
+  const wickInput = num($('dailyWickTol').value);
   st('st1','<span class="sp"></span>拉取全市场真实成交额榜单...');
   const tickRes=await okx('/api/v5/market/tickers?instType=SWAP');
   if(tickRes.err){ st('st1','❌'+tickRes.err,'e'); return; }
@@ -167,7 +197,7 @@ async function runFullScan(){
       last:num(x.last),
       volCcy24h:num(x.volCcy24h)
     }))
-    .filter(x=>x.volCcy24h > 1000000)
+    .filter(x=>x.volCcy24h > 500000)
     .sort((a,b)=>b.volCcy24h-a.volCcy24h)
     .slice(0,100);
 
@@ -176,7 +206,7 @@ async function runFullScan(){
   const rejectList=[];
   const total=rawList.length;
   
-  st('st1',`<span class="sp"></span>开始捕捉极端单边 (1/${total})...`);
+  st('st1',`<span class="sp"></span>开始捕捉单边趋势 (1/${total})...`);
 
   for(let i=0;i<rawList.length;i++){
     const item=rawList[i];
@@ -189,7 +219,7 @@ async function runFullScan(){
     const kParsed=parseK(kr.data);
     if(kParsed.err){ rejectList.push(`${item.base}:${kParsed.err}`); await sleep(200); continue; }
     
-    const checkRes = dailyCheck(kParsed);
+    const checkRes = dailyCheck(kParsed, wickInput);
     if(checkRes.err){ rejectList.push(`${item.base}:${checkRes.err}`); }
     else if(checkRes.kind==='long'){ longPool.push({...item,...checkRes}); }
     else if(checkRes.kind==='short'){ shortPool.push({...item,...checkRes}); }
@@ -202,27 +232,27 @@ async function runFullScan(){
   localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
   localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
   
-  st('st1',`✅完成｜极端多头${longPool.length}，极端空头${shortPool.length}，淘汰${rejectList.length}`,'o');
+  st('st1',`✅刷新完成｜多头${longPool.length}，空头${shortPool.length}，淘汰${rejectList.length}`,'o');
   renderPool(rejectList);
 }
 
 function renderPool(rej=[]){
   let html='';
   if(longPool.length>0){
-    html+=`<div class="card"><div style="color:#3fb950;font-weight:bold">🚀 极端多头（火箭发射）</div>`;
+    html+=`<div class="card"><div style="color:#3fb950;font-weight:bold">🚀 极端多头（火箭）</div>`;
     longPool.forEach(x=>{
       html+=`<div style="margin-top:6px"><b class="L">${x.base}</b> <span class="tag">多头</span> <span class="sub">#vol:${volFormat(x.volCcy24h)} 5日涨${pc(x.change5d)}</span></div>`;
     });
     html+=`</div>`;
-  }else html+=`<div class="empty">🚀 火箭池为空 (当前无极端逼空行情)</div>`;
+  }else html+=`<div class="empty">🚀 火箭池为空</div>`;
 
   if(shortPool.length>0){
-    html+=`<div class="card"><div style="color:#f85149;font-weight:bold">🌊 极端空头（瀑布暴跌）</div>`;
+    html+=`<div class="card"><div style="color:#f85149;font-weight:bold">🌊 极端空头（瀑布）</div>`;
     shortPool.forEach(x=>{
       html+=`<div style="margin-top:6px"><b class="S">${x.base}</b> <span class="tagShort">空头</span> <span class="sub">#vol:${volFormat(x.volCcy24h)} 5日跌${pc(x.change5d)}</span></div>`;
     });
     html+=`</div>`;
-  }else html+=`<div class="empty">🌊 瀑布池为空 (当前无极端暴跌行情)</div>`;
+  }else html+=`<div class="empty">🌊 瀑布池为空</div>`;
 
   if(rej&&rej.length>0){
     html+=`<div class="card sub">淘汰列表(最多展示前25)<br>${rej.slice(0,25).join('<br>')}</div>`;
@@ -230,48 +260,59 @@ function renderPool(rej=[]){
   $('out1').innerHTML=html;
 }
 
+// ================= 窗口二核心引擎 (带15m极值容差) =================
 $('f2').onclick=async()=>{
   const poolSource=$('poolSource').value;
   const usePool = poolSource==="longPool"?longPool:shortPool;
-  if(usePool.length===0){ st('st2','⚠️币种池为空，请先点抓取','e'); return; }
+  if(usePool.length===0){ st('st2','⚠️池子为空，请先在窗口一点击扫描','e'); return; }
   
+  const extTolPct = num($('extremeTol').value) / 100;
   const hits=[],miss=[];
-  st('st2',`<span class="sp"></span>开始15分钟微观回踩扫描...`);
+  st('st2',`<span class="sp"></span>开始15分钟微观扫描...`);
   $('out2').innerHTML='';
   
   for(let i=0;i<usePool.length;i++){
     const it=usePool[i];
     st('st2',`<span class="sp"></span>扫描 ${i+1}/${usePool.length}｜${it.base}`);
-    // 抓取 15m 数据用于精准入场
     const kr=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=20`);
     
     if(kr.err){ miss.push(`${it.base}:${kr.err}`); await sleep(200); continue; }
-    if(!kr.data||kr.data.length<20){ miss.push(`${it.base}:K线不足`); await sleep(200); continue; }
+    if(!kr.data||kr.data.length<15){ miss.push(`${it.base}:K线不足`); await sleep(200); continue; }
     
     const kp=parseK(kr.data);
     if(kp.err){ miss.push(`${it.base}:${kp.err}`); await sleep(200); continue; }
     
     const {c, l, h} = kp;
     const idx = c.length - 1;
-    const last = c[idx];
+    const last = c[idx]; // 已收盘的最新15m收盘价
     
-    // 计算 15m 的 EMA5 和 EMA20
     const e5_15m = ema(c, 5)[idx];
     const e20_15m = ema(c, 20)[idx];
     
+    // 找过去 10 根 (不包括当前这根) 的极值
+    const recent10 = [];
+    for(let j = idx-10; j < idx; j++) {
+        recent10.push({h: h[j], l: l[j]});
+    }
+    const maxH_10 = Math.max(...recent10.map(k => k.h));
+    const minL_10 = Math.min(...recent10.map(k => k.l));
+
     let isValidEntry = false;
     let stop = 0, tp = 0;
 
     if(it.kind === 'long'){
-      // 多头进场：15m 价格回踩靠近 EMA5，且当前 15m 收阳线（企稳）
-      if(last <= e5_15m * 1.01 && last > e20_15m && c[idx] > c[idx-1]) {
+      // 多头进场：15m 必须收阳线，且不能破 EMA20
+      // 且当前这根收盘价，离前 10 根最低点的距离，在容差范围内
+      const distToMin = (last - minL_10) / minL_10;
+      if(last > e20_15m && c[idx] > c[idx-1] && distToMin <= extTolPct) {
         isValidEntry = true;
-        stop = l[idx] * 0.998; // 止损设在 15m 最低点
-        tp = last + (last - stop) * 3; // 盈亏比 1:3
+        stop = l[idx] * 0.998; 
+        tp = last + (last - stop) * 3; 
       }
     } else {
-      // 空头进场：15m 价格反抽靠近 EMA5，且当前 15m 收阴线（遇阻）
-      if(last >= e5_15m * 0.99 && last < e20_15m && c[idx] < c[idx-1]) {
+      // 空头进场：15m 必须收阴线，且不能破 EMA20
+      const distToMax = (maxH_10 - last) / maxH_10;
+      if(last < e20_15m && c[idx] < c[idx-1] && distToMax <= extTolPct) {
         isValidEntry = true;
         stop = h[idx] * 1.002; 
         tp = last - (stop - last) * 3; 
@@ -281,7 +322,7 @@ $('f2').onclick=async()=>{
     if(isValidEntry){
       hits.push({...it, entry: last, stop, tp, risk: Math.abs(last-stop)/last});
     } else {
-      miss.push(`${it.base}:15m未回踩到位`);
+      miss.push(`${it.base}:未达极值点`);
     }
     await sleep(200);
   }
@@ -299,7 +340,7 @@ $('f2').onclick=async()=>{
         <span class="Y">风险空间: ${pc(x.risk)}</span>
       </div></div>`;
     });
-  }else html+=`<div class="empty">无符合15m回踩进场条件</div>`;
+  }else html+=`<div class="empty">无符合15m极值进场条件</div>`;
   
   if(miss.length>0) html+=`<div class="card sub">过滤原因：${miss.slice(0,25).join('<br>')}</div>`;
   
