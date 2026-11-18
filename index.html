@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约 · 双窗口扫描｜多空切换｜刷新成交额</title>
+<title>欧易合约 · 双窗口扫描｜影线容差+15F极值容差</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -14,7 +14,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .b1{background:#ff9f0a;color:#000}.b2{background:#238636;color:#fff}.b3{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
 .b4{background:#da3633;color:#fff;}
 .row{display:flex;align-items:center;margin:9px 0;gap:8px;flex-wrap:wrap}
-.row label{color:#8b949e;font-size:13px;min-width:44px}
+.row label{color:#8b949e;font-size:13px;min-width:110px}
 .row input,.row select{flex:1;min-width:110px;padding:9px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;font-size:14px}
 .st{margin:10px 0;padding:10px 12px;background:#161b22;border-radius:8px;font-size:13px;line-height:1.6;word-break:break-all}
 .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px;margin:8px 0}
@@ -24,8 +24,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .info b{color:#fff}
 .sub{color:#8b949e;font-size:12px;line-height:1.7}
 .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;border:1px solid #2f6f3e;color:#3fb950;margin-left:6px}
-.tagT{border-color:#8b6914;color:#ffbf47}
-.tagShort{border-color:##da3633;color:#f85149;border:1px solid #da3633;}
+.tagShort{border-color:#da3633;color:#f85149;margin-left:6px;}
 .sp{display:inline-block;width:13px;height:13px;border:2px solid #30363d;border-top-color:#ff9f0a;border-radius:50%;animation:r .8s linear infinite;margin-right:6px;vertical-align:-2px}
 @keyframes r{to{transform:rotate(360deg)}}
 .warn{background:#2d1a00;border:1px solid #8b6914;color:#ffbf47;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.6;margin:8px 0}
@@ -36,18 +35,20 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 <body>
 <!-- ============ 窗口一 ============ -->
 <div class="win">
-  <h2>窗口一 · 日线选池（只认多头，每天一次｜真实成交额排序前100）</h2>
-  <button class="btn b1" id="f1">📥 抓取合约真实成交额前100 + 日线筛选</button>
+  <h2>窗口一 · 日线多空分离池｜真实成交额前100</h2>
+  <button class="btn b1" id="f1">📥 抓取合约真实成交额前100 + 日线多空筛选</button>
   <button class="btn b3" id="refreshVol">💹 仅刷新成交额榜单（不重跑日线）</button>
   <button class="btn b3" id="f1b">🔄 强制重扫（忽略当日缓存）</button>
-  <div class="row"><label>口径</label>
-    <select id="mode">
-      <option value="strict">严格做多（价 &gt; EMA5 &gt; EMA20）</option>
-      <option value="trend">含多头趋势（EMA5&gt;EMA20，价在EMA20上，可回踩）</option>
-      <option value="both">两种都要（推荐）</option>
-    </select>
+  <div class="row">
+    <label>并发数</label>
+    <input type="number" id="cc" value="4" min="1" max="10">
+    <span class="sub">被限流调小到2</span>
   </div>
-  <div class="row"><label>并发</label><input type="number" id="cc" value="4" min="1" max="10"><span class="sub">批（被限流调小到2）</span></div>
+  <div class="row">
+    <label>日线影线回踩EMA5容差%</label>
+    <input type="number" id="ema5WickTol" value="0.8" step="0.1" min="0" max="5">
+    <span class="sub">影线刺破EMA5允许幅度，收盘价不受此参数</span>
+  </div>
   <div class="st" id="st1">就绪。先点抓取。</div>
   <div id="out1"></div>
 </div>
@@ -55,31 +56,52 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 <div class="win win2">
   <h2>窗口二 · 15F 精选（多空模式切换）</h2>
   <div class="row">
+    <label>数据源池</label>
+    <select id="poolSource">
+      <option value="longPool">🟢 使用日线多头池</option>
+      <option value="shortPool">🔴 使用日线空头池</option>
+    </select>
+  </div>
+  <div class="row">
     <label>扫描模式</label>
     <select id="scanMode">
       <option value="long">🔵 扫描做多（回踩低位）</option>
       <option value="short">🔴 扫描做空（反弹高位）</option>
     </select>
   </div>
+  <div class="row">
+    <label>收盘偏离极值容差%</label>
+    <input type="number" id="closeTol" value="0.5" step="0.1" min="0" max="5">
+    <span class="sub">收盘距离高低点允许百分比</span>
+  </div>
+  <div class="row">
+    <label>15F影线刺破极值容差%</label>
+    <input type="number" id="extremeWickTol" value="1.0" step="0.1" min="0" max="8">
+    <span class="sub">影线允许刺破区间最高/最低幅度</span>
+  </div>
   <button class="btn b2" id="f2">🎯 执行15分钟线扫描</button>
-  <button class="btn b3" id="f2c">🗑 清空池与缓存</button>
-  <div class="row"><label>容差</label><input type="number" id="tol" value="0.5" step="0.1" min="0" max="5"><span class="sub">%（收盘允许偏离极值的比例）</span></div>
-  <div class="st" id="st2">等窗口一留存池。</div>
+  <button class="btn b3" id="f2c">🗑 清空全部池与缓存</button>
+  <div class="st" id="st2">等窗口一生成多空池。</div>
   <div id="out2"></div>
 </div>
 <script>
-/* ========== 存储 ========== */
-const K_POOL='okx_pool_v8', K_DAY='okx_poolday_v8', K_META='okx_tickers_v8';
-let POOL=[], META={};
+/* ========== 存储key：多头池、空头池分开存储 ========== */
+const K_LONG_POOL='okx_longpool_v10';
+const K_SHORT_POOL='okx_shortpool_v10';
+const K_DAY='okx_poolday_v10';
+const K_META='okx_tickers_v10';
+
+let longPool=[], shortPool=[], META={};
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
+
 /* ========== 防漂移阈值 ========== */
 const G={
   MIN_BARS:25,        // 日线最少根数
   DEV_MAX:0.15,       // 收盘价偏离EMA20超15% → 判脏数据
   JUMP_MAX:0.25,      // 单根日线振幅超25% → 脉冲
-  BIAS_MAX:0.12,      // 乖离EMA20超12% → 追高
-  TREND_BARS:3        // 双线需连续N根同向
+  TREND_BARS:3        // EMA连续发散根数
 };
+
 const $=i=>document.getElementById(i);
 const st=(id,h,c)=>{const e=$(id);e.innerHTML=h;e.style.color=c==='e'?'#f85149':c==='o'?'#3fb950':c==='w'?'#ffbf47':'#8b949e'};
 const pc=v=>(v*100).toFixed(2)+'%';
@@ -101,6 +123,7 @@ async function okx(path,retries=2){
 }
 const ema=(a,n)=>{const k=2/(n+1),o=[a[0]];for(let i=1;i<a.length;i++)o.push(a[i]*k+o[i-1]*(1-k));return o};
 const num=x=>{const v=parseFloat(x);return isFinite(v)?v:NaN};
+
 // OKX K线: [ts,open,high,low,close,vol,volCcy,volCcyQuote,confirm]
 function parseK(d){
   const o=[],h=[],l=[],c=[];
@@ -113,11 +136,30 @@ function parseK(d){
   return{o,h,l,c};
 }
 
-/* ========== 窗口一：日线判定（带强校验） ========== */
-function daily(k){
-  const {h,l,c}=k, i=c.length-1;
+/*
+【新日线判定逻辑，增加影线回踩EMA5容差】
+多头条件：
+1. EMA5 > EMA20
+2. EMA5、EMA20连续G.TREND_BARS根向上发散
+3. 收盘价 > EMA5（收盘价不允许跌破）
+4. 下影线允许小幅刺破EMA5，刺破幅度不超过ema5WickTol
+5. 价格回踩不跌破EMA20（收盘价>EMA20）
+
+空头条件：
+1. EMA5 < EMA20
+2. EMA5、EMA20连续G.TREND_BARS根向下发散
+3. 收盘价 < EMA5（收盘价不允许站上）
+4. 上影线允许小幅刺破EMA5，刺破幅度不超过ema5WickTol
+5. 反弹不站上EMA20（收盘价<EMA20）
+*/
+function dailyCheck(k,wickTolPct){
+  const {h,l,c}=k;
+  const i=c.length-1;
   const E5=ema(c,5), E20=ema(c,20);
   const last=c[i], e5=E5[i], e20=E20[i];
+  const high=h[i], low=l[i];
+  const wickTol = wickTolPct / 100;
+
   if(!isFinite(last)||!isFinite(e5)||!isFinite(e20)) return{err:'EMA算出NaN'};
   const bias=(last-e20)/e20;
   if(Math.abs(bias)>G.DEV_MAX) return{err:'漂移：收'+px(last)+' 偏EMA20 '+pc(bias)};
@@ -125,24 +167,42 @@ function daily(k){
     if(j<1) continue;
     if((h[j]-l[j])/c[j-1]>G.JUMP_MAX) return{err:'脉冲：第'+j+'根振幅'+pc((h[j]-l[j])/c[j-1])};
   }
-  let up=0,dn=0,up20=0,dn20=0;
+
+  // 统计连续向上、向下根数
+  let up5=0,dn5=0,up20=0,dn20=0;
   for(let j=i;j>i-G.TREND_BARS&&j>=1;j--){
-    if(E5[j]>E5[j-1])up++; if(E5[j]<E5[j-1])dn++;
-    if(E20[j]>E20[j-1])up20++; if(E20[j]<E20[j-1])dn20++;
+    if(E5[j]>E5[j-1]) up5++;
+    if(E5[j]<E5[j-1]) dn5++;
+    if(E20[j]>E20[j-1]) up20++;
+    if(E20[j]<E20[j-1]) dn20++;
   }
-  const rise=up===G.TREND_BARS&&up20===G.TREND_BARS;
-  const fall=dn===G.TREND_BARS&&dn20===G.TREND_BARS;
-  const strict = e5>e20 && last>e5 && rise;
-  const trend  = e5>e20 && last>e20 && rise && !strict;
-  if(strict) return{kind:'strict',last,e5,e20,bias,rise};
-  if(trend)  return{kind:'trend',last,e5,e20,bias,rise};
-  if(e5<e20&&fall&&last<e5) return{err:'空头排列：价'+px(last)+'<EMA5 '+px(e5)+'<EMA20 '+px(e20)};
-  if(Math.abs(e5-e20)/e20<0.008) return{err:'两线缠绕 散'+pc(Math.abs(e5-e20)/e20)};
-  if(!rise) return{err:'双线未同步抬升'};
-  return{err:'非多头：价'+px(last)+' EMA5 '+px(e5)+' EMA20 '+px(e20)};
+  const isUpDiverge = up5===G.TREND_BARS && up20===G.TREND_BARS;
+  const isDownDiverge = dn5===G.TREND_BARS && dn20===G.TREND_BARS;
+
+  // ✅严格多头：收盘价>EMA5，下影允许刺破EMA5，但刺破幅度有限
+  if(e5>e20 && isUpDiverge && last>e5 && last>e20){
+    //下影刺破EMA5的幅度
+    const wickBreakRate = (e5 - low)/e5;
+    if(low < e5 && wickBreakRate > wickTol){
+      return {err:`多头下影刺破EMA5超容差：刺破${pc(wickBreakRate)}，设置容差${pc(wickTol)}`};
+    }
+    return{kind:'long',last,e5,e20,bias,wickBreakRate: low<e5?wickBreakRate:0};
+  }
+  // ✅严格空头：收盘价<EMA5，上影允许刺破EMA5，但刺破幅度有限
+  if(e5<e20 && isDownDiverge && last<e5 && last<e20){
+    const wickBreakRate = (high - e5)/e5;
+    if(high > e5 && wickBreakRate > wickTol){
+      return {err:`空头上影刺破EMA5超容差：刺破${pc(wickBreakRate)}，设置容差${pc(wickTol)}`};
+    }
+    return{kind:'short',last,e5,e20,bias,wickBreakRate: high>e5?wickBreakRate:0};
+  }
+  if(Math.abs(e5-e20)/e20<0.008){
+    return{err:'均线缠绕，趋势不明确'};
+  }
+  return{err:'不满足严格多空条件，e5:'+px(e5)+' e20:'+px(e20)+' close:'+px(last)};
 }
 
-/* ========== 【新增】仅刷新成交额，不跑日线筛选 ========== */
+/* ========== 仅刷新成交额，不跑日线筛选，同时更新多头、空头池 ========== */
 async function refreshVolumeOnly(){
   st('st1','<span class="sp"></span>拉取最新成交额更新排序...');
   const r=await okx('/api/v5/market/tickers?instType=SWAP');
@@ -150,119 +210,160 @@ async function refreshVolumeOnly(){
     st('st1','❌刷新失败：'+r.err,'e');
     return;
   }
-  // 拿到最新ticker数据做map
   const tickerMap={};
   r.data.filter(x=>x.instId.endsWith('USDT-SWAP')).forEach(x=>{
     tickerMap[x.instId]={volUsd:num(x.volCcyQuote24h)||0, last:num(x.last)||0};
   });
-  // 更新现有POOL里面每一个币种的成交额、现价
-  let changed=0;
-  POOL.forEach(it=>{
-    const newData = tickerMap[it.instId];
-    if(newData){
-      it.volUsd = newData.volUsd;
-      it.last = newData.last;
-      changed++;
-    }
-  });
-  // 重新按照成交额降序重排rank
-  POOL.sort((a,b)=>b.volUsd - a.volUsd);
-  POOL.forEach((x,i)=>x.rank=i+1);
-  // 写回本地存储
-  keep.forEach(x=>META[x.base]={volUsd:x.volUsd,rank:x.rank});
-  localStorage.setItem(K_POOL,JSON.stringify(POOL));
-  localStorage.setItem(K_META,JSON.stringify(META));
-  st('st1','✅已刷新 '+changed+'个币种最新成交额，已重新排序列表','o');
+
+  function updatePool(pool){
+    let cnt=0;
+    pool.forEach(it=>{
+      const nt = tickerMap[it.instId];
+      if(nt){ it.volUsd=nt.volUsd; it.last=nt.last; cnt++; }
+    });
+    pool.sort((a,b)=>b.volUsd-a.volUsd);
+    pool.forEach((x,idx)=>x.rank=idx+1);
+    return cnt;
+  }
+  const c1=updatePool(longPool);
+  const c2=updatePool(shortPool);
+
+  //写回本地存储
+  localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
+  localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
+  st('st1',`✅刷新完成，多头池更新${c1}个，空头池更新${c2}个币种`,'o');
   renderPool();
 }
 
-/* ========== 窗口一主流程 ========== */
+/* ========== 窗口一主流程：抓取前100，日线分出多头池、空头池 ========== */
 async function runWindow1(force){
-  const mode=$('mode').value;
   const cc=Math.min(Math.max(parseInt($('cc').value)||4,1),10);
-  if(!force && localStorage.getItem(K_DAY)===today() && localStorage.getItem(K_POOL)){
-    POOL=JSON.parse(localStorage.getItem(K_POOL));
-    META=JSON.parse(localStorage.getItem(K_META)||'{}');
-    st('st1','✅ 今天已扫过，池内 <b>'+POOL.length+'</b> 只（'+today()+'）。要重来点「强制重扫」。直接去窗口二跑 15F。','o');
-    renderPool(); return;
+  const wickTolInput = Math.max(0,parseFloat($('ema5WickTol').value)||0);
+
+  if(!force && localStorage.getItem(K_DAY)===today()){
+    longPool=JSON.parse(localStorage.getItem(K_LONG_POOL)||'[]');
+    shortPool=JSON.parse(localStorage.getItem(K_SHORT_POOL)||'[]');
+    st('st1',`✅今日已扫描，多头池${longPool.length}只，空头池${shortPool.length}只。强制重扫才会重新跑日线。`,'o');
+    renderPool();
+    return;
   }
-  if(localStorage.getItem(K_DAY)&&localStorage.getItem(K_DAY)!==today()&&localStorage.getItem(K_POOL)){
-    st('st1','⚠️ 池是 '+localStorage.getItem(K_DAY)+' 的旧数据，已过期，正在重扫...','w');
+  if(localStorage.getItem(K_DAY)&&localStorage.getItem(K_DAY)!==today()){
+    st('st1','⚠️存在旧日期缓存，正在重新扫描...','w');
   }
   st('st1','<span class="sp"></span>抓取合约榜（真实成交额）...');
   const t0=Date.now();
   const r=await okx('/api/v5/market/tickers?instType=SWAP');
-  if(r.err){ st('st1','❌ 抓取失败：'+r.err+'<br>若在 github.io 上被拦，把文件下载到本地双击打开（本地无跨域限制）。','e'); return }
+  if(r.err){ st('st1','❌抓取失败：'+r.err,'e'); return; }
+
   let list=r.data.filter(x=>x.instId.endsWith('USDT-SWAP')).map(x=>{
     const volUsd=num(x.volCcyQuote24h)||0;
     const pr=num(x.last)||0;
     return{instId:x.instId,base:x.instId.split('-')[0],volUsd:volUsd,last:pr};
   }).sort((a,b)=>b.volUsd-a.volUsd).slice(0,100).map((x,i)=>({...x,rank:i+1}));
 
-  if(!list.length){ st('st1','❌ 过滤后无 USDT 永续合约，检查接口返回。','e'); return }
-  localStorage.setItem(K_META,JSON.stringify(META={}));
-  const keep=[],rej=[];let done=0;
+  if(!list.length){ st('st1','❌过滤后无USDT永续合约','e'); return; }
+  longPool=[]; shortPool=[];
+  const rej=[];let done=0;
   for(let i=0;i<list.length;i+=cc){
     const batch=list.slice(i,i+cc);
     await Promise.all(batch.map(async it=>{
       const k=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=1D&limit=40`);
-      if(k.err){ rej.push(it.base+'：取数 '+k.err); return }
-      if(!k.data||k.data.length<G.MIN_BARS){ rej.push(it.base+'：日线仅'+(k.data?k.data.length:0)+'根<'+G.MIN_BARS+'（新币/停牌）'); return }
+      if(k.err){ rej.push(it.base+'：取数 '+k.err); return; }
+      if(!k.data||k.data.length<G.MIN_BARS){ rej.push(it.base+`：日线不足${G.MIN_BARS}根`); return; }
       const p=parseK(k.data);
-      if(p.err){ rej.push(it.base+'：'+p.err); return }
-      const d=daily(p);
-      if(d.err){ rej.push(it.base+'：'+d.err); return }
-      if(mode==='strict'&&d.kind!=='strict'){ rej.push(it.base+'：非严格多（'+(d.kind==='trend'?'仅趋势多':'空头/缠绕')+'）'); return }
-      if(mode==='trend'&&d.kind==='strict'){}
-      keep.push({...it,kind:d.kind,last:d.last,e5:d.e5,e20:d.e20,bias:d.bias});
+      if(p.err){ rej.push(it.base+'：'+p.err); return; }
+      const res=dailyCheck(p,wickTolInput);
+      if(res.err){ rej.push(it.base+'：'+res.err); return; }
+      if(res.kind==='long'){
+        longPool.push({...it,...res});
+      }else if(res.kind==='short'){
+        shortPool.push({...it,...res});
+      }
     }));
     done+=batch.length;
-    st('st1','<span class="sp"></span>日线扫描 '+done+'/'+list.length+' · 已留存 '+keep.length);
+    st('st1',`<span class="sp"></span>日线扫描 ${done}/${list.length} · 多头${longPool.length} 空头${shortPool.length}`);
     if(i+cc<list.length) await sleep(220);
   }
-  keep.sort((a,b)=>a.rank-b.rank);
-  POOL=keep; META={}; keep.forEach(x=>META[x.base]={volUsd:x.volUsd,rank:x.rank});
-  localStorage.setItem(K_POOL,JSON.stringify(POOL));
-  localStorage.setItem(K_META,JSON.stringify(META));
+  //各自排序
+  longPool.sort((a,b)=>b.volUsd - a.volUsd);
+  longPool.forEach((x,i)=>x.rank=i+1);
+  shortPool.sort((a,b)=>b.volUsd - a.volUsd);
+  shortPool.forEach((x,i)=>x.rank=i+1);
+
+  //写入本地存储
+  localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
+  localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
   localStorage.setItem(K_DAY,today());
-  const ns=keep.filter(x=>x.kind==='strict').length, nt=keep.length-ns;
-  const bad=rej.filter(x=>/漂移|NaN|脉冲|取数|逻辑错/.test(x)).length;
-  st('st1','✅ 扫 '+list.length+' 只 · 留存 <b>'+keep.length+'</b> 只（严格多 '+ns+' · 趋势多 '+nt+'）· 淘汰 '+rej.length+
-     (bad?'（其中脏数据 '+bad+'）':'')+' · 耗时 '+((Date.now()-t0)/1000).toFixed(0)+'s<br>'+today()+' 已锁定，当日不再重扫。去窗口二。','o');
+
+  st('st1',`✅扫描完成，总扫描${list.length}只｜多头池：${longPool.length}只，空头池：${shortPool.length}只｜淘汰${rej.length}个，耗时${((Date.now()-t0)/1000).toFixed(0)}s`,'o');
   renderPool(rej);
 }
 
 function renderPool(rej){
-  if(!POOL.length){ $('out1').innerHTML='<div class="empty">今日无多头趋势币留存。</div>'; return }
-  let h='<div class="card sub" style="border-color:#2f6f3e;color:#3fb950">当日留存池（按【真实24h成交额】排名）<br>'+
-    POOL.map(x=>`<div style="margin-top:6px;color:#c9d1d9"><b class="L">${x.base}</b>`+
-      `<span class="tag${x.kind==='trend'?' tagT':''}">${x.kind==='strict'?'严格多':'趋势多'}</span> `+
-      `<span class="sub">#${x.rank} ${vol(x.volUsd)} 收${px(x.last)} EMA5 ${px(x.e5)}/EMA20 ${px(x.e20)} 乖离${pc(x.bias)}</span></div>`).join('')+'</div>';
-  if(rej&&rej.length) h+='<div class="card sub">淘汰明细（前30）：<br>'+rej.slice(0,30).map(x=>'· '+x).join('<br>')+'</div>';
-  $('out1').innerHTML=h;
+  let html='';
+  if(longPool.length>0){
+    html+=`<div class="card" style="border-color:#2f6f3e">
+      <div style="color:#3fb950;font-weight:bold">🟢【日线多头留存池】EMA5>EMA20向上发散，收盘价站EMA5上方</div>
+      ${longPool.map(x=>`<div style="margin-top:6px;color:#c9d1d9"><b class="L">${x.base}</b>
+      <span class="tag">严格多头</span>
+      <span class="sub">#${x.rank} ${vol(x.volUsd)} 收${px(x.last)} EMA5 ${px(x.e5)}/EMA20 ${px(x.e20)} 乖离${pc(x.bias)}</span></div>`).join('')}
+    </div>`;
+  }else{
+    html+=`<div class="empty">🟢 日线多头池无符合条件币种</div>`;
+  }
+
+  if(shortPool.length>0){
+    html+=`<div class="card" style="border-color:#da3633">
+      <div style="color:#f85149;font-weight:bold">🔴【日线空头留存池】EMA5<EMA20向下发散，收盘价在EMA5下方</div>
+      ${shortPool.map(x=>`<div style="margin-top:6px;color:#c9d1d9"><b class="S">${x.base}</b>
+      <span class="tagShort">严格空头</span>
+      <span class="sub">#${x.rank} ${vol(x.volUsd)} 收${px(x.last)} EMA5 ${px(x.e5)}/EMA20 ${px(x.e20)} 乖离${pc(x.bias)}</span></div>`).join('')}
+    </div>`;
+  }else{
+    html+=`<div class="empty">🔴 日线空头池无符合条件币种</div>`;
+  }
+
+  if(rej&&rej.length>0){
+    html+=`<div class="card sub">淘汰明细（前30）：<br>${rej.slice(0,30).map(x=>'· '+x).join('<br>')}</div>`;
+  }
+  $('out1').innerHTML=html;
 }
 
-/* ========== 窗口二：支持做多/做空双模式 ========== */
+/* ========== 窗口二：选择数据源池 + 15F多空扫描，两套容差：收盘容差、影线刺破极值容差 ========== */
 $('f2').onclick=async()=>{
+  const poolSource=$('poolSource').value;
   const scanMode=$('scanMode').value;
-  if(!POOL.length){
-    const r=localStorage.getItem(K_POOL);
-    if(!r){ st('st2','⚠️ 窗口一还没跑，先去选池。','e'); return }
-    POOL=JSON.parse(r); META=JSON.parse(localStorage.getItem(K_META)||'{}');
+  //加载对应池子
+  let usePool;
+  if(poolSource==="longPool"){
+    usePool=longPool;
+    if(usePool.length===0){
+      st('st2','⚠️多头池为空，请先窗口一抓取生成数据','e');
+      return;
+    }
+  }else{
+    usePool=shortPool;
+    if(usePool.length===0){
+      st('st2','⚠️空头池为空，请先窗口一抓取生成数据','e');
+      return;
+    }
   }
-  const tol=Math.max(0,(parseFloat($('tol').value)||0)/100);
+
+  const closeTol = Math.max(0,(parseFloat($('closeTol').value)||0)/100);
+  const wickExtTol = Math.max(0,(parseFloat($('extremeWickTol').value)||0)/100);
+
   const hits=[],miss=[];
-  st('st2','<span class="sp"></span>池内 '+POOL.length+' 只，模式：'+(scanMode==="long"?"做多":"做空")+'，跑15F...');
+  st('st2',`<span class="sp"></span>数据源：${poolSource==="longPool"?"日线多头池":"日线空头池"}，扫描模式：${scanMode==='long'?"做多":"做空"}，共${usePool.length}个币种`);
   $('out2').innerHTML='';
 
-  for(let i=0;i<POOL.length;i++){
-    const it=POOL[i];
-    st('st2','<span class="sp"></span>15F '+(i+1)+'/'+POOL.length+' · '+it.base);
+  for(let i=0;i<usePool.length;i++){
+    const it=usePool[i];
+    st('st2',`<span class="sp"></span>15F ${i+1}/${usePool.length} · ${it.base}`);
     const k=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=11`);
-    if(k.err){ miss.push(it.base+'：'+k.err); continue }
-    if(!k.data||k.data.length<11){ miss.push(it.base+'：15F仅'+(k.data?k.data.length:0)+'根'); continue }
+    if(k.err){ miss.push(it.base+'：'+k.err); continue; }
+    if(!k.data||k.data.length<11){ miss.push(it.base+'：K线数量不足'); continue; }
     const p=parseK(k.data);
-    if(p.err){ miss.push(it.base+'：'+p.err); continue }
+    if(p.err){ miss.push(it.base+'：'+p.err); continue; }
 
     const n=p.c.length-1, L=n-9;
     let minL=Infinity,maxH=-Infinity;
@@ -272,38 +373,52 @@ $('f2').onclick=async()=>{
     }
     const last=p.c[n], prev=p.c[n-1];
     const drift=Math.abs(last-it.last)/it.last;
-    if(drift>0.08){ miss.push(it.base+'：现价漂移'+pc(drift)+'（榜'+px(it.last)+' vs K线'+px(last)+'）'); continue }
+    if(drift>0.08){ miss.push(it.base+'：现价漂移'+pc(drift)); continue; }
 
-    let ok=false,stop,tp,risk,gap,touch;
+    let stop,tp,risk,gap,touch;
     if(scanMode==="long"){
-      // 做多：收盘靠近区间最低
+      //做多：收盘靠近区间最低；允许影线再向下刺破minL不超过wickExtTol
+      const wickBreakDown = (minL - Math.min(...p.l.slice(L,n+1)))/minL;
+      if(wickBreakDown > wickExtTol){
+        miss.push(it.base+`：15F下影刺破区间最低超限，刺破${pc(wickBreakDown)}，设置容差${pc(wickExtTol)}`);
+        continue;
+      }
       gap=(last-minL)/minL;
-      if(last <= minL*(1+tol)) ok=true;
-      else { miss.push(it.base+'：末根'+px(last)+'高于区间低 '+px(minL)+'（差'+pc(gap)+'）');continue; }
+      if(last> minL*(1+closeTol)){
+        miss.push(it.base+`：收盘高于区间最低，差值${pc(gap)}`);
+        continue;
+      }
       stop=minL;
       risk=(last-stop)/last;
       tp=last+(last-stop)*1.5;
-      touch = prev<=it.e5*1.003;
+      touch = prev <= it.e5*1.003;
     }else{
-      // 做空：收盘靠近区间最高
+      //做空：收盘靠近区间最高；允许影线向上刺破maxH不超过wickExtTol
+      const wickBreakUp = (Math.max(...p.h.slice(L,n+1)) - maxH)/maxH;
+      if(wickBreakUp > wickExtTol){
+        miss.push(it.base+`：15F上影刺破区间最高超限，刺破${pc(wickBreakUp)}，设置容差${pc(wickExtTol)}`);
+        continue;
+      }
       gap=(maxH-last)/maxH;
-      if(last >= maxH*(1-tol)) ok=true;
-      else { miss.push(it.base+'：末根'+px(last)+'低于区间高 '+px(maxH)+'（差'+pc(gap)+'）');continue; }
+      if(last < maxH*(1-closeTol)){
+        miss.push(it.base+`：收盘低于区间最高，差值${pc(gap)}`);
+        continue;
+      }
       stop=maxH;
       risk=(stop-last)/last;
       tp=last-(stop-last)*1.5;
-      touch = prev>=it.e5*0.997;
+      touch = prev >= it.e5*0.997;
     }
     hits.push({...it,scanMode,last,minL,maxH,prev,stop,tp,risk,gap,touch,e5:it.e5});
     await sleep(120);
   }
   hits.sort((a,b)=>a.rank-b.rank);
   if(!hits.length){
-    st('st2','⚠️ 池内 '+POOL.length+' 只，'+(scanMode==='long'?'做多':'做空')+' 达标 0 只。','e');
-    $('out2').innerHTML='<div class="card sub">没有满足条件K线（或数据不同步）：<br>'+miss.slice(0,25).map(x=>'· '+x).join('<br>')+'</div>';
+    st('st2',`⚠️${scanMode==='long'?'做多':'做空'}扫描达标0只`,'e');
+    $('out2').innerHTML=`<div class="card sub">未满足条件币种：<br>${miss.slice(0,25).map(x=>'· '+x).join('<br>')}</div>`;
     return;
   }
-  // 渲染输出，区分多空样式
+
   let html='';
   hits.forEach((x,i)=>{
     if(x.scanMode==='long'){
@@ -315,7 +430,7 @@ $('f2').onclick=async()=>{
           15F：末根收盘 ${px(x.last)} ≈10根区间低 ${px(x.minL)}（差 ${pc(x.gap)}）<br>
           影线：${x.touch?'<span class="L">下影精准回踩EMA5后收回</span>':'<span class="sub">未触EMA5，直接压在区间低</span>'}<br>
           止损 <b class="S">${px(x.stop)}</b>（${pc(x.risk)}） · 止盈 <b class="L">${px(x.tp)}</b>（1.5R）
-          ${x.risk>0.015?`<br><span class="warn" style="margin:6px 0 0">止损距 ${pc(x.risk)}：50x 下本金波动约 ${pc(x.risk*50)}，20x 约 ${pc(x.risk*20)}。杠杆越高越容易被扫。</span>`:''}
+          ${x.risk>0.015?`<br><span class="warn" style="margin:6px 0 0">止损距 ${pc(x.risk)}：50x下本金波动约 ${pc(x.risk*50)}，20x约 ${pc(x.risk*20)}。杠杆越高越容易被扫。</span>`:''}
         </div>
       </div>`;
     }else{
@@ -327,33 +442,42 @@ $('f2').onclick=async()=>{
           15F：末根收盘 ${px(x.last)} ≈10根区间高 ${px(x.maxH)}（差 ${pc(x.gap)}）<br>
           影线：${x.touch?'<span class="S">上影反弹触碰EMA5后回落</span>':'<span class="sub">未触EMA5，直接压在区间高位</span>'}<br>
           止损 <b class="L">${px(x.stop)}</b>（${pc(x.risk)}） · 止盈 <b class="S">${px(x.tp)}</b>（1.5R）
-          ${x.risk>0.015?`<br><span class="warnShort" style="margin:6px 0 0">止损距 ${pc(x.risk)}：50x 下本金波动约 ${pc(x.risk*50)}，20x 约 ${pc(x.risk*20)}。杠杆越高越容易被扫。</span>`:''}
+          ${x.risk>0.015?`<br><span class="warnShort" style="margin:6px 0 0">止损距 ${pc(x.risk)}：50x下本金波动约 ${pc(x.risk*50)}，20x约 ${pc(x.risk*20)}。杠杆越高越容易被扫。</span>`:''}
         </div>
       </div>`;
     }
   });
   if(miss.length) html+=`<div class="card sub">未达标（${miss.length}）：<br>${miss.slice(0,25).map(x=>'· '+x).join('<br>')}</div>`;
   $('out2').innerHTML=html;
-  st('st2','✅ 池 '+POOL.length+' 只 · '+(scanMode==="long"?"做多":"做空")+'达标 '+hits.length+' 只 · 首选 '+hits[0].base,'o');
+  st('st2',`✅扫描完成，达标${hits.length}只，首选${hits[0].base}`,'o');
 };
 
-/* ========== 绑定事件 ========== */
+/* ==========绑定事件========== */
 $('f1').onclick=()=>runWindow1(false);
 $('refreshVol').onclick=refreshVolumeOnly;
-$('f1b').onclick=()=>{ if(confirm('忽略当日缓存，重新抓榜并扫日线？')) runWindow1(true); };
+$('f1b').onclick=()=>{ if(confirm('忽略当日缓存，重新抓取并扫描日线？')) runWindow1(true); };
 $('f2c').onclick=()=>{
-  localStorage.removeItem(K_POOL);localStorage.removeItem(K_DAY);localStorage.removeItem(K_META);
-  POOL=[];META={};$('out1').innerHTML='';$('out2').innerHTML='';
-  st('st1','池已清空，可重新抓取。');st('st2','等窗口一留存池。');
+  localStorage.removeItem(K_LONG_POOL);
+  localStorage.removeItem(K_SHORT_POOL);
+  localStorage.removeItem(K_DAY);
+  localStorage.removeItem(K_META);
+  longPool=[]; shortPool=[];
+  $('out1').innerHTML='';$('out2').innerHTML='';
+  st('st1','池全部清空，重新抓取。');
+  st('st2','等待窗口一生成多空池。');
 };
 
-/* ========== 初始化 ========== */
+/* ==========初始化加载本地缓存========== */
 (function init(){
-  const p=localStorage.getItem(K_POOL), d=localStorage.getItem(K_DAY);
-  if(p){
-    POOL=JSON.parse(p); META=JSON.parse(localStorage.getItem(K_META)||'{}');
-    if(d===today()){ st('st1','✅ 今日（'+today()+'）池内 '+POOL.length+' 只，可直接去窗口二。要重来点「强制重扫」。','o'); }
-    else { st('st1','⚠️ 存在 '+d+' 的旧池（'+POOL.length+' 只），已过期。点抓取重扫当日数据。','w'); }
+  const dayStore=localStorage.getItem(K_DAY);
+  longPool=JSON.parse(localStorage.getItem(K_LONG_POOL)||'[]');
+  shortPool=JSON.parse(localStorage.getItem(K_SHORT_POOL)||'[]');
+  if(longPool.length>0||shortPool.length>0){
+    if(dayStore===today()){
+      st('st1',`✅今日缓存：多头池${longPool.length}只，空头池${shortPool.length}只`,'o');
+    }else{
+      st('st1',`⚠️存在旧日期缓存[${dayStore}]，请点抓取重扫当日数据`,'w');
+    }
     renderPool();
   }
 })();
