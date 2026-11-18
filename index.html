@@ -3,189 +3,360 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>合约扫描 · 日线严排 + 15F末根极值</title>
+<title>欧易合约 · 双窗口扫描｜多空切换｜刷新成交额</title>
 <style>
 *{box-sizing:border-box}
-body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:640px;margin:0 auto}
-.btn{display:block;width:100%;padding:14px;margin:8px 0;border-radius:10px;border:none;font-size:16px;font-weight:600;cursor:pointer}
-.b1{background:#ff9f0a;color:#000}.b2{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
-.row{display:flex;align-items:center;margin:10px 0;gap:8px;flex-wrap:wrap}
-.row label{color:#8b949e;font-size:14px;min-width:52px}
-.row input,.row select{flex:1;min-width:80px;padding:10px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;font-size:15px}
-.st{margin:10px 0;padding:10px 12px;background:#161b22;border-radius:8px;font-size:13px;line-height:1.6}
-.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;margin:8px 0}
-.t{font-size:18px;font-weight:700}
-.L{color:#3fb950}.S{color:#f85149}
-.info{font-size:13px;line-height:1.7;margin-top:6px}
+body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
+h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
+.win{background:#11161d;border:1px solid #30363d;border-radius:14px;padding:14px;margin-bottom:16px}
+.win2{border-color:#2f6f3e}
+.btn{display:block;width:100%;padding:13px;margin:8px 0;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer}
+.b1{background:#ff9f0a;color:#000}.b2{background:#238636;color:#fff}.b3{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
+.b4{background:#da3633;color:#fff;}
+.row{display:flex;align-items:center;margin:9px 0;gap:8px;flex-wrap:wrap}
+.row label{color:#8b949e;font-size:13px;min-width:44px}
+.row input,.row select{flex:1;min-width:110px;padding:9px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;font-size:14px}
+.st{margin:10px 0;padding:10px 12px;background:#161b22;border-radius:8px;font-size:13px;line-height:1.6;word-break:break-all}
+.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px;margin:8px 0}
+.t{font-size:17px;font-weight:700}
+.L{color:#3fb950}.S{color:#f85149}.N{color:#8b949e}.Y{color:#ff9f0a}
+.info{font-size:13px;line-height:1.75;margin-top:5px}
 .info b{color:#fff}
-.sub{color:#8b949e;font-size:12px;line-height:1.6}
-.warn{color:#d29922;font-size:12px;line-height:1.6;margin-top:6px}
+.sub{color:#8b949e;font-size:12px;line-height:1.7}
+.tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;border:1px solid #2f6f3e;color:#3fb950;margin-left:6px}
+.tagT{border-color:#8b6914;color:#ffbf47}
+.tagShort{border-color:##da3633;color:#f85149;border:1px solid #da3633;}
 .sp{display:inline-block;width:13px;height:13px;border:2px solid #30363d;border-top-color:#ff9f0a;border-radius:50%;animation:r .8s linear infinite;margin-right:6px;vertical-align:-2px}
 @keyframes r{to{transform:rotate(360deg)}}
+.warn{background:#2d1a00;border:1px solid #8b6914;color:#ffbf47;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.6;margin:8px 0}
+.warnShort{background:#2b0d0d;border:1px solid #da3633;color:#ff9494;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.6;margin:8px 0}
+.empty{color:#8b949e;font-size:13px;padding:10px;text-align:center;border:1px dashed #30363d;border-radius:10px}
 </style>
 </head>
 <body>
-
-<button class="btn b1" id="f1">📥 抓取合约成交额前100</button>
-<button class="btn b1" id="f2">🎯 扫描（日线严排 + 15F末根极值）</button>
-<button class="btn b2" id="f3">🗑 清空缓存</button>
-
-<div class="row"><label>扫描</label><input type="number" id="n" placeholder="100" min="1" max="100"><span class="sub">名（留空=100）</span></div>
-<div class="row"><label>容差</label><input type="number" id="tol" value="0.3" step="0.1" min="0" max="5"><span class="sub">%（末根收盘与区间极值的允许差）</span></div>
-<div class="row"><label>方向</label><select id="d"><option value="all">多空都看</option><option value="long">只看多</option><option value="short">只看空</option></select></div>
-
-<div class="st" id="st">就绪。先点抓取。</div>
-<div id="out"></div>
-
+<!-- ============ 窗口一 ============ -->
+<div class="win">
+  <h2>窗口一 · 日线选池（只认多头，每天一次｜真实成交额排序前100）</h2>
+  <button class="btn b1" id="f1">📥 抓取合约真实成交额前100 + 日线筛选</button>
+  <button class="btn b3" id="refreshVol">💹 仅刷新成交额榜单（不重跑日线）</button>
+  <button class="btn b3" id="f1b">🔄 强制重扫（忽略当日缓存）</button>
+  <div class="row"><label>口径</label>
+    <select id="mode">
+      <option value="strict">严格做多（价 &gt; EMA5 &gt; EMA20）</option>
+      <option value="trend">含多头趋势（EMA5&gt;EMA20，价在EMA20上，可回踩）</option>
+      <option value="both">两种都要（推荐）</option>
+    </select>
+  </div>
+  <div class="row"><label>并发</label><input type="number" id="cc" value="4" min="1" max="10"><span class="sub">批（被限流调小到2）</span></div>
+  <div class="st" id="st1">就绪。先点抓取。</div>
+  <div id="out1"></div>
+</div>
+<!-- ============ 窗口二 ============ -->
+<div class="win win2">
+  <h2>窗口二 · 15F 精选（多空模式切换）</h2>
+  <div class="row">
+    <label>扫描模式</label>
+    <select id="scanMode">
+      <option value="long">🔵 扫描做多（回踩低位）</option>
+      <option value="short">🔴 扫描做空（反弹高位）</option>
+    </select>
+  </div>
+  <button class="btn b2" id="f2">🎯 执行15分钟线扫描</button>
+  <button class="btn b3" id="f2c">🗑 清空池与缓存</button>
+  <div class="row"><label>容差</label><input type="number" id="tol" value="0.5" step="0.1" min="0" max="5"><span class="sub">%（收盘允许偏离极值的比例）</span></div>
+  <div class="st" id="st2">等窗口一留存池。</div>
+  <div id="out2"></div>
+</div>
 <script>
-const KEY='okx_swap_strict_v6';
-let C=null;
-
-/* 日线严格排列 */
-const D={
-  DIV_MIN:0.005,   // 发散下限（低于=缠绕）
-  DIV_MAX:0.15,    // 发散上限（高于=单根暴力拉升拽开均线）
-  PRICE_MAX:0.08,  // 价格距EMA20上限（超过=追高/追空）
-  TREND_BARS:3,    // 两线连续同向根数
-  TOUCH_TOL:0.003  // 影线碰EMA5容差（0=完全不许碰）
+/* ========== 存储 ========== */
+const K_POOL='okx_pool_v8', K_DAY='okx_poolday_v8', K_META='okx_tickers_v8';
+let POOL=[], META={};
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate()};
+/* ========== 防漂移阈值 ========== */
+const G={
+  MIN_BARS:25,        // 日线最少根数
+  DEV_MAX:0.15,       // 收盘价偏离EMA20超15% → 判脏数据
+  JUMP_MAX:0.25,      // 单根日线振幅超25% → 脉冲
+  BIAS_MAX:0.12,      // 乖离EMA20超12% → 追高
+  TREND_BARS:3        // 双线需连续N根同向
 };
-
 const $=i=>document.getElementById(i);
-const st=(h,c)=>{$('st').innerHTML=h;$('st').style.color=c==='e'?'#f85149':c==='o'?'#3fb950':'#8b949e'};
+const st=(id,h,c)=>{const e=$(id);e.innerHTML=h;e.style.color=c==='e'?'#f85149':c==='o'?'#3fb950':c==='w'?'#ffbf47':'#8b949e'};
 const pc=v=>(v*100).toFixed(2)+'%';
 const vol=v=>v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(0)+'M':(v/1e3).toFixed(0)+'K';
-const px=p=>p>=100?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6);
+const px=p=>p>=1000?p.toFixed(0):p>=100?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-async function okx(p){
-  const r=await fetch('https://www.okx.com'+p,{headers:{'Accept':'application/json'}});
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  const j=await r.json();
-  if(j.code!=='0') throw new Error(j.msg||'API');
-  return j.data;
+async function okx(path,retries=2){
+  for(let i=0;i<=retries;i++){
+    try{
+      const r=await fetch('https://www.okx.com'+path,{headers:{'Accept':'application/json'}});
+      if(r.status===429||r.status>=500){ if(i<retries){await sleep(600*(i+1));continue} return{err:'限流'+r.status} }
+      if(!r.ok) return{err:'HTTP'+r.status};
+      const j=await r.json();
+      if(j.code!=='0') return{err:j.msg||'API'+j.code};
+      return{data:j.data};
+    }catch(e){ if(i<retries){await sleep(600*(i+1));continue} return{err:e.message||'网络/跨域'} }
+  }
 }
 const ema=(a,n)=>{const k=2/(n+1),o=[a[0]];for(let i=1;i<a.length;i++)o.push(a[i]*k+o[i-1]*(1-k));return o};
-const K=d=>{const o=[],h=[],l=[],c=[];d.forEach(x=>{o.push(+x[1]);h.push(+x[2]);l.push(+x[3]);c.push(+x[4])});return{o,h,l,c}};
-
-/* ===== 抓取：真实USDT成交额排序 ===== */
-$('f1').onclick=async()=>{
-  st('<span class="sp"></span>抓取合约榜...');
-  try{
-    const d=await okx('/api/v5/market/tickers?instType=SWAP');
-    const list=d.filter(x=>x.instId.endsWith('USDT-SWAP'))
-      .map(x=>{const vb=parseFloat(x.volCcy24h)||0,pr=parseFloat(x.last)||0,cv=parseFloat(x.ctVal)||1;
-        return{instId:x.instId,base:x.instId.split('-')[0],volUsd:vb*cv*pr,last:pr};})
-      .sort((a,b)=>b.volUsd-a.volUsd).slice(0,100).map((x,i)=>({...x,rank:i+1}));
-    C={list,t:Date.now()};localStorage.setItem(KEY,JSON.stringify(C));
-    st('✅ 抓取 '+list.length+' 只 · 前三：'+list.slice(0,3).map(x=>x.base+' $'+vol(x.volUsd)).join(' / '),'o');
-    $('out').innerHTML='<div class="card sub">前10：'+list.slice(0,10).map((x,i)=>(i+1)+'.'+x.base).join(' · ')+'</div>';
-  }catch(e){st('❌ '+e.message+'（若跨域报错，用浏览器直接打开本文件）','e')}
-};
-
-/* ===== 日线：方向 + 排列 + 影线，一步判定 ===== */
-function daily(c,h,l){
-  const i=c.length-1,e5=ema(c,5),e20=ema(c,20);
-  const E5=e5[i],E20=e20[i],P=c[i];
-  let u5=0,d5=0,u20=0,d20=0;
-  for(let j=i;j>i-D.TREND_BARS&&j>=1;j--){
-    if(e5[j]>e5[j-1])u5++; if(e5[j]<e5[j-1])d5++;
-    if(e20[j]>e20[j-1])u20++; if(e20[j]<e20[j-1])d20++;
+const num=x=>{const v=parseFloat(x);return isFinite(v)?v:NaN};
+// OKX K线: [ts,open,high,low,close,vol,volCcy,volCcyQuote,confirm]
+function parseK(d){
+  const o=[],h=[],l=[],c=[];
+  for(const x of d){
+    const co=num(x[1]),hi=num(x[2]),lo=num(x[3]),cl=num(x[4]);
+    if(!isFinite(co)||!isFinite(hi)||!isFinite(lo)||!isFinite(cl)) return{err:'含NaN'};
+    if(cl<=0||hi<lo) return{err:'价格逻辑错'};
+    o.push(co);h.push(hi);l.push(lo);c.push(cl);
   }
-  const rise=u5===D.TREND_BARS&&u20===D.TREND_BARS;
-  const fall=d5===D.TREND_BARS&&d20===D.TREND_BARS;
-  const div=(E5-E20)/E20, dist=Math.abs(P-E20)/E20;
-  const loT=E5*(1-D.TOUCH_TOL), hiT=E5*(1+D.TOUCH_TOL);
-  const L=l.slice(-10), Hh=h.slice(-10);
-
-  /* 做空：EMA5<EMA20 且 价在EMA5下方（完美排列） */
-  if(E5<E20&&P<E5){
-    if(!fall) return{fail:'空排但双线未同步下压'};
-    if(-div<D.DIV_MIN) return{fail:'发散仅'+pc(-div)+'，两线缠绕'};
-    if(-div>D.DIV_MAX) return{fail:'发散'+pc(-div)+'过大，单根砸开均线'};
-    if(dist>D.PRICE_MAX) return{fail:'价低于EMA20 '+pc(dist)+'，追空'};
-    if(Math.min(...L)<loT) return{fail:'近10根下影 '+px(Math.min(...L))+' 刺破EMA5 '+px(E5)};
-    return{dir:'short',E5,E20,P,div,dist,stop:Math.max(...Hh),touch:Math.min(...L)<=hiT};
-  }
-  /* 做多：EMA5>EMA20 且 价在EMA5上方 */
-  if(E5>E20&&P>E5){
-    if(!rise) return{fail:'多排但双线未同步抬升'};
-    if(div<D.DIV_MIN) return{fail:'发散仅'+pc(div)+'，两线缠绕'};
-    if(div>D.DIV_MAX) return{fail:'发散'+pc(div)+'过大，单根拉升拽开均线'};
-    if(dist>D.PRICE_MAX) return{fail:'价高于EMA20 '+pc(dist)+'，追高'};
-    if(Math.max(...Hh)>hiT) return{fail:'近10根上影 '+px(Math.max(...Hh))+' 刺破EMA5 '+px(E5)};
-    return{dir:'long',E5,E20,P,div,dist,stop:Math.min(...L),touch:Math.max(...Hh)>=loT};
-  }
-  return{fail:E5<E20?'空头排列，但价格已收回EMA5上方（'+px(P)+' > '+px(E5)+'）':'多头排列，但价格已跌回EMA5下方（'+px(P)+' < '+px(E5)+'）'};
+  return{o,h,l,c};
 }
 
-/* ===== 15F：11根，末根已收盘=区间极值 ===== */
-function m15(k,dir,tol){
-  const n=k.c.length-1, seg=Math.min(10,n), L=n-seg+1;
-  const minL=Math.min(...k.l.slice(L,n+1)), maxH=Math.max(...k.h.slice(L,n+1)), last=k.c[n];
-  if(dir==='long'){
-    const ok=last<=minL*(1+tol);
-    return{ok,minL,maxH,last,txt:ok?'末根收盘 '+px(last)+' = 区间最低 '+px(minL)+(tol?'（容差'+pc(tol)+'内，差'+pc((last-minL)/minL)+'）':'')
-      :'末根收盘 '+px(last)+' 高出区间最低 '+px(minL)+' '+pc((last-minL)/minL)+'（容差'+pc(tol)+'）'};
+/* ========== 窗口一：日线判定（带强校验） ========== */
+function daily(k){
+  const {h,l,c}=k, i=c.length-1;
+  const E5=ema(c,5), E20=ema(c,20);
+  const last=c[i], e5=E5[i], e20=E20[i];
+  if(!isFinite(last)||!isFinite(e5)||!isFinite(e20)) return{err:'EMA算出NaN'};
+  const bias=(last-e20)/e20;
+  if(Math.abs(bias)>G.DEV_MAX) return{err:'漂移：收'+px(last)+' 偏EMA20 '+pc(bias)};
+  for(let j=c.length-8;j<=i;j++){
+    if(j<1) continue;
+    if((h[j]-l[j])/c[j-1]>G.JUMP_MAX) return{err:'脉冲：第'+j+'根振幅'+pc((h[j]-l[j])/c[j-1])};
   }
-  const ok=last>=maxH*(1-tol);
-  return{ok,minL,maxH,last,txt:ok?'末根收盘 '+px(last)+' = 区间最高 '+px(maxH)+(tol?'（容差'+pc(tol)+'内，差'+pc((maxH-last)/maxH)+'）':'')
-    :'末根收盘 '+px(last)+' 低于区间最高 '+px(maxH)+' '+pc((maxH-last)/maxH)+'（容差'+pc(tol)+'）'};
+  let up=0,dn=0,up20=0,dn20=0;
+  for(let j=i;j>i-G.TREND_BARS&&j>=1;j--){
+    if(E5[j]>E5[j-1])up++; if(E5[j]<E5[j-1])dn++;
+    if(E20[j]>E20[j-1])up20++; if(E20[j]<E20[j-1])dn20++;
+  }
+  const rise=up===G.TREND_BARS&&up20===G.TREND_BARS;
+  const fall=dn===G.TREND_BARS&&dn20===G.TREND_BARS;
+  const strict = e5>e20 && last>e5 && rise;
+  const trend  = e5>e20 && last>e20 && rise && !strict;
+  if(strict) return{kind:'strict',last,e5,e20,bias,rise};
+  if(trend)  return{kind:'trend',last,e5,e20,bias,rise};
+  if(e5<e20&&fall&&last<e5) return{err:'空头排列：价'+px(last)+'<EMA5 '+px(e5)+'<EMA20 '+px(e20)};
+  if(Math.abs(e5-e20)/e20<0.008) return{err:'两线缠绕 散'+pc(Math.abs(e5-e20)/e20)};
+  if(!rise) return{err:'双线未同步抬升'};
+  return{err:'非多头：价'+px(last)+' EMA5 '+px(e5)+' EMA20 '+px(e20)};
 }
 
-/* ===== 扫描 ===== */
-$('f2').onclick=async()=>{
-  if(!C){const r=localStorage.getItem(KEY);if(!r){st('⚠️ 请先抓取','e');return}C=JSON.parse(r)}
-  const raw=parseInt($('n').value);
-  const n=isNaN(raw)?100:Math.min(Math.max(raw,1),100);
-  const dp=$('d').value;
-  const tol=Math.max(0,(parseFloat($('tol').value)||0)/100);
-  const list=C.list.slice(0,n), out=[], rej=[];
-
-  for(let i=0;i<list.length;i++){
-    const it=list[i];
-    try{
-      st('<span class="sp"></span>'+(i+1)+'/'+list.length+' · '+it.base);
-      const d=daily(K(await okx(`/api/v5/market/candles?instId=${it.instId}&bar=1D&limit=40`)));
-      if(d.fail){rej.push(it.base+'：'+d.fail);continue}
-      if(dp!=='all'&&dp!==d.dir){rej.push(it.base+'：做'+(d.dir==='long'?'多':'空')+'，已过滤');continue}
-      const m=K(await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=11`));
-      const q=m15(m,d.dir,tol);
-      if(!q.ok){rej.push(it.base+'：'+q.txt);continue}
-      const lp=m.c[m.c.length-1];
-      const risk=Math.abs(lp-d.stop)/lp;
-      const tp=d.dir==='long'?lp+(lp-d.stop)*1.5:lp-(d.stop-lp)*1.5;
-      out.push({...it,...d,last:lp,stop:tp_stop(d),tp,risk,q});
-    }catch(e){rej.push(it.base+'：数据异常')}
-    if((i+1)%5===0) await new Promise(r=>setTimeout(r,80));
-  }
-  function tp_stop(x){return x.stop}
-
-  if(!out.length){
-    st('⚠️ 扫 '+list.length+' 只，达标 0 只','e');
-    $('out').innerHTML='<div class="card sub">今日无合格形态，按规则=不入场。可把容差调到 0.5~0.8 放宽15F那条。<br><br>淘汰明细：<br>'+rej.map(x=>'· '+x).join('<br>')+'</div>';
+/* ========== 【新增】仅刷新成交额，不跑日线筛选 ========== */
+async function refreshVolumeOnly(){
+  st('st1','<span class="sp"></span>拉取最新成交额更新排序...');
+  const r=await okx('/api/v5/market/tickers?instType=SWAP');
+  if(r.err){
+    st('st1','❌刷新失败：'+r.err,'e');
     return;
   }
+  // 拿到最新ticker数据做map
+  const tickerMap={};
+  r.data.filter(x=>x.instId.endsWith('USDT-SWAP')).forEach(x=>{
+    tickerMap[x.instId]={volUsd:num(x.volCcyQuote24h)||0, last:num(x.last)||0};
+  });
+  // 更新现有POOL里面每一个币种的成交额、现价
+  let changed=0;
+  POOL.forEach(it=>{
+    const newData = tickerMap[it.instId];
+    if(newData){
+      it.volUsd = newData.volUsd;
+      it.last = newData.last;
+      changed++;
+    }
+  });
+  // 重新按照成交额降序重排rank
+  POOL.sort((a,b)=>b.volUsd - a.volUsd);
+  POOL.forEach((x,i)=>x.rank=i+1);
+  // 写回本地存储
+  keep.forEach(x=>META[x.base]={volUsd:x.volUsd,rank:x.rank});
+  localStorage.setItem(K_POOL,JSON.stringify(POOL));
+  localStorage.setItem(K_META,JSON.stringify(META));
+  st('st1','✅已刷新 '+changed+'个币种最新成交额，已重新排序列表','o');
+  renderPool();
+}
 
-  $('out').innerHTML=out.map((x,i)=>{
-    const cls=x.dir==='long'?'L':'S', txt=x.dir==='long'?'做多 ▲':'做空 ▼';
-    return `<div class="card">
-      <div class="t ${cls}">${x.base} <span style="font-size:14px">${txt} · 榜#${x.rank} · $${vol(x.volUsd)}</span></div>
-      ${i===0?'<div class="sub" style="color:#ff9f0a">当日首选</div>':''}
-      <div class="info">
-        EMA5 <b>${px(x.E5)}</b> / EMA20 <b>${px(x.E20)}</b> · 发散 ${pc(x.div)} · 距EMA20 ${pc(x.dist)}<br>
-        现价 <b>${px(x.last)}</b>（${x.dir==='long'?'EMA5上方':'EMA5下方'}）<br>
-        15F：${x.q.txt}<br>
-        影线：近10根${x.dir==='long'?'上影':'下影'}未破EMA5${x.touch?'（已回踩 touching）':'（未触及）'}<br>
-        止损 <b style="color:#f85149">${px(x.stop)}</b>（${pc(x.risk)}） · 止盈 <b style="color:#3fb950">${px(x.tp)}</b>（1.5R）
-      </div>
-      ${x.risk>0.015?'<div class="warn">⚠️ 止损距离 '+pc(x.risk)+'。按 50x 算，价格反向走 '+(x.risk*100/50).toFixed(2)+'% 即爆仓；20x 需走 '+(x.risk*100/20).toFixed(2)+'%。建议降杠杆。</div>':''}
-    </div>`;
-  }).join('')+`<div class="card sub">扫 ${list.length} 只 · 达标 ${out.length} 只<br><br>淘汰明细：<br>${rej.map(x=>'· '+x).join('<br>')}</div>`;
+/* ========== 窗口一主流程 ========== */
+async function runWindow1(force){
+  const mode=$('mode').value;
+  const cc=Math.min(Math.max(parseInt($('cc').value)||4,1),10);
+  if(!force && localStorage.getItem(K_DAY)===today() && localStorage.getItem(K_POOL)){
+    POOL=JSON.parse(localStorage.getItem(K_POOL));
+    META=JSON.parse(localStorage.getItem(K_META)||'{}');
+    st('st1','✅ 今天已扫过，池内 <b>'+POOL.length+'</b> 只（'+today()+'）。要重来点「强制重扫」。直接去窗口二跑 15F。','o');
+    renderPool(); return;
+  }
+  if(localStorage.getItem(K_DAY)&&localStorage.getItem(K_DAY)!==today()&&localStorage.getItem(K_POOL)){
+    st('st1','⚠️ 池是 '+localStorage.getItem(K_DAY)+' 的旧数据，已过期，正在重扫...','w');
+  }
+  st('st1','<span class="sp"></span>抓取合约榜（真实成交额）...');
+  const t0=Date.now();
+  const r=await okx('/api/v5/market/tickers?instType=SWAP');
+  if(r.err){ st('st1','❌ 抓取失败：'+r.err+'<br>若在 github.io 上被拦，把文件下载到本地双击打开（本地无跨域限制）。','e'); return }
+  let list=r.data.filter(x=>x.instId.endsWith('USDT-SWAP')).map(x=>{
+    const volUsd=num(x.volCcyQuote24h)||0;
+    const pr=num(x.last)||0;
+    return{instId:x.instId,base:x.instId.split('-')[0],volUsd:volUsd,last:pr};
+  }).sort((a,b)=>b.volUsd-a.volUsd).slice(0,100).map((x,i)=>({...x,rank:i+1}));
 
-  st('✅ 扫 '+list.length+' 只 · 达标 '+out.length+' 只 · 首选 '+out[0].base+' '+out[0].dir,'o');
+  if(!list.length){ st('st1','❌ 过滤后无 USDT 永续合约，检查接口返回。','e'); return }
+  localStorage.setItem(K_META,JSON.stringify(META={}));
+  const keep=[],rej=[];let done=0;
+  for(let i=0;i<list.length;i+=cc){
+    const batch=list.slice(i,i+cc);
+    await Promise.all(batch.map(async it=>{
+      const k=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=1D&limit=40`);
+      if(k.err){ rej.push(it.base+'：取数 '+k.err); return }
+      if(!k.data||k.data.length<G.MIN_BARS){ rej.push(it.base+'：日线仅'+(k.data?k.data.length:0)+'根<'+G.MIN_BARS+'（新币/停牌）'); return }
+      const p=parseK(k.data);
+      if(p.err){ rej.push(it.base+'：'+p.err); return }
+      const d=daily(p);
+      if(d.err){ rej.push(it.base+'：'+d.err); return }
+      if(mode==='strict'&&d.kind!=='strict'){ rej.push(it.base+'：非严格多（'+(d.kind==='trend'?'仅趋势多':'空头/缠绕')+'）'); return }
+      if(mode==='trend'&&d.kind==='strict'){}
+      keep.push({...it,kind:d.kind,last:d.last,e5:d.e5,e20:d.e20,bias:d.bias});
+    }));
+    done+=batch.length;
+    st('st1','<span class="sp"></span>日线扫描 '+done+'/'+list.length+' · 已留存 '+keep.length);
+    if(i+cc<list.length) await sleep(220);
+  }
+  keep.sort((a,b)=>a.rank-b.rank);
+  POOL=keep; META={}; keep.forEach(x=>META[x.base]={volUsd:x.volUsd,rank:x.rank});
+  localStorage.setItem(K_POOL,JSON.stringify(POOL));
+  localStorage.setItem(K_META,JSON.stringify(META));
+  localStorage.setItem(K_DAY,today());
+  const ns=keep.filter(x=>x.kind==='strict').length, nt=keep.length-ns;
+  const bad=rej.filter(x=>/漂移|NaN|脉冲|取数|逻辑错/.test(x)).length;
+  st('st1','✅ 扫 '+list.length+' 只 · 留存 <b>'+keep.length+'</b> 只（严格多 '+ns+' · 趋势多 '+nt+'）· 淘汰 '+rej.length+
+     (bad?'（其中脏数据 '+bad+'）':'')+' · 耗时 '+((Date.now()-t0)/1000).toFixed(0)+'s<br>'+today()+' 已锁定，当日不再重扫。去窗口二。','o');
+  renderPool(rej);
+}
+
+function renderPool(rej){
+  if(!POOL.length){ $('out1').innerHTML='<div class="empty">今日无多头趋势币留存。</div>'; return }
+  let h='<div class="card sub" style="border-color:#2f6f3e;color:#3fb950">当日留存池（按【真实24h成交额】排名）<br>'+
+    POOL.map(x=>`<div style="margin-top:6px;color:#c9d1d9"><b class="L">${x.base}</b>`+
+      `<span class="tag${x.kind==='trend'?' tagT':''}">${x.kind==='strict'?'严格多':'趋势多'}</span> `+
+      `<span class="sub">#${x.rank} ${vol(x.volUsd)} 收${px(x.last)} EMA5 ${px(x.e5)}/EMA20 ${px(x.e20)} 乖离${pc(x.bias)}</span></div>`).join('')+'</div>';
+  if(rej&&rej.length) h+='<div class="card sub">淘汰明细（前30）：<br>'+rej.slice(0,30).map(x=>'· '+x).join('<br>')+'</div>';
+  $('out1').innerHTML=h;
+}
+
+/* ========== 窗口二：支持做多/做空双模式 ========== */
+$('f2').onclick=async()=>{
+  const scanMode=$('scanMode').value;
+  if(!POOL.length){
+    const r=localStorage.getItem(K_POOL);
+    if(!r){ st('st2','⚠️ 窗口一还没跑，先去选池。','e'); return }
+    POOL=JSON.parse(r); META=JSON.parse(localStorage.getItem(K_META)||'{}');
+  }
+  const tol=Math.max(0,(parseFloat($('tol').value)||0)/100);
+  const hits=[],miss=[];
+  st('st2','<span class="sp"></span>池内 '+POOL.length+' 只，模式：'+(scanMode==="long"?"做多":"做空")+'，跑15F...');
+  $('out2').innerHTML='';
+
+  for(let i=0;i<POOL.length;i++){
+    const it=POOL[i];
+    st('st2','<span class="sp"></span>15F '+(i+1)+'/'+POOL.length+' · '+it.base);
+    const k=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=11`);
+    if(k.err){ miss.push(it.base+'：'+k.err); continue }
+    if(!k.data||k.data.length<11){ miss.push(it.base+'：15F仅'+(k.data?k.data.length:0)+'根'); continue }
+    const p=parseK(k.data);
+    if(p.err){ miss.push(it.base+'：'+p.err); continue }
+
+    const n=p.c.length-1, L=n-9;
+    let minL=Infinity,maxH=-Infinity;
+    for(let j=L;j<=n;j++){
+      if(p.l[j]<minL)minL=p.l[j];
+      if(p.h[j]>maxH)maxH=p.h[j];
+    }
+    const last=p.c[n], prev=p.c[n-1];
+    const drift=Math.abs(last-it.last)/it.last;
+    if(drift>0.08){ miss.push(it.base+'：现价漂移'+pc(drift)+'（榜'+px(it.last)+' vs K线'+px(last)+'）'); continue }
+
+    let ok=false,stop,tp,risk,gap,touch;
+    if(scanMode==="long"){
+      // 做多：收盘靠近区间最低
+      gap=(last-minL)/minL;
+      if(last <= minL*(1+tol)) ok=true;
+      else { miss.push(it.base+'：末根'+px(last)+'高于区间低 '+px(minL)+'（差'+pc(gap)+'）');continue; }
+      stop=minL;
+      risk=(last-stop)/last;
+      tp=last+(last-stop)*1.5;
+      touch = prev<=it.e5*1.003;
+    }else{
+      // 做空：收盘靠近区间最高
+      gap=(maxH-last)/maxH;
+      if(last >= maxH*(1-tol)) ok=true;
+      else { miss.push(it.base+'：末根'+px(last)+'低于区间高 '+px(maxH)+'（差'+pc(gap)+'）');continue; }
+      stop=maxH;
+      risk=(stop-last)/last;
+      tp=last-(stop-last)*1.5;
+      touch = prev>=it.e5*0.997;
+    }
+    hits.push({...it,scanMode,last,minL,maxH,prev,stop,tp,risk,gap,touch,e5:it.e5});
+    await sleep(120);
+  }
+  hits.sort((a,b)=>a.rank-b.rank);
+  if(!hits.length){
+    st('st2','⚠️ 池内 '+POOL.length+' 只，'+(scanMode==='long'?'做多':'做空')+' 达标 0 只。','e');
+    $('out2').innerHTML='<div class="card sub">没有满足条件K线（或数据不同步）：<br>'+miss.slice(0,25).map(x=>'· '+x).join('<br>')+'</div>';
+    return;
+  }
+  // 渲染输出，区分多空样式
+  let html='';
+  hits.forEach((x,i)=>{
+    if(x.scanMode==='long'){
+      html+=`<div class="card" style="border-color:#2f6f3e">
+        <div class="t L">${x.base} <span style="font-size:13px" class="sub">🔵做多 · 榜#${x.rank} · ${vol(x.volUsd)}</span></div>
+        ${i===0?'<div class="sub" style="color:#ff9f0a">成交额最靠前 · 优先看这只</div>':''}
+        <div class="info">
+          现价 <b>${px(x.last)}</b> · 日线 EMA5 ${px(x.e5)}<br>
+          15F：末根收盘 ${px(x.last)} ≈10根区间低 ${px(x.minL)}（差 ${pc(x.gap)}）<br>
+          影线：${x.touch?'<span class="L">下影精准回踩EMA5后收回</span>':'<span class="sub">未触EMA5，直接压在区间低</span>'}<br>
+          止损 <b class="S">${px(x.stop)}</b>（${pc(x.risk)}） · 止盈 <b class="L">${px(x.tp)}</b>（1.5R）
+          ${x.risk>0.015?`<br><span class="warn" style="margin:6px 0 0">止损距 ${pc(x.risk)}：50x 下本金波动约 ${pc(x.risk*50)}，20x 约 ${pc(x.risk*20)}。杠杆越高越容易被扫。</span>`:''}
+        </div>
+      </div>`;
+    }else{
+      html+=`<div class="card" style="border-color:#da3633">
+        <div class="t S">${x.base} <span style="font-size:13px" class="sub">🔴做空 · 榜#${x.rank} · ${vol(x.volUsd)}</span></div>
+        ${i===0?'<div class="sub" style="color:#ff9f0a">成交额最靠前 · 优先看这只</div>':''}
+        <div class="info">
+          现价 <b>${px(x.last)}</b> · 日线 EMA5 ${px(x.e5)}<br>
+          15F：末根收盘 ${px(x.last)} ≈10根区间高 ${px(x.maxH)}（差 ${pc(x.gap)}）<br>
+          影线：${x.touch?'<span class="S">上影反弹触碰EMA5后回落</span>':'<span class="sub">未触EMA5，直接压在区间高位</span>'}<br>
+          止损 <b class="L">${px(x.stop)}</b>（${pc(x.risk)}） · 止盈 <b class="S">${px(x.tp)}</b>（1.5R）
+          ${x.risk>0.015?`<br><span class="warnShort" style="margin:6px 0 0">止损距 ${pc(x.risk)}：50x 下本金波动约 ${pc(x.risk*50)}，20x 约 ${pc(x.risk*20)}。杠杆越高越容易被扫。</span>`:''}
+        </div>
+      </div>`;
+    }
+  });
+  if(miss.length) html+=`<div class="card sub">未达标（${miss.length}）：<br>${miss.slice(0,25).map(x=>'· '+x).join('<br>')}</div>`;
+  $('out2').innerHTML=html;
+  st('st2','✅ 池 '+POOL.length+' 只 · '+(scanMode==="long"?"做多":"做空")+'达标 '+hits.length+' 只 · 首选 '+hits[0].base,'o');
 };
 
-$('f3').onclick=()=>{localStorage.removeItem(KEY);C=null;$('out').innerHTML='';st('缓存已清空')};
-const r=localStorage.getItem(KEY);if(r){C=JSON.parse(r);st('已缓存 '+C.list.length+' 只，可直接扫描','o')}
+/* ========== 绑定事件 ========== */
+$('f1').onclick=()=>runWindow1(false);
+$('refreshVol').onclick=refreshVolumeOnly;
+$('f1b').onclick=()=>{ if(confirm('忽略当日缓存，重新抓榜并扫日线？')) runWindow1(true); };
+$('f2c').onclick=()=>{
+  localStorage.removeItem(K_POOL);localStorage.removeItem(K_DAY);localStorage.removeItem(K_META);
+  POOL=[];META={};$('out1').innerHTML='';$('out2').innerHTML='';
+  st('st1','池已清空，可重新抓取。');st('st2','等窗口一留存池。');
+};
+
+/* ========== 初始化 ========== */
+(function init(){
+  const p=localStorage.getItem(K_POOL), d=localStorage.getItem(K_DAY);
+  if(p){
+    POOL=JSON.parse(p); META=JSON.parse(localStorage.getItem(K_META)||'{}');
+    if(d===today()){ st('st1','✅ 今日（'+today()+'）池内 '+POOL.length+' 只，可直接去窗口二。要重来点「强制重扫」。','o'); }
+    else { st('st1','⚠️ 存在 '+d+' 的旧池（'+POOL.length+' 只），已过期。点抓取重扫当日数据。','w'); }
+    renderPool();
+  }
+})();
 </script>
 </body>
 </html>
