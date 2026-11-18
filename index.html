@@ -1,186 +1,181 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>OKX 成交额前100 推荐</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OKX 榜单推荐</title>
 <style>
-  :root { --bg:#0b0f14; --box:#11161d; --line:#1f2933; --txt:#e6edf3; --sub:#7d8590; --up:#2ea043; --down:#f85149; --yel:#f0b72a; }
-  body { background:var(--bg); color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; margin:0; padding:16px; font-size:14px; }
-  .panel { background:var(--box); border:1px solid var(--line); border-radius:12px; padding:16px; max-width:480px; margin:0 auto; }
-  .btn { display:block; width:100%; padding:14px; margin-bottom:10px; border-radius:10px; border:none; background:var(--yel); color:#000; font-weight:700; font-size:15px; cursor:pointer; }
-  .btn:disabled { opacity:.6; }
-  .btn-dark { background:#1c232c; color:var(--txt); margin-top:4px; }
-  .row { display:flex; align-items:center; margin:12px 0; gap:10px; }
-  .row span { color:var(--sub); font-size:13px; }
-  input, select { background:#0b0f14; border:1px solid var(--line); color:var(--txt); padding:10px; border-radius:8px; font-size:15px; outline:none; }
-  input { width:70px; text-align:center; }
-  select { width:140px; }
-  #status { margin-top:12px; color:var(--yel); font-weight:600; word-break:break-all; }
-  .card { margin-top:16px; border:1px solid var(--line); border-radius:12px; padding:16px; background:#0d1218; }
-  .top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
-  .sym { font-size:22px; font-weight:800; }
-  .sub { color:var(--sub); font-size:12px; margin-top:4px; }
-  .dir { font-size:18px; font-weight:700; text-align:right; }
-  .up { color:var(--up); } .down { color:var(--down); } .none { color:var(--sub); }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; font-size:13px; }
-  .grid div { color:var(--sub); } .grid b { color:var(--txt); font-weight:600; text-align:right; display:block; }
-  .toggle { margin-top:14px; color:var(--yel); cursor:pointer; font-size:13px; }
-  .reason { margin-top:8px; color:var(--sub); font-size:12px; line-height:1.6; }
-  .hidden { display:none; }
-  .top10 { margin-top:10px; color:var(--sub); font-size:12px; }
+:root{--bg:#0b0f14;--card:#121821;--line:#1f2937;--txt:#e5e7eb;--sub:#9ca3af;--up:#22c55e;--down:#ef4444}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px;margin:0}
+.box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.btn{display:block;width:100%;padding:14px;border-radius:10px;border:none;font-size:16px;font-weight:700;margin-bottom:10px;cursor:pointer}
+.btn-o{background:#f59e0b;color:#000}
+.btn-o:disabled{opacity:.6}
+.btn-d{background:#1f2937;color:var(--txt);margin-bottom:0}
+.row{display:flex;align-items:center;gap:10px;margin:14px 0}
+input,select{background:#0b0f14;border:1px solid var(--line);color:var(--txt);padding:10px;border-radius:8px;font-size:15px}
+select{width:130px}
+.status{margin-top:12px;color:#f59e0b;font-size:14px;word-break:break-all}
+.card{background:#0f1419;border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
+.sym{font-size:22px;font-weight:800}
+.sub{color:var(--sub);font-size:12px;margin-top:4px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.dir{font-size:18px;font-weight:700;text-align:right}
+.dir.up{color:var(--up)} .dir.down{color:var(--down)} .dir.none{color:var(--sub)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:13px}
+.grid div{color:var(--sub)} .grid b{font-weight:600}
+.toggle{margin-top:10px;color:#f59e0b;font-size:13px;cursor:pointer}
+.reason{margin-top:8px;font-size:13px;color:var(--txt);line-height:1.6}
+.hidden{display:none}
+.top10{margin-top:10px;color:var(--sub);font-size:12px}
 </style>
 </head>
 <body>
-<div class="panel">
-  <button class="btn" id="btnList">📥 抓取今日成交额前100（每日一次）</button>
-  <button class="btn" id="btnRec">🎯 推荐一只（轻量刷新实时价 + 前N评分）</button>
-  <button class="btn btn-dark" id="btnClear">🗑️ 清空缓存</button>
-  <div class="row">
-    <span>推荐范围：前</span><input id="range" value="100"><span>名（留空=100）</span>
-  </div>
-  <div class="row">
-    <span>K线周期：</span>
-    <select id="bar">
+<div class="box">
+  <button class="btn btn-o" id="btnList">📥 抓取今日成交额前100（每日一次）</button>
+  <button class="btn btn-o" id="btnRec">🎯 推荐一只（轻量刷新实时价 + 前N评分）</button>
+  <button class="btn btn-d" id="btnClear">🗑 清空缓存</button>
+  <div class="row"><span>推荐范围：前</span><input id="rangeIn" value="10" style="width:70px"><span>名（留空=100）</span></div>
+  <div class="row"><span>K线周期：</span>
+    <select id="barIn">
       <option value="1D" selected>日线 (1D)</option>
       <option value="4H">4小时 (4H)</option>
       <option value="1H">1小时 (1H)</option>
       <option value="15m">15分钟 (15m)</option>
     </select>
   </div>
-  <div id="status">初始化中...</div>
-  <div id="result"></div>
+  <div class="status" id="status">初始化...</div>
 </div>
+<div id="result"></div>
 
 <script>
-const $ = id => document.getElementById(id);
-const bjDate = () => new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
+const $=(id)=>document.getElementById(id);
+const STORE='okx_top100';
+let cache=null;
 
-// 强制超时 + 多代理兜底 (解决 github.io 跨域与 5G 挂起)
-async function req(url, ms=6000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), ms);
-  // 代理池轮询
-  const proxies = [
-    u => u, // 直连
-    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-    u => `https://corsproxy.io/?${encodeURIComponent(u)}`
-  ];
-  let lastErr = '';
-  for (let i=0; i<proxies.length; i++) {
-    try {
-      const res = await fetch(proxies[i](url), {signal: ctrl.signal, cache:'no-store'});
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch(e) {
-      lastErr = e.name==='AbortError' ? '超时' : e.message;
-    }
+const bjDate=()=>new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
+const fmt=n=>n?n.toLocaleString(undefined,{maximumFractionDigits:0}):'0';
+const px=(p,s)=>parseFloat(p).toFixed(s==='BTC'||s==='ETH'?2:4);
+const pct=p=>(p>=0?'+':'')+(p*100).toFixed(2)+'%';
+
+function loadCache(){try{const d=localStorage.getItem(STORE);return d?JSON.parse(d):null}catch{return null}}
+function saveCache(list){localStorage.setItem(STORE,JSON.stringify({date:bjDate(),list}))}
+
+async function fetchWithTimeout(url,ms=6000){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);
+  try{const r=await fetch(url,{signal:c.signal});clearTimeout(t);return r}catch(e){clearTimeout(t);throw e}
+}
+async function getJSON(url){
+  const r=await fetchWithTimeout(url);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+async function fetchList(){
+  $('status').innerText='抓取榜单中...';
+  try{
+    const url='https://www.okx.com/api/v5/market/tickers?instType=SPOT';
+    const data=await getJSON(url);
+    const list=data.data.filter(x=>x.instId.endsWith('-USDT')).sort((a,b)=>parseFloat(b.volCcy24h)-parseFloat(a.volCcy24h)).slice(0,100).map(x=>({base:x.instId.split('-')[0],instId:x.instId,volCcy24h:x.volCcy24h,last:x.last,chgPct:x.chgPct}));
+    cache={date:bjDate(),list};saveCache(list);
+    $('status').innerText=`✅ 榜单已存(${list.length}只) · ${cache.date}`;
+  }catch(e){
+    // 代理兜底
+    try{
+      const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent('https://www.okx.com/api/v5/market/tickers?instType=SPOT');
+      const data=await getJSON(proxy);
+      const list=data.data.filter(x=>x.instId.endsWith('-USDT')).sort((a,b)=>parseFloat(b.volCcy24h)-parseFloat(a.volCcy24h)).slice(0,100).map(x=>({base:x.instId.split('-')[0],instId:x.instId,volCcy24h:x.volCcy24h,last:x.last,chgPct:x.chgPct}));
+      cache={date:bjDate(),list};saveCache(list);
+      $('status').innerText=`✅ 榜单已存(代理·${list.length}只) · ${cache.date}`;
+    }catch(e2){throw new Error('抓取失败: '+e.message+' / '+e2.message)}
   }
-  clearTimeout(t);
-  throw new Error(lastErr || '全部代理失败');
 }
 
-function fmt(n){return n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(2)+'K':(n||0).toFixed(0);}
-function px(p,s){if(!p)return'-';const f=s==='BTC'||s==='ETH'?2:4;return Number(p).toFixed(f);}
-function pct(p){if(p==null)return'-';return(p>0?'+':'')+(p*100).toFixed(2)+'%';}
-
-// 缓存
-function loadCache(){try{return JSON.parse(localStorage.getItem('okx_top100'));}catch{return null;}}
-function saveCache(list){localStorage.setItem('okx_top100', JSON.stringify({date:bjDate(), list}));}
-
-// 抓取榜单
-async function fetchList() {
-  $('status').innerText = '抓取榜单中(自动跨域)...';
-  const data = await req('https://www.okx.com/api/v5/market/tickers?instType=SPOT');
-  const list = data.data.filter(x => x.instId.endsWith('-USDT') && !x.instId.includes('USDC'))
-    .sort((a,b) => parseFloat(b.volCcy24h) - parseFloat(a.volCcy24h))
-    .slice(0, 100)
-    .map(x => ({inst:x.instId, base:x.instId.split('-')[0], vol:parseFloat(x.volCcy24h), last:parseFloat(x.last), chg:parseFloat(x.chgPct24h)}));
-  saveCache(list);
-  $('status').innerText = `✅ 榜单已存(${list.length}只) · ${bjDate()}`;
-  return list;
-}
-
-// 指标计算
-function calcK(j, bar) {
-  const closes=j.map(x=>parseFloat(x[4])), opens=j.map(x=>parseFloat(x[1])), highs=j.map(x=>parseFloat(x[2])), lows=j.map(x=>parseFloat(x[3])), vols=j.map(x=>parseFloat(x[5]));
-  const ema=(a,p)=>{let e=a[0];for(let i=1;i<a.length;i++)e=e*(1-p)+a[i]*p;return e;};
-  const e20=ema(closes,2/(21)), e50=ema(closes,2/(51)), e200=closes.length>=200?ema(closes,2/(201)):e50;
-  const meanC=closes.slice(-26).reduce((s,v)=>s+v,0)/26;
-  const macdC=closes.map((c,i)=>{const f=closes.slice(0,i+1),e1=ema(f,2/13),e2=ema(f,2/27);return e1-e2;});
-  const dif=macdC[closes.length-1], dea=ema(macdC.slice(-9),2/10), macd=(dif-dea)*2;
-  let up=0,dn=0;for(let i=1;i<closes.length;i++){const t=closes[i]-closes[i-1];if(t>0)up+=t;else dn-=t;}
-  const rsi=100-(100/(1+(up/dn||1)));
-  let tr=[],dmUp=[],dmDn=[];for(let i=1;i<closes.length;i++){tr.push(Math.max(highs[i]-lows[i],Math.abs(highs[i]-closes[i-1]),Math.abs(lows[i]-closes[i-1])));dmUp.push(highs[i]-highs[i-1]>lows[i-1]-lows[i]?Math.max(highs[i]-highs[i-1],0):0);dmDn.push(lows[i-1]-lows[i]>highs[i]-highs[i-1]?Math.max(lows[i-1]-lows[i],0):0);}
-  const atr=tr.slice(-14).reduce((s,v)=>s+v,0)/14, adx=Math.abs(dmUp.slice(-14).reduce((s,v)=>s+v,0)-dmDn.slice(-14).reduce((s,v)=>s+v,0))/(dmUp.slice(-14).reduce((s,v)=>s+v,0)+dmDn.slice(-14).reduce((s,v)=>s+v,0)||1)*100;
-  const volR=vols.slice(-5).reduce((s,v)=>s+v,0)/5/(vols.slice(-20).reduce((s,v)=>s+v,0)/20||1);
-  const last=closes[closes.length-1], o=opens[closes.length-1], h=highs[closes.length-1], l=lows[closes.length-1];
-  const body=Math.abs(last-o), rng=h-l||1, upSh=h-Math.max(last,o), dnSh=Math.min(last,o)-l;
-  return {e20,e50,e200,dif,macd,rsi,adx,volR,upSh:upSh/rng,dnSh:dnSh/rng,last,meanC,atr};
-}
-
-// 推荐
-async function recommend() {
-  const cache = loadCache();
-  if (!cache) { $('status').innerText = '⚠️ 无缓存，先点【抓取】'; return; }
-  let range = parseInt($('range').value)||100;
-  const bar = $('bar').value;
-  $('status').innerText = `轻量刷新 + 评分前${range} (${bar})...`;
-  
-  const topN = cache.list.slice(0, range);
-  const scored = [];
-  for (const it of topN) {
-    try {
-      const [tk, kd] = await Promise.all([
-        req(`https://www.okx.com/api/v5/market/ticker?instId=${it.inst}`),
-        req(`https://www.okx.com/api/v5/market/candles?instId=${it.inst}&bar=${bar}&limit=200`)
-      ]);
-      const t=tk.data[0], k=calcK(kd.data, bar);
-      let s=0, r=[];
-      if(k.e20>k.e50)s+=10,r.push('EMA20>50');
-      if(k.last>k.e20)s+=10,r.push('价站EMA20');
-      if(k.last>k.e200)s+=10,r.push('站上EMA200');
-      if(k.macd>0)s+=15,r.push('MACD多');
-      if(k.rsi>50&&k.rsi<75)s+=10,r.push(`RSI${k.rsi.toFixed(0)}`);
-      if(k.adx>20)s+=10,r.push(`ADX${k.adx.toFixed(0)}`);
-      if(k.volR>1.2)s+=10,r.push(`量比${k.volR.toFixed(1)}`);
-      if(k.upSh<0.3&&k.dnSh<0.3)s+=10,r.push('影线小');
-      const dir=k.macd>0&&k.e20>k.e50?'up':k.macd<0&&k.e20<k.e50?'down':'none';
-      scored.push({...it, ...k, realLast:parseFloat(t.last), realUsd:parseFloat(t.volCcy24h), realChgPct:parseFloat(t.chgPct24h), score:s, reasons:r, dir});
-    } catch(e) {
-      // 单只失败跳过，不阻断整体
-    }
+async function getCandle(instId,bar){
+  const url=`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=200`;
+  try{return await getJSON(url)}catch{
+    const proxy='https://api.allorigins.win/raw?url='+encodeURIComponent(url);
+    return await getJSON(proxy)
   }
+}
+
+function ema(arr,n){let e=arr[0],k=2/(n+1);for(let i=1;i<arr.length;i++)e=arr[i]*k+e*(1-k);return e}
+function macd(c){const e12=ema(c,12),e26=ema(c,26);return e12-e26}
+function rsi(c,n=14){let g=0,b=0;for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];if(d>0)g+=d;else b-=d}return 100-(100/(1+(g/b)))}
+function adx(h,l,c,n=14){let tr=[],dmP=[],dmM=[];for(let i=1;i<c.length;i++){tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));dmP.push(h[i]-h[i-1]>l[i-1]-l[i]?Math.max(h[i]-h[i-1],0):0);dmM.push(l[i-1]-l[i]>h[i]-h[i-1]?Math.max(l[i-1]-l[i],0):0)}const atr=tr.slice(-n).reduce((a,b)=>a+b)/n;return Math.min(100,atr?Math.abs(dmP.slice(-n).reduce((a,b)=>a+b)-dmM.slice(-n).reduce((a,b)=>a+b))/atr*50:0)}
+
+async function scoreOne(item,bar){
+  try{
+    const k=await getCandle(item.instId,bar);
+    const closes=k.data.map(x=>parseFloat(x[4])).reverse();
+    const highs=k.data.map(x=>parseFloat(x[2])).reverse();
+    const lows=k.data.map(x=>parseFloat(x[3])).reverse();
+    const vols=k.data.map(x=>parseFloat(x[5])).reverse();
+    if(closes.length<50)return null;
+    const e20=ema(closes,20),e50=ema(closes,50),e200=closes.length>=200?ema(closes,200):e50;
+    const dif=macd(closes),rs=rsi(closes),ad=adx(highs,lows,closes);
+    const last=closes[closes.length-1],prev=closes[closes.length-2];
+    const upSh=Math.max(0,highs[highs.length-1]-Math.max(last,prev)),dnSh=Math.max(0,Math.min(last,prev)-lows[lows.length-1]);
+    const volR=vols.slice(-5).reduce((a,b)=>a+b)/5/(vols.slice(-20,-5).reduce((a,b)=>a+b)/15||1);
+    let score=0,reasons=[],dir='none';
+    if(last>e20&&e20>e50){score+=25;reasons.push('EMA多头排列')}else if(last<e20&&e20<e50){score+=15;reasons.push('EMA空头')}
+    if(dif>0){score+=20;reasons.push('MACD金叉区')}else{score+=10}
+    if(ad>25){score+=15;reasons.push('ADX>25有趋势')}
+    if(rs>50&&rs<75){score+=15;reasons.push('RSI偏强')}else if(rs>=75){score+=5;reasons.push('⚠RSI超买')}else{score+=8}
+    if(volR>1.2){score+=10;reasons.push('量比放大')}
+    if(upSh<last*0.01&&dnSh<last*0.01){score+=10;reasons.push('影线短')}
+    if(last>e200){score+=5;reasons.push('站上200线')}
+    dir=last>e20?(dif>0?'up':'up'):(dif<0?'down':'down');
+    if(score<55)dir='none';
+    return{...item,e20,e50,e200,dif,rsi:rs,adx:ad,volR,upSh,dnSh,score,dir,reasons,realLast:last,realChgPct:(last/prev-1),realUsd:parseFloat(item.volCcy24h)*last};
+  }catch{return null}
+}
+
+async function recommend(){
+  cache=loadCache();
+  if(!cache||cache.date!==bjDate()){$('status').innerText='⚠️ 无今日缓存，先点【抓取】';return}
+  const range=parseInt($('rangeIn').value)||100;
+  const bar=$('barIn').value;
+  $('status').innerText=`轻量刷新中(前${range}·${bar})...`;
+  const topN=cache.list.slice(0,range);
+  let scored=[],count=0;
+  for(const it of topN){
+    count++;
+    $('status').innerText=`评分中 ${count}/${topN.length}...`;
+    const s=await scoreOne(it,bar);
+    if(s)scored.push(s);
+  }
+  if(!scored.length){$('status').innerText='⚠️ 全部失败，可能网络/代理受限';return}
   scored.sort((a,b)=>b.score-a.score);
-  const top = scored[0];
-  if (!top) { $('status').innerText = '⚠️ 全部请求失败，请重试或清缓存'; return; }
-  
-  const isNone=top.score<55, cls=top.score>=70?'up':isNone?'none':(top.dir==='down'?'down':'up');
-  const failPrice=top.dir==='up'?Math.min(top.e20,top.e50):Math.max(top.e20,top.e50);
+  const top=scored[0];
+  const isNone=top.score<55;
   $('result').innerHTML=`
     <div class="card">
-      <div class="top"><div><div class="sym">${top.base}</div><div class="sub">成交额第${cache.list.indexOf(top)+1}名 / 前${range}（共${cache.list.length}）</div></div>
-        <div class="dir ${cls}">${pct(top.realChgPct)}<br><span class="sub">${top.score}分</span></div></div>
+      <div class="top"><div><div class="sym">${top.base}</div><div class="sub">第${cache.list.indexOf(top)+1}名 / 前${range} · ${cache.list.length}只</div></div>
+        <div class="dir ${isNone?'none':top.dir}">${pct(top.realChgPct)}<br><span class="sub">${top.score}分</span></div></div>
       <div class="grid">
-        <div>现价(实时)</div><b>${px(top.realLast,top.base)}</b>
-        <div>24h成交额</div><b>$${fmt(top.realUsd)}</b>
+        <div>现价</div><b>${px(top.realLast,top.base)}</b>
+        <div>24h额</div><b>$${fmt(top.realUsd)}</b>
         <div>EMA20/50/200</div><b>${px(top.e20,top.base)} / ${px(top.e50,top.base)} / ${px(top.e200,top.base)}</b>
         <div>MACD/RSI/ADX</div><b>${top.dif.toFixed(2)} / ${top.rsi.toFixed(0)} / ${top.adx.toFixed(0)}</b>
         <div>量比/影线</div><b>${top.volR.toFixed(1)} / 上${top.upSh.toFixed(2)}下${top.dnSh.toFixed(2)}</b>
-        <div>失效位</div><b style="color:${top.dir==='down'?'var(--up)':'var(--down)'}">${top.dir==='down'?'站回':'跌破'} ${px(failPrice,top.base)}</b>
+        <div>失效位</div><b>${top.dir==='down'?'站回':'跌破'} ${px(top.dir==='up'?Math.min(top.e20,top.e50):Math.max(top.e20,top.e50),top.base)}</b>
       </div>
       <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 展开推理 ▼</div>
       <div class="reason hidden">${top.reasons.map(r=>`<div>· ${r}</div>`).join('')}</div>
-      <div class="top10">完成 ${scored.length}只 · 最高${top.score}分 · ${isNone?'⚠ <55不做':top.score>=70?'🔥强信号':'弱信号小仓'}</div>
+      <div class="top10">完成${scored.length}只 · 最高${top.score}分 · ${isNone?'⚠<55不做':top.score>=70?'🔥强':'弱'}</div>
     </div>`;
-  $('status').innerText=`✅ 完成 · 前${range} · 最高${top.score}分 · ${new Date().toLocaleTimeString()}`;
+  $('status').innerText=`✅ 完成 · 前${range} · 最高${top.score}分`;
 }
 
-$('btnList').onclick=async()=>{const b=$('btnList');b.disabled=true;try{await fetchList();}catch(e){$('status').innerText='⚠️ 抓取失败:'+e.message;}b.disabled=false;};
-$('btnRec').onclick=async()=>{const b=$('btnRec');b.disabled=true;try{await recommend();}catch(e){$('status').innerText='⚠️ 推荐失败:'+e.message;}b.disabled=false;};
-$('btnClear').onclick=()=>{localStorage.removeItem('okx_top100');$('status').innerText='缓存已清，请重新抓取';};
-(function(){const c=loadCache();$('status').innerText=c?`缓存：${c.date}（${c.list.length}只）${c.date!==bjDate()?' · 需重抓':''} · 点击推荐将轻量刷新`:'无缓存，先点【抓取】';})();
+// 强制绑定（防止被覆盖）
+document.addEventListener('DOMContentLoaded',()=>{
+  cache=loadCache();
+  $('status').innerText=cache?`✅ 榜单已存(${cache.list.length}只) · ${cache.date}${cache.date!==bjDate()?' · 需重抓':''} · 点推荐轻量刷新`:'无缓存，先点【抓取】';
+  $('btnList').addEventListener('click',async()=>{$('btnList').disabled=true;try{await fetchList()}catch(e){$('status').innerText='⚠️ '+e.message}$('btnList').disabled=false});
+  $('btnRec').addEventListener('click',async()=>{$('btnRec').disabled=true;try{await recommend()}catch(e){$('status').innerText='⚠️ 推荐报错: '+e.message}$('btnRec').disabled=false});
+  $('btnClear').addEventListener('click',()=>{localStorage.removeItem(STORE);cache=null;$('status').innerText='缓存已清，请重新抓取'});
+});
 </script>
 </body>
 </html>
