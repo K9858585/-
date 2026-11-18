@@ -1,246 +1,268 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>欧易合约·实时技术选币</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>欧易·双模技术选币</title>
 <style>
-  body{background:#1a1d23;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px;max-width:480px;margin:0 auto}
-  h1{color:#f0b90b;font-size:20px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
-  .sub{color:#848e9c;font-size:12px;margin-bottom:12px;line-height:1.5}
-  .panel{background:#22262d;border:1px solid #2b3139;border-radius:8px;padding:10px;margin-bottom:12px}
-  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-  input,select,button{background:#1a1d23;color:#e0e0e0;border:1px solid #2b3139;border-radius:6px;padding:8px;font-size:14px}
-  input{flex:1}
-  button{background:#f0b90b;color:#1a1d23;font-weight:700;cursor:pointer;border:none;padding:8px 16px}
-  button:disabled{opacity:.5}
-  .card{background:#22262d;border-radius:8px;padding:12px;margin-top:10px;border-left:4px solid #f0b90b}
-  .card.down{border-color:#f6465d}
-  .card.up{border-color:#0ecb81}
-  .score{float:right;font-size:24px;font-weight:800}
+  body{background:#111;color:#eee;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:12px;max-width:680px;margin:0 auto}
+  h1{font-size:20px;color:#f0b90b;margin:0 0 4px}
+  .sub{font-size:12px;color:#888;margin-bottom:12px}
+  .box{border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:16px;background:#181818}
+  .ttl{font-size:15px;font-weight:bold;margin-bottom:10px;color:#fff}
+  input,select,button{background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:8px 10px;font-size:14px;outline:none}
+  input{flex:1;min-width:80px}
+  button{background:#f0b90b;color:#111;font-weight:bold;cursor:pointer;border:none;padding:9px 14px}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+  .card{border:1px solid #333;border-radius:8px;padding:10px;margin-top:10px;background:#1c1c1c}
+  .card.up{border-left:4px solid #0ecb81}
+  .card.down{border-left:4px solid #f6465d}
+  .score{float:right;font-size:22px;font-weight:bold}
   .up .score{color:#0ecb81}
   .down .score{color:#f6465d}
-  .rd{display:flex;justify-content:space-between;margin:6px 0;font-size:13px}
-  .rd span{color:#848e9c}
-  .rd b{font-weight:600}
-  .g{color:#0ecb81}
-  .r{color:#f6465d}
-  .note{color:#848e9c;font-size:11px;margin-top:8px;line-height:1.5}
-  .tag{display:inline-block;background:#2b3139;color:#e0e0e0;padding:2px 6px;border-radius:4px;font-size:11px;margin-right:4px}
-  .err{color:#f6465d;text-align:center;padding:20px}
-  #out{margin-top:12px}
-  .toggle{font-size:12px;color:#f0b90b;cursor:pointer;margin:6px 0}
+  .rd{display:flex;justify-content:space-between;font-size:13px;margin:4px 0;color:#ccc}
+  .rd b{color:#fff;font-weight:500}
+  .g{color:#0ecb81}.r{color:#f6465d}
+  .tag{font-size:11px;background:#333;padding:2px 6px;border-radius:4px;color:#aaa;margin-left:4px}
+  .note{font-size:12px;color:#888;margin-top:6px;line-height:1.5}
+  .err{color:#f6465d;font-size:14px;margin:10px 0}
+  .toggle{cursor:pointer;color:#888;font-size:12px;margin-top:6px}
+  .hidden{display:none}
+  #st{font-size:12px;color:#666;margin-top:8px;text-align:right}
 </style>
 </head>
 <body>
-<h1>🛰️ 成交额池 · 实时技术选币</h1>
-<div class="sub">实时Ticker现价（盘口级）+ 真实成交额(USDT) + 手动触发<br>支持「候选池前N名」或「指定币种」</div>
+<h1>🛰 欧易·双模技术选币</h1>
+<div class="sub">实时Ticker现价(盘口级) + 真实成交额 + 手动触发（无自动搜索）</div>
 
-<div class="panel">
+<!-- 窗口一：成交量排名 -->
+<div class="box">
+  <div class="ttl">① 成交量排名 · 推荐币种</div>
   <div class="row">
-    <input id="inpMode" placeholder="模式：留空=前N名，输入币种=指定(如 BTC,ETH)" style="flex:2">
-    <input id="inpN" placeholder="N" value="10" style="width:50px">
-  </div>
-  <div class="row">
-    <select id="selBar">
+    <input id="inpN" placeholder="输入N（如 10 或 100）" value="10">
+    <select id="bar1">
+      <option value="4H">4小时（波段）</option>
       <option value="1D">日线（趋势）</option>
-      <option value="4H" selected>4小时（波段）</option>
-      <option value="1H">1小时</option>
-      <option value="15m">15分钟</option>
+      <option value="1H">1小时（短线）</option>
     </select>
-    <button id="btnGo">🎯 选币</button>
+    <button id="btnRank">🎯 扫描成交额&推荐</button>
   </div>
-  <div class="note" id="status">就绪（手动触发，不自动搜索）</div>
+  <div id="outRank"></div>
 </div>
 
-<div id="out"></div>
+<!-- 窗口二：指定币种 -->
+<div class="box">
+  <div class="ttl">② 指定币种 · 系统分析</div>
+  <div class="row">
+    <input id="inpSym" placeholder="输入名称（如 BTC 或 BTC,ETH,SATS）">
+    <select id="bar2">
+      <option value="4H">4小时（波段）</option>
+      <option value="1D">日线（趋势）</option>
+      <option value="1H">1小时（短线）</option>
+    </select>
+    <button id="btnSym">🔍 单币技术分析</button>
+  </div>
+  <div id="outSym"></div>
+</div>
+
+<div id="st"></div>
 
 <script>
-const $ = id => document.getElementById(id);
-const fmtPx = (p, sym) => {
-  if (!p || isNaN(p)) return '--';
-  if (sym === 'SATS' || p < 0.0001) return (+p).toFixed(10).replace(/0+$/,'').replace(/\.$/,'');
-  if (p < 1) return (+p).toFixed(4);
-  return (+p).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const BASE = 'https://www.okx.com/api/v5';
+// 工具函数
+const fmtPx = (p,sym) => {
+  if(p==null||isNaN(p)) return '--';
+  if(sym==='SATS'||p<0.01) return (+p).toFixed(8).replace(/0+$/,'');
+  if(p<1) return (+p).toFixed(4);
+  return (+p).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 };
 const fmtUsd = v => {
-  if (!v) return '$0';
-  if (v >= 1e12) return '$' + (v/1e12).toFixed(2) + '万亿';
-  if (v >= 1e8) return '$' + (v/1e8).toFixed(2) + '亿';
-  if (v >= 1e4) return '$' + (v/1e4).toFixed(2) + '万';
-  return '$' + v.toFixed(0);
+  if(v==null||isNaN(v)) return '--';
+  if(v>=1e9) return '$'+(v/1e9).toFixed(2)+'B';
+  if(v>=1e6) return '$'+(v/1e6).toFixed(2)+'M';
+  if(v>=1e3) return '$'+(v/1e3).toFixed(2)+'K';
+  return '$'+v.toFixed(0);
 };
-const pct = v => (v >= 0 ? '+' : '') + (v||0).toFixed(2) + '%';
+const pct = v => (v>=0?'+':'') + (v*100).toFixed(2) + '%';
+const esc = s => (s+'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 
-// 实时Ticker（现价/涨跌/24h币量）
+// 安全获取Ticker（修复报错核心）
 async function getTicker(instId) {
-  const r = await fetch(`https://www.okx.com/api/v5/market/ticker?instId=${instId}`).then(r=>r.json());
-  const t = r.data[0];
-  return { instId, last: +t.last, change24h: +t.change24h, volCcy24h: +t.volCcy24h, ts: t.ts };
-}
-
-// K线（仅算指标）
-async function getKline(instId, bar, limit=150) {
-  const r = await fetch(`https://www.okx.com/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${limit}`).then(r=>r.json());
-  return r.data.map(k => ({ t:+k[0], o:+k[1], h:+k[2], l:+k[3], c:+k[4], v:+k[5] }));
-}
-
-// 指标计算（EMA/MACD/RSI/ADX）
-function calcIndicators(k) {
-  const c = k.map(x=>x.c);
-  let ema20=0, ema50=0, ema200=0;
-  for (let i=0;i<c.length;i++){
-    ema20 = i===0 ? c[0] : c[i]*2/(21) + ema20*(19/21);
-    ema50 = i===0 ? c[0] : c[i]*2/(51) + ema50*(49/51);
-    ema200 = i===0 ? c[0] : c[i]*2/(201) + ema200*(199/201);
-  }
-  // MACD
-  let ema12=0, ema26=0, macd=0, sig=0;
-  for (let i=0;i<c.length;i++){
-    ema12 = i===0?c[0]:c[i]*2/13+ema12*11/13;
-    ema26 = i===0?c[0]:c[i]*2/27+ema26*25/27;
-    macd = ema12-ema26;
-    sig = i===0?macd:sig*0.8+macd*0.2;
-  }
-  const hist = macd-sig;
-  // RSI14
-  let g=0,b=0; for (let i=1;i<c.length;i++){const d=c[i]-c[i-1]; d>0?g+=d:b+=Math.abs(d);}
-  const rsi = 100 - 100/(1+(g/b||1));
-  // ADX14（简化）
-  let adx=0, pdi=0, mdi=0;
-  for (let i=1;i<k.length;i++){
-    const tr = Math.max(k[i].h-k[i].l, Math.abs(k[i].h-k[i-1].c), Math.abs(k[i].l-k[i-1].c));
-    const up = k[i].h-k[i-1].h, dn = k[i-1].l-k[i].l;
-    pdi = up>dn&&up>0 ? up/tr : 0; mdi = dn>up&&dn>0 ? dn/tr : 0;
-    adx = (adx*13 + Math.abs(pdi-mdi)/(pdi+mdi||1)*100)/14;
-  }
-  return { ema20, ema50, ema200, macd:hist, rsi, adx, last:c[c.length-1], prev:c[c.length-2], low3:Math.min(...k.slice(-3).map(x=>x.l)), low7:Math.min(...k.slice(-7).map(x=>x.l)) };
-}
-
-// 评分逻辑
-function score(ind, last, change24h, volRatio) {
-  let s=0, why=[], risk=[];
-  const { ema20, ema50, ema200, macd, rsi, adx, low3, low7 } = ind;
-  // 趋势
-  if (ema20>ema50 && last>ema20) { s+=20; why.push('均线多头排列'); }
-  else if (ema20<ema50 && last<ema20) { s+=15; why.push('均线空头排列'); risk.push('均线压制'); }
-  // MACD
-  if (macd>0 && macd>ind.macd*1.05) { s+=15; why.push('MACD红柱放大'); }
-  else if (macd<0 && macd<ind.macd*1.05) { s+=10; why.push('MACD绿柱放大'); risk.push('动能偏空'); }
-  // RSI
-  if (rsi<30) { s+=10; why.push('RSI超卖('+rsi.toFixed(0)+')'); risk.push('超卖'); }
-  else if (rsi>70) { s-=5; risk.push('RSI偏高'); }
-  // ADX
-  if (adx>25) { s+=10; why.push('ADX'+adx.toFixed(0)+'趋势强'); }
-  // 量价
-  if (volRatio>1.2) { s+=10; why.push('放量('+volRatio.toFixed(1)+'倍)'); }
-  // 位置
-  if (last<ema200*0.95) { s+=5; why.push('年线折价'); }
-  if (last<low7*1.02) { risk.push('近前低'); }
-  // 24h
-  if (change24h>0) s+=5; else s-=5;
-  why.push('24h涨跌 '+pct(change24h));
-  return { s:Math.max(0,Math.min(100,s)), why, risk };
-}
-
-async function run() {
-  const btn = $('btnGo'), out = $('out'), st = $('status');
-  btn.disabled = true; btn.innerText = '⏳ 处理中...';
-  out.innerHTML = '';
   try {
-    const mode = $('inpMode').value.trim();
-    const N = +$('inpN').value || 10;
-    const bar = $('selBar').value;
-    let targets = [];
-    
-    if (mode) {
-      // 指定币种
-      const syms = mode.split(/[,，\s]+/).filter(Boolean);
-      targets = syms.map(s => s.toUpperCase().replace(/USDT$/,'') + '-USDT-SWAP');
-      st.innerText = `指定 ${targets.length} 只，周期 ${bar}...`;
-    } else {
-      // 候选池：先拉永续列表（简化：用常见大盘+动态，实际应拉全部，这里用OKX热门）
-      st.innerText = `拉取候选池(前${N})...`;
-      // 注：真实全量需 /api/v5/public/instruments，此处用常见币+你可扩展
-      const common = ['BTC','ETH','SOL','XRP','DOGE','BNB','ADA','AVAX','TRX','LINK','MATIC','DOT','LTC','BCH','NEAR','ATOM','OP','ARB','SUI','APT','FIL','ETC','XLM','VET','ICP','HBAR','ALGO','AAVE','UNI','XTZ','EOS','THETA','SAND','MANA','AXS','GALA','1INCH','ENJ','BAT','ZEC','DASH','XMR','IOTA','NEO','WAVES','QTUM','ONT','ZRX','COMP','MKR','SNX','YFI','SUSHI','CRV','BAL','REN','KSM','DOT','POLKADOT','CARDANO','SOLANA','RIPPLE','DOGECOIN','BINANCECOIN','TRON','CHAINLINK','POLYGON','AVALANCHE','NEARPROTOCOL','COSMOS','STELLAR','VETECH','FILECOIN','LITECOIN','BITCOINCASH','ETHEREUM','BITCOIN'];
-      const insts = [...new Set(common)].slice(0, 80).map(s => s+'-USDT-SWAP');
-      // 并行拉ticker
-      const ticks = await Promise.all(insts.map(i => getTicker(i).catch(()=>({instId:i,last:0,volCcy24h:0}))));
-      const ranked = ticks.filter(t=>t.last>0).map(t=>({...t, usdt: t.volCcy24h*t.last})).sort((a,b)=>b.usdt-a.usdt).slice(0,N);
-      targets = ranked.map(t=>t.instId);
-      st.innerText = `池: ${ranked[0]?.instId.replace('-USDT-SWAP','')}领先(${fmtUsd(ranked[0]?.usdt)})，周期${bar}...`;
+    const r = await fetch(`${BASE}/market/ticker?instId=${instId}`);
+    const j = await r.json();
+    if(j.code==='0' && j.data && j.data[0]) {
+      const t = j.data[0];
+      // 严格校验 last 存在
+      if(t.last!=null && !isNaN(+t.last)) {
+        return { last:+t.last, change24h:+(t.change24h||0), volCcy24h:+(t.volCcy24h||0), ok:true };
+      }
     }
-    
-    // 分析每只
-    const res = [];
-    for (const instId of targets) {
-      const sym = instId.replace('-USDT-SWAP','');
-      const tk = await getTicker(instId);
-      const k = await getKline(instId, bar, 150).catch(()=>[]);
-      if (!k.length) continue;
-      const ind = calcIndicators(k);
-      const volRatio = k.length>1 ? k[k.length-1].v / (k.slice(-10,-1).reduce((a,b)=>a+b.v,0)/10) : 1;
-      const sc = score(ind, tk.last, tk.change24h, volRatio);
-      res.push({ sym, instId, tk, ind, sc, volRatio, bar });
+    return {ok:false, err:'ticker空'};
+  } catch(e) { return {ok:false, err:e.message}; }
+}
+// K线指标计算
+async function getInd(instId, bar) {
+  try {
+    const r = await fetch(`${BASE}/market/candles?instId=${instId}&bar=${bar}&limit=150`);
+    const j = await r.json();
+    if(j.code!=='0'||!j.data) return null;
+    const k = j.data.reverse().map(d=>({o:+d[1],h:+d[2],l:+d[3],c:+d[4],v:+d[5]}));
+    if(k.length<50) return null;
+    // EMA
+    let e20=0,e50=0,e200=0;
+    for(let i=0;i<k.length;i++){
+      const c=k[i].c;
+      e20=i?e20+(c-e20)*2/(20+1):c;
+      e50=i?e50+(c-e50)*2/(50+1):c;
+      e200=i?e200+(c-e200)*2/(200+1):c;
     }
-    
-    // 排序：上涨（多分） / 下跌（空分）
-    const up = [...res].sort((a,b)=>b.sc.s-a.sc.s)[0];
-    const down = [...res].sort((a,b)=>a.sc.s-b.sc.s)[0];
-    const rev = [...res].filter(x=>x.ind.rsi<35 && x.tk.last<x.ind.ema200*0.98).sort((a,b)=>b.sc.s-a.sc.s)[0];
-    
-    let h = '';
-    // 候选池信息
-    if (!mode) h += `<div class="note">候选池前${N} | 周期${bar} | 成交额=volCcy24h×实时last</div>`;
-    else h += `<div class="note">指定 ${targets.length} 只 | 周期${bar}</div>`;
-    
-    // 最可能上涨
-    if (up) {
-      h += `<div class="card up"><div>🚀 最可能上涨 <span class="score">${up.sc.s}分</span></div>
-        <b>${up.sym}</b> <span class="tag">${up.bar}</span><br>
-        <div class="rd"><span>现价/成交额</span><b>${fmtPx(up.tk.last,up.sym)} · ${fmtUsd(up.tk.volCcy24h*up.tk.last)}</b></div>
-        <div class="rd"><span>24h涨跌</span><b class="${up.tk.change24h>=0?'g':'r'}">${pct(up.tk.change24h)}</b></div>
-        <div class="rd"><span>EMA20/50</span><b>${fmtPx(up.ind.ema20,up.sym)} / ${fmtPx(up.ind.ema50,up.sym)}</b></div>
-        <div class="rd"><span>MACD/ADX/RSI</span><b>${up.ind.macd.toFixed(up.sym==='SATS'?6:2)} / ${up.ind.adx.toFixed(0)} / ${up.ind.rsi.toFixed(0)}</b></div>
-        <div class="toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'">📋 展开推理(${up.sc.why.length}) ▼</div>
-        <div style="display:none;font-size:12px;color:#aaa;margin-top:4px">${up.sc.why.map(w=>'· '+w).join('<br>')}</div>
-        ${up.sc.risk.length?`<div class="note" style="color:#f6465d">⚠️ ${up.sc.risk.join('、')}</div>`:''}
-      </div>`;
+    // MACD
+    let ema12=e20, ema26=e50, macd=0, sig=0, hist=0;
+    for(let i=0;i<k.length;i++){
+      ema12=ema12+(k[i].c-ema12)*2/13;
+      ema26=ema26+(k[i].c-ema26)*2/27;
+      macd=ema12-ema26;
+      sig=sig+(macd-sig)*2/10;
+      hist=2*(macd-sig);
     }
-    // 最可能下跌
-    if (down) {
-      h += `<div class="card down"><div>📉 最可能下跌 <span class="score">${down.sc.s}分</span></div>
-        <b>${down.sym}</b> <span class="tag">${down.bar}</span><br>
-        <div class="rd"><span>现价/成交额</span><b>${fmtPx(down.tk.last,down.sym)} · ${fmtUsd(down.tk.volCcy24h*down.tk.last)}</b></div>
-        <div class="rd"><span>24h涨跌</span><b class="${down.tk.change24h>=0?'g':'r'}">${pct(down.tk.change24h)}</b></div>
-        <div class="rd"><span>EMA20/50</span><b>${fmtPx(down.ind.ema20,down.sym)} / ${fmtPx(down.ind.ema50,down.sym)}</b></div>
-        <div class="rd"><span>MACD/ADX/RSI</span><b>${down.ind.macd.toFixed(down.sym==='SATS'?6:2)} / ${down.ind.adx.toFixed(0)} / ${down.ind.rsi.toFixed(0)}</b></div>
-        <div class="toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='block'?'none':'block'">📋 展开推理(${down.sc.why.length}) ▼</div>
-        <div style="display:none;font-size:12px;color:#aaa;margin-top:4px">${down.sc.why.map(w=>'· '+w).join('<br>')}</div>
-        ${down.sc.risk.length?`<div class="note" style="color:#f6465d">⚠️ ${down.sc.risk.join('、')}</div>`:''}
-      </div>`;
+    // RSI14
+    let gain=0,loss=0;
+    for(let i=1;i<k.length;i++){
+      const ch=k[i].c-k[i-1].c;
+      gain+=Math.max(ch,0); loss+=Math.max(-ch,0);
     }
-    // 超跌反转
-    if (rev) {
-      h += `<div class="card" style="border-color:#f0b90b"><div>🔄 超跌反转候选 <span class="score" style="color:#f0b90b">${rev.sc.s}分</span></div>
-        <b>${rev.sym}</b> RSI${rev.ind.rsi.toFixed(0)} · 年线折价<br>
-        <div class="rd"><span>现价</span><b>${fmtPx(rev.tk.last,rev.sym)}</b></div>
-        <div class="note">抄底需守 ${fmtPx(rev.ind.low7,rev.sym)} 前低，指标仅参考</div>
-      </div>`;
+    const avgG=gain/14, avgL=loss/14;
+    const rsi = avgL===0?100:100-100/(1+avgG/avgL);
+    // ADX简化
+    let adx=0, diP=0, diM=0;
+    for(let i=1;i<k.length;i++){
+      const tr=Math.max(k[i].h-k[i].l, Math.abs(k[i].h-k[i-1].c), Math.abs(k[i].l-k[i-1].c));
+      const up=k[i].h-k[i-1].h, dn=k[i-1].l-k[i].l;
+      diP+=Math.max(up,0); diM+=Math.max(dn,0);
+      adx+=tr;
     }
-    
-    h += `<div class="note" style="margin-top:10px">📌 现价=实时Ticker(last)，与欧易盘口一致；K线仅算EMA/MACD/RSI/ADX<br>📌 不自动搜索，仅你点击「选币」触发</div>`;
-    out.innerHTML = h;
-    st.innerText = `完成 | 分析 ${res.length} 只 | ${new Date().toLocaleTimeString()}`;
-  } catch (e) {
-    out.innerHTML = `<div class="err">❌ ${e.message}</div>`;
-    st.innerText = '失败';
-  }
-  btn.disabled = false; btn.innerText = '🎯 选币';
+    adx = adx?(diP+diM)/adx*100:0;
+    return {ema20:e20,ema50:e50,ema200:e200,macd:hist,rsi,adx,low7:Math.min(...k.slice(-7).map(x=>x.l)),low3:Math.min(...k.slice(-3).map(x=>x.l)),lastC:k[k.length-1].c};
+  } catch(e) { return null; }
+}
+// 评分
+function score(ind, tk, sym) {
+  let s=0, why=[], risk=[];
+  const {ema20,ema50,ema200,macd,rsi,adx,low7,low3,lastC} = ind;
+  const last = tk.last;
+  // 均线
+  if(ema20>ema50) { s+=15; why.push("EMA20>50多头"); } else { s-=10; why.push("EMA20<50空头"); risk.push("均线空头"); }
+  if(last>ema20) { s+=10; why.push("价在EMA20上"); } else { s-=5; why.push("价压EMA20下"); }
+  if(last>ema200) s+=10; else s-=10;
+  // MACD
+  if(macd>0) { s+=10; why.push("MACD红柱"); } else { s-=10; why.push("MACD绿柱"); }
+  // RSI
+  if(rsi<30) { s+=5; why.push("RSI超卖"+rsi.toFixed(0)); risk.push("超卖"); } 
+  else if(rsi>70) { s-=5; why.push("RSI超买"+rsi.toFixed(0)); risk.push("超买"); }
+  else why.push("RSI中性"+rsi.toFixed(0));
+  // ADX
+  if(adx>25) { s+=5; why.push("ADX趋势"+adx.toFixed(0)); } else { s-=5; why.push("ADX震荡"+adx.toFixed(0)); }
+  // 量/价
+  const chg24 = tk.change24h||0;
+  if(chg24>0.02) s+=5; else if(chg24<-0.02) s-=5;
+  why.push("24h涨跌"+pct(chg24));
+  return {s:Math.max(0,Math.min(100,s)), why, risk, ind, tk};
 }
 
-$('btnGo').onclick = run;
-// 不自动执行，完全等你输入+点击
+// 窗口一：排名推荐
+$('btnRank').onclick = async () => {
+  const btn=$('btnRank'), out=$('outRank'), N=parseInt($('inpN').value)||10, bar=$('bar1').value;
+  btn.disabled=true; btn.innerText='扫描中...'; out.innerHTML='';
+  try {
+    // 获取永续列表
+    const r = await fetch(`${BASE}/public/instruments?instType=SWAP&state=live`);
+    const j = await r.json();
+    const swaps = j.data.filter(d=>d.instId.endsWith('-USDT-SWAP')).slice(0, 200); // 限制200只
+    // 批量ticker（分组避免限频）
+    const tks = [];
+    for(let i=0;i<swaps.length;i+=20){
+      const batch = swaps.slice(i,i+20);
+      const res = await Promise.all(batch.map(s=>getTicker(s.instId)));
+      res.forEach((t,k)=>{ if(t.ok) tks.push({instId:batch[k].instId, sym:batch[k].instId.split('-')[0], ...t}); });
+      if(i+20<swaps.length) await new Promise(r=>setTimeout(r,200));
+    }
+    // 真实成交额排序
+    const ranked = tks.map(t=>({...t, usdt:t.volCcy24h*t.last})).sort((a,b)=>b.usdt-a.usdt).slice(0,N);
+    if(ranked.length===0) { out.innerHTML='<div class="err">无有效数据</div>'; return; }
+    // 指标分析（取前几只）
+    const top = ranked.slice(0, Math.min(5,N));
+    let up=null, down=null;
+    for(const t of top) {
+      const ind = await getInd(t.instId, bar);
+      if(!ind) continue;
+      const sc = score(ind, t, t.sym);
+      if(!up || sc.s>up.sc.s) up={sym:t.sym, tk:t, ind, sc, bar};
+      if(!down || sc.s<down.sc.s) down={sym:t.sym, tk:t, ind, sc, bar};
+      await new Promise(r=>setTimeout(r,100));
+    }
+    // 渲染
+    let h = `<div class="note">候选池：${ranked.map((t,i)=>`${i+1}.${t.sym}(${fmtUsd(t.usdt)})`).join(' | ')}</div>`;
+    if(up) h += `<div class="card up"><div>🚀 最可能上涨 <span class="score">${up.sc.s}分</span></div>
+      <b>${up.sym}</b> <span class="tag">${up.bar}</span><br>
+      <div class="rd"><span>现价/成交额</span><b>${fmtPx(up.tk.last,up.sym)} · ${fmtUsd(up.tk.volCcy24h*up.tk.last)}</b></div>
+      <div class="rd"><span>24h涨跌</span><b class="${up.tk.change24h>=0?'g':'r'}">${pct(up.tk.change24h)}</b></div>
+      <div class="rd"><span>EMA20/50</span><b>${fmtPx(up.ind.ema20,up.sym)} / ${fmtPx(up.ind.ema50,up.sym)}</b></div>
+      <div class="rd"><span>MACD/ADX/RSI</span><b>${up.ind.macd.toFixed(up.sym==='SATS'?6:2)} / ${up.ind.adx.toFixed(0)} / ${up.ind.rsi.toFixed(0)}</b></div>
+      <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 展开推理 ▼</div>
+      <div class="hidden" style="font-size:12px;color:#aaa;margin-top:4px">${up.sc.why.map(w=>'· '+w).join('<br>')}</div>
+    </div>`;
+    if(down && down.sym!==up.sym) h += `<div class="card down"><div>📉 最可能下跌 <span class="score">${down.sc.s}分</span></div>
+      <b>${down.sym}</b> <span class="tag">${down.bar}</span><br>
+      <div class="rd"><span>现价/成交额</span><b>${fmtPx(down.tk.last,down.sym)} · ${fmtUsd(down.tk.volCcy24h*down.tk.last)}</b></div>
+      <div class="rd"><span>24h涨跌</span><b class="${down.tk.change24h>=0?'g':'r'}">${pct(down.tk.change24h)}</b></div>
+      <div class="rd"><span>EMA20/50</span><b>${fmtPx(down.ind.ema20,down.sym)} / ${fmtPx(down.ind.ema50,down.sym)}</b></div>
+      <div class="rd"><span>MACD/ADX/RSI</span><b>${down.ind.macd.toFixed(down.sym==='SATS'?6:2)} / ${down.ind.adx.toFixed(0)} / ${down.ind.rsi.toFixed(0)}</b></div>
+      <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 展开推理 ▼</div>
+      <div class="hidden" style="font-size:12px;color:#aaa;margin-top:4px">${down.sc.why.map(w=>'· '+w).join('<br>')}</div>
+      ${down.sc.risk.length?`<div class="note" style="color:#f6465d">⚠️ ${down.sc.risk.join('、')}</div>`:''}
+    </div>`;
+    out.innerHTML = h;
+    $('st').innerText = `完成 | 池${ranked.length}只 | ${new Date().toLocaleTimeString()}`;
+  } catch(e) {
+    out.innerHTML = `<div class="err">❌ ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.innerText='🎯 扫描成交额&推荐';
+};
+
+// 窗口二：指定币种
+$('btnSym').onclick = async () => {
+  const btn=$('btnSym'), out=$('outSym'), txt=$('inpSym').value.trim(), bar=$('bar2').value;
+  if(!txt) { out.innerHTML='<div class="err">请输入币种名</div>'; return; }
+  btn.disabled=true; btn.innerText='分析中...'; out.innerHTML='';
+  const syms = txt.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
+  let h = '';
+  for(const sym of syms) {
+    const instId = sym.includes('-')?sym:`${sym}-USDT-SWAP`;
+    const tk = await getTicker(instId);
+    if(!tk.ok) { h+=`<div class="err">❌ ${sym}: ${tk.err}</div>`; continue; }
+    const ind = await getInd(instId, bar);
+    if(!ind) { h+=`<div class="err">❌ ${sym}: K线不足</div>`; continue; }
+    const sc = score(ind, tk, sym);
+    h += `<div class="card ${sc.s>=55?'up':sc.s<45?'down':''}">
+      <div><b>${sym}</b> <span class="tag">${bar}</span> <span class="score" style="float:right">${sc.s}分</span></div>
+      <div class="rd"><span>现价/成交额</span><b>${fmtPx(tk.last,sym)} · ${fmtUsd(tk.volCcy24h*tk.last)}</b></div>
+      <div class="rd"><span>24h涨跌</span><b class="${tk.change24h>=0?'g':'r'}">${pct(tk.change24h)}</b></div>
+      <div class="rd"><span>EMA20/50/200</span><b>${fmtPx(ind.ema20,sym)} / ${fmtPx(ind.ema50,sym)} / ${fmtPx(ind.ema200,sym)}</b></div>
+      <div class="rd"><span>MACD/ADX/RSI</span><b>${ind.macd.toFixed(sym==='SATS'?6:2)} / ${ind.adx.toFixed(0)} / ${ind.rsi.toFixed(0)}</b></div>
+      <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 推理 ▼</div>
+      <div class="hidden" style="font-size:12px;color:#aaa;margin-top:4px">${sc.why.map(w=>'· '+w).join('<br>')}</div>
+      ${sc.risk.length?`<div class="note" style="color:#f6465d">⚠️ ${sc.risk.join('、')}</div>`:''}
+    </div>`;
+  }
+  out.innerHTML = h;
+  $('st').innerText = `完成 | 分析${syms.length}只 | ${new Date().toLocaleTimeString()}`;
+  btn.disabled=false; btn.innerText='🔍 单币技术分析';
+};
+
+function $(id){return document.getElementById(id)}
+// 无自动执行
 </script>
 </body>
 </html>
