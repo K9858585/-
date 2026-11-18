@@ -2,230 +2,174 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OKX 选币 · 组合五 + 轻量刷新</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OKX 组合五智能推荐</title>
 <style>
-  :root{ --bg:#0b0f14; --card:#11171f; --line:#1f2937; --txt:#e6edf3; --sub:#8b949e; --up:#26a69a; --down:#ef5350; --acc:#f5a623; }
-  body{ background:var(--bg); color:var(--txt); font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; padding:12px; margin:0; max-width:480px; margin:0 auto; }
-  .box{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; }
-  button{ background:var(--acc); color:#000; border:0; border-radius:8px; padding:10px; font-weight:700; cursor:pointer; width:100%; margin:4px 0; }
-  button:disabled{ opacity:.5; }
-  .sub{ color:var(--sub); font-size:12px; margin-top:6px; line-height:1.5; }
-  .card{ border-left:4px solid var(--sub); margin-top:10px; }
-  .card.up{ border-color:var(--up); }
-  .card.down{ border-color:var(--down); }
-  .top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
-  .sym{ font-size:22px; font-weight:800; }
-  .dir{ text-align:right; font-size:18px; font-weight:800; }
-  .dir.up{ color:var(--up); } .dir.down{ color:var(--down); } .dir.none{ color:var(--sub); font-size:14px; }
-  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:6px 10px; font-size:13px; margin-top:8px; }
-  .grid div:nth-child(odd){ color:var(--sub); } .grid b{ font-weight:600; text-align:right; }
-  .top10{ margin-top:10px; font-size:12px; color:var(--sub); }
-  .toggle{ margin-top:8px; cursor:pointer; color:var(--acc); font-size:12px; }
-  .reason{ margin-top:6px; font-size:12px; color:var(--txt); background:#0b0f14; padding:8px; border-radius:6px; }
-  .hidden{ display:none; }
-  .warn{ color:var(--down); }
-  .row{ display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
-  input{ background:#0b0f14; border:1px solid var(--line); color:var(--txt); padding:8px; border-radius:6px; width:60px; }
-  select{ background:#0b0f14; border:1px solid var(--line); color:var(--txt); padding:8px; border-radius:6px; width:110px; font-size:14px; }
-  select option{ background:#11171f; }
-  #status{ font-size:12px; color:var(--acc); margin-top:6px; }
-  .progress{ height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin-top:6px; }
-  .bar{ height:100%; background:var(--acc); width:0; transition:.3s; }
+  :root{--bg:#0b0f14;--card:#11161d;--line:#1f2937;--txt:#e5e7eb;--sub:#9ca3af;--up:#22c55e;--down:#ef4444;--gold:#f59e0b;}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:16px;max-width:480px;margin:0 auto;}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .btn{display:block;width:100%;padding:14px;border-radius:10px;background:var(--gold);color:#000;font-weight:700;border:none;margin-bottom:10px;cursor:pointer;font-size:15px;}
+  .btn:disabled{opacity:.6;}
+  .btn-sub{background:#1f2937;color:var(--txt);}
+  .row{display:flex;align-items:center;margin:12px 0;gap:10px;}
+  .row span{flex-shrink:0;}
+  input,select{background:#0b0f14;border:1px solid var(--line);color:var(--txt);padding:10px;border-radius:8px;font-size:15px;}
+  input[type=number]{width:80px;text-align:center;}
+  select{width:140px;}
+  #status{margin-top:12px;color:var(--gold);font-size:14px;word-break:break-all;}
+  .card{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:16px;background:#0f141a;}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;}
+  .sym{font-size:22px;font-weight:800;}
+  .sub{color:var(--sub);font-size:12px;margin-top:4px;}
+  .dir{text-align:right;font-weight:700;font-size:18px;}
+  .dir.up{color:var(--up);}.dir.down{color:var(--down);}.dir.none{color:var(--sub);}
+  .grid{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;font-size:14px;margin-top:12px;}
+  .grid div{color:var(--sub);}.grid b{color:var(--txt);text-align:right;}
+  .toggle{margin-top:12px;color:var(--gold);font-size:13px;cursor:pointer;}
+  .reason{margin-top:8px;font-size:13px;color:var(--sub);line-height:1.6;}
+  .hidden{display:none;}
+  .warn{color:var(--down);}
+  .top10{margin-top:12px;font-weight:700;color:var(--gold);}
 </style>
 </head>
 <body>
-<div class="box">
-  <button id="btnList">📥 抓取今日成交额前100（每日一次）</button>
-  <button id="btnRec">🎯 推荐一只（轻量刷新实时价 + 前N评分）</button>
-  <button id="btnClear" style="background:var(--line);color:var(--txt)">🗑 清空缓存</button>
-  <div class="row">
-    <span>推荐范围：前</span><input id="rangeIn" type="number" min="1" max="100" placeholder="100"><span>名（留空=100）</span>
+  <div class="box">
+    <button class="btn" id="btnList">📥 抓取今日成交额前100（每日一次）</button>
+    <button class="btn" id="btnRec">🎯 推荐一只（轻量刷新实时价 + 前N评分）</button>
+    <button class="btn btn-sub" id="btnClear">🗑 清空缓存</button>
+    <div class="row"><span>推荐范围：前</span><input id="rangeIn" type="number" value="100" min="1" max="100"><span>名（留空=100）</span></div>
+    <div class="row"><span>K线周期：</span>
+      <select id="barIn">
+        <option value="1D" selected>日线 (1D)</option>
+        <option value="4H">4小时 (4H)</option>
+        <option value="1H">1小时 (1H)</option>
+        <option value="15m">15分钟 (15m)</option>
+      </select>
+    </div>
+    <div id="status">加载中...</div>
   </div>
-  <div class="row">
-    <span>K线周期：</span>
-    <select id="barIn">
-      <option value="1D" selected>日线 (1D)</option>
-      <option value="4H">4小时 (4H)</option>
-      <option value="1H">1小时 (1H)</option>
-      <option value="15m">15分钟 (15m)</option>
-    </select>
-  </div>
-  <div id="status">加载中...</div>
-  <div class="progress"><div class="bar" id="prog"></div></div>
-</div>
-<div id="result"></div>
+  <div id="result"></div>
 
 <script>
-const API='https://www.okx.com';
-const CONC=6;
-const TIMEOUT=8000;
+const $ = id => document.getElementById(id);
+const bjDate = () => new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
+const fmt = n => (n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(2)+'K':(n||0).toFixed(2));
+const px = (p,sym) => {const f=sym==='BTC'||sym==='ETH'?2:4;return '$'+(p||0).toFixed(f);};
+const pct = v => (v>0?'+':'')+(v*100).toFixed(2)+'%';
 
-function $(id){return document.getElementById(id);}
-
-const EMA_S=(arr,n)=>{let e=arr[0];const p=2/(n+1);for(let i=1;i<arr.length;i++)e=e*(1-p)+arr[i]*p;return e;};
-const MACD=(c,f=12,s=26,g=9)=>{const e1=EMA_S(c,f),e2=EMA_S(c,s);let d=e1-e2,m=d;for(let i=1;i<c.length;i++){const nd=e1-e2;m=m*(1-2/(g+1))+nd*2/(g+1);d=nd;}return{dif:e1-e2,dea:m,bar:(e1-e2-m)*2};};
-const RSI=(c,n=14)=>{let g=0,b=0;for(let i=1;i<c.length;i++){const x=c[i]-c[i-1];if(x>0)g+=x;else b-=x;}if(g+b===0)return 50;return 100-(100/(1+(g/(b||1))));};
-const ADX=(h,l,c,n=14)=>{let tr=[],dmP=[],dmM=[];for(let i=1;i<c.length;i++){tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));dmP.push(h[i]-h[i-1]>l[i-1]-l[i]&&h[i]>h[i-1]?h[i]-h[i-1]:0);dmM.push(l[i-1]-l[i]>h[i]-h[i-1]&&l[i]<l[i-1]?l[i-1]-l[i]:0);}let atr=tr.slice(0,n).reduce((a,b)=>a+b,0)/n,p=dmP.slice(0,n).reduce((a,b)=>a+b,0)/atr,m=dmM.slice(0,n).reduce((a,b)=>a+b,0)/atr;const dx=Math.abs(p-m)/(p+m)*100;return{dx,adx:dx,p,m};};
-const fmt=n=>n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toFixed(0);
-const pct=x=>(x>=0?'+':'')+(x*100).toFixed(2)+'%';
-const px=(p,s)=>p<1?p.toFixed(6):p<100?p.toFixed(4):p.toFixed(2);
-
-async function fetchWithTimeout(url, ms=TIMEOUT){
-  const controller=new AbortController();
-  const id=setTimeout(()=>controller.abort(),ms);
-  try{
-    const r=await fetch(url,{signal:controller.signal});
-    clearTimeout(id);
-    if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    const j=await r.json();
-    if(j.code!=='0')throw new Error(j.msg||'API错');
-    return j.data;
-  }catch(e){
-    clearTimeout(id);
-    if(e.name==='AbortError')throw new Error('请求超时');
-    throw e;
-  }
+// 带超时 + 代理兜底的 fetch
+async function fetchSafe(url, ms=8000){
+  const controller = new AbortController();
+  const timer = setTimeout(()=>controller.abort(), ms);
+  try {
+    // 先直连
+    let res = await fetch(url, {signal: controller.signal});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e) {
+    // 直连失败（404/跨域/超时）-> 走代理
+    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const res = await fetch(proxy, {signal: controller.signal});
+    if(!res.ok) throw new Error(`代理也失败 HTTP ${res.status}`);
+    return await res.json();
+  } finally { clearTimeout(timer); }
 }
 
-async function limit(map,arr,fn){
-  const res=[];let i=0;
-  async function next(){while(i<arr.length){const k=arr[i++];try{await fn(k);}catch(e){}}}return;
-  const ps=Array(Math.min(CONC,arr.length)).fill(0).map(next);
-  await Promise.all(ps);
-}
+// 缓存
+function loadList(){try{const c=localStorage.getItem('okx_top100');return c?JSON.parse(c):null;}catch{return null;}}
+function saveList(list){localStorage.setItem('okx_top100', JSON.stringify({date:bjDate(), list}));}
 
-function bjDate(){const d=new Date();return d.toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai'});}
-
-function loadList(){try{return JSON.parse(localStorage.getItem('okx_top100'));}catch{return null;}}
-function saveList(list,date){localStorage.setItem('okx_top100',JSON.stringify({list,date}));}
-
+// 抓取榜单（OKX 正确接口）
 async function fetchList(){
-  $('status').innerText='拉取永续列表...';
-  const insts=await fetchWithTimeout('/api/v5/public/instruments?instType=SWAP&state=live');
-  const swaps=insts.filter(x=>x.settleCcy==='USDT'&&x.instId.endsWith('-USDT-SWAP'));
-  $('status').innerText=`${swaps.length}个永续，拉实时价...`;
-  const tickers=await fetchWithTimeout('/api/v5/market/tickers?instType=SWAP');
-  const map=new Map(tickers.map(t=>[t.instId,{last:+t.last,vol24h:+t.vol24h,chgPct24h:+t.chgPct24h}]));
-  let arr=swaps.map(s=>{const t=map.get(s.instId);if(!t)return null;const base=s.instId.split('-')[0],usd=t.last*t.vol24h;return{instId:s.instId,base,last:t.last,vol24h:t.vol24h,usd,chgPct:t.chgPct24h};}).filter(Boolean).sort((a,b)=>b.usd-a.usd);
-  const seen=new Set(),uniq=[];
-  for(const x of arr){if(seen.has(x.base))continue;seen.add(x.base);uniq.push(x);if(uniq.length>=100)break;}
-  saveList(uniq,bjDate());
-  $('status').innerText=`已存${uniq.length}只 · ${bjDate()}`;
-  return uniq;
+  $('status').innerText='抓取中...';
+  const url = 'https://www.okx.com/api/v5/market/tickers?instType=SPOT';
+  const j = await fetchSafe(url);
+  if(j.code!=='0') throw new Error('OKX返回错误: '+j.msg);
+  const data = j.data.filter(d=>d.instId.endsWith('-USDT')).sort((a,b)=>parseFloat(b.volCcy24h||0)-parseFloat(a.volCcy24h||0)).slice(0,100);
+  saveList(data);
+  $('status').innerText=`抓取完成，共${data.length}只（${bjDate()}）`;
 }
 
-async function lightRefresh(list){
-  $('status').innerText='轻量刷新实时价...';
-  const tickers=await fetchWithTimeout('/api/v5/market/tickers?instType=SWAP');
-  const map=new Map(tickers.map(t=>[t.instId,{last:+t.last,vol24h:+t.vol24h,chgPct24h:+t.chgPct24h}]));
-  list.forEach(x=>{const t=map.get(x.instId);if(t){x.realLast=t.last;x.realVol24h=t.vol24h;x.realUsd=t.last*t.vol24h;x.realChgPct=t.chgPct24h;}});
-  return list;
+// 计算指标
+function calcScore(klines){
+  const closes=klines.map(k=>parseFloat(k[4])), vols=klines.map(k=>parseFloat(k[5]));
+  const e=(n)=>closes.slice(-n).reduce((a,b,i,a)=>a+(b*(i+1)),0)/closes.slice(-n).length;
+  const e20=e(20),e50=e(50),e200=e(200);
+  const last=closes[closes.length-1];
+  let score=0, dir='none', reasons=[];
+  if(last>e20&&e20>e50){score+=25;dir='up';reasons.push('EMA20>50 多头排列');}
+  else if(last<e20&&e20<e50){score+=20;dir='down';reasons.push('EMA空头排列');}
+  // MACD
+  const ema12=closes.slice(-26).reduce((a,b,i)=>a+b*(i+1),0)/26;
+  const ema26=closes.slice(-26).reduce((a,b,i)=>a+b*(i+1),0)/26;
+  const dif=ema12-ema26;
+  if(dif>0){score+=20;reasons.push('MACD偏多');}else{score+=10;reasons.push('MACD偏弱');}
+  // RSI
+  let up=0,down=0;for(let i=1;i<closes.length;i++){const d=closes[i]-closes[i-1];if(d>0)up+=d;else down-=d;}
+  const rsi=100-(100/(1+(up/down)));
+  if(rsi>50&&rsi<70){score+=15;reasons.push(`RSI${rsi.toFixed(0)}健康`);}else if(rsi>70){score+=10;reasons.push('RSI超买');}else{score+=5;reasons.push('RSI偏弱');}
+  // ADX
+  let tr=0,dm=0;for(let i=1;i<closes.length;i++){tr+=Math.abs(closes[i]-closes[i-1]);dm+=Math.abs(closes[i]-closes[i-1]);}
+  const adx=tr?dm/tr*100:0;
+  if(adx>20){score+=20;reasons.push(`趋势强ADX${adx.toFixed(0)}`);}else{score+=10;reasons.push('趋势弱');}
+  // 量比
+  const volR=vols.slice(-5).reduce((a,b)=>a+b,0)/5/(vols.slice(-20,-5).reduce((a,b)=>a+b,0)/15||1);
+  if(volR>1.2){score+=10;reasons.push(`放量${volR.toFixed(1)}`);}else{score+=5;}
+  // 影线
+  const h=parseFloat(klines[klines.length-1][2]),l=parseFloat(klines[klines.length-1][3]),o=parseFloat(klines[klines.length-1][1]);
+  const upSh=(h-Math.max(o,last))/(h-l||1), dnSh=(Math.min(o,last)-l)/(h-l||1);
+  if(upSh<0.3&&dnSh<0.3){score+=10;reasons.push('实体强');}else{score+=5;}
+  return {score,dir,reasons,e20,e50,e200,dif,rsi,adx,volR,upSh,dnSh};
 }
 
-async function score(inst,bar){
-  const k=await fetchWithTimeout(`/api/v5/market/candles?instId=${inst.instId}&bar=${bar}&limit=150`);
-  const c=k.map(x=>+x[4]).reverse(),h=k.map(x=>+x[2]).reverse(),l=k.map(x=>+x[3]).reverse(),v=k.map(x=>+x[5]).reverse();
-  const real=inst.realLast||c[c.length-1];
-  const e20=EMA_S(c,20),e50=EMA_S(c,50),e200=EMA_S(c,200);
-  const macd=MACD(c),rsi=RSI(c),adx=ADX(h,l,c);
-  const volAvg=v.slice(-20).reduce((a,b)=>a+b,0)/20;
-  const volR=inst.realVol24h?inst.realVol24h/volAvg:v[v.length-1]/volAvg;
-  const lastC=c[c.length-1],lastH=h[h.length-1],lastL=l[l.length-1];
-  const body=Math.abs(real-lastC),rng=lastH-lastL||1;
-  const upSh=(lastH-Math.max(real,lastC))/rng,dnSh=(Math.min(real,lastC)-lastL)/rng;
-  let score=0,reasons=[],dir='none';
-  let emaS=0;
-  if(e20>e50&&e50>e200)emaS=25,reasons.push('EMA多头排列+25');
-  else if(e20<e50&&e50<e200)emaS=-25,reasons.push('EMA空头排列-25');
-  else if(real>e20&&e20>e50)emaS=15,reasons.push('价>EMA20>50 +15');
-  else if(real<e20&&e20<e50)emaS=-15,reasons.push('价<EMA20<50 -15');
-  score+=emaS;
-  let mS=0;
-  if(macd.dif>macd.dea&&macd.bar>0)mS=20,reasons.push('MACD零轴上金叉+20');
-  else if(macd.dif<macd.dea&&macd.bar<0)mS=-20,reasons.push('MACD零轴下死叉-20');
-  else if(macd.dif>macd.dea)mS=10,reasons.push('MACD金叉未确认+10');
-  else mS=-10,reasons.push('MACD偏弱-10');
-  score+=mS;
-  let aS=0;
-  if(adx.adx>25&&adx.p>adx.m)aS=20,reasons.push(`ADX${adx.adx.toFixed(0)}多头趋势+20`);
-  else if(adx.adx>25&&adx.m>adx.p)aS=-20,reasons.push(`ADX${adx.adx.toFixed(0)}空头趋势-20`);
-  else if(adx.adx<20)aS=-5,reasons.push('ADX<20震荡-5');
-  score+=aS;
-  let rS=0;
-  if(rsi>60&&rsi<80)rS=15,reasons.push(`RSI${rsi.toFixed(0)}偏强+15`);
-  else if(rsi<40&&rsi>20)rS=-15,reasons.push(`RSI${rsi.toFixed(0)}偏弱-15`);
-  else if(rsi>=80)rS=-5,reasons.push('RSI超买-5');
-  else if(rsi<=20)rS=5,reasons.push('RSI超卖+5(反转)');
-  score+=rS;
-  let vS=0;
-  if(volR>1.5&&emaS>0)vS=10,reasons.push(`量比${volR.toFixed(1)}放大+10`);
-  else if(volR>1.2)vS=5,reasons.push(`量比${volR.toFixed(1)}+5`);
-  else if(volR<0.8)vS=-5,reasons.push('缩量-5');
-  score+=vS;
-  let shS=0;
-  if(upSh>0.6&&emaS<0)shS=10,reasons.push('长上影+空头=反转+10');
-  else if(dnSh>0.6&&emaS>0)shS=10,reasons.push('长下影+多头=支撑+10');
-  else if(upSh>0.5)shS=-5,reasons.push('上影偏长-5');
-  else if(dnSh>0.5)shS=-5,reasons.push('下影偏长-5');
-  score+=shS;
-  if(score>=70)dir=emaS>0?'up':'down',reasons.unshift(`🔥强方向 ${score}分`);
-  else if(score>=55)dir=emaS>0?'up':'down',reasons.unshift(`弱方向 ${score}分`);
-  else dir='none',reasons.unshift(`无方向 ${score}分(<55)`);
-  return{...inst,score,e20,e50,e200,dif:macd.dif,dea:macd.dea,bar:macd.bar,rsi,adx:adx.adx,p:adx.p,m:adx.m,volR,upSh,dnSh,realLast:real,dir,reasons};
-}
-
+// 推荐
 async function recommend(){
-  let cache=loadList();
-  if(!cache){$('status').innerText='⚠️ 无缓存，请先点"抓取今日成交额前100"';return;}
-  let range=parseInt($('rangeIn').value)||100;if(range<1||range>100)range=100;
-  const bar=$('barIn').value;
-  $('status').innerText=`轻量刷新实时价(${cache.list.length}只)...`;
-  try{await lightRefresh(cache.list);saveList(cache.list,bjDate());}catch(e){$('status').innerText='⚠️ 轻量刷新失败:'+e.message;return;}
-  const pool=cache.list.slice(0,range);
-  $('status').innerText=`评分中(组合五) 前${range}名 · ${bar}...`;
-  $('prog').style.width='0%';
-  const scored=[];let i=0;
-  await limit(null,pool,async inst=>{
-    try{const s=await score(inst,bar);scored.push(s);}catch(e){}
-    i++;$('prog').style.width=(i/pool.length*100)+'%';
-    $('status').innerText=`已评 ${i}/${pool.length} · ${bar}`;
-  });
-  if(scored.length===0){$('status').innerText='⚠️ 评分全部失败，可能API被拦';return;}
+  const cache=loadList(); if(!cache){$('status').innerText='无缓存，先点抓取';return;}
+  const range=parseInt($('rangeIn').value)||100, bar=$('barIn').value;
+  $('status').innerText=`轻量刷新 + 评分中(前${range}, ${bar})...`;
+  const list=cache.list.slice(0,range);
+  const scored=[];
+  for(const d of list){
+    try{
+      // 实时价
+      const tk=await fetchSafe(`https://www.okx.com/api/v5/market/ticker?instId=${d.instId}`);
+      const t=tk.data[0];
+      // K线
+      const kl=await fetchSafe(`https://www.okx.com/api/v5/market/candles?instId=${d.instId}&bar=${bar}&limit=200`);
+      const k=kl.data.reverse();
+      const r=calcScore(k);
+      scored.push({...d,...r, realLast:parseFloat(t.last), realUsd:parseFloat(t.volCcy24h), realChgPct:parseFloat(t.change24h), base:d.instId.split('-')[0]});
+    }catch{}
+  }
   scored.sort((a,b)=>b.score-a.score);
-  const top=scored[0];
-  const top10=scored.slice(0,10).map((x,j)=>`${j+1}.${x.base}(${x.score})`).join(' ');
-  const isNone=top.score<55;
-  const cls=top.dir==='up'?'up':top.dir==='down'?'down':'';
-  const pctTxt=top.dir==='up'?'偏涨 ▲':top.dir==='down'?'偏跌 ▼':'无明确方向';
-  const failPrice=top.dir==='up'?Math.min(top.e20,top.e50):top.dir==='down'?Math.max(top.e20,top.e50):top.realLast;
+  const top=scored[0], top10=scored.slice(0,10).map(s=>s.base+'('+s.score+')').join(', ');
+  if(!top){$('status').innerText='⚠ 全部失败，请检查网络/代理';return;}
+  const isNone=top.score<55, cls=top.score>=70?'up':isNone?'none':(top.dir==='down'?'down':'up');
+  const pctTxt=pct(top.realChgPct??top.chgPct), failPrice=top.dir==='up'?Math.min(top.e20,top.e50):Math.max(top.e20,top.e50);
   $('result').innerHTML=`
-    <div class="card ${cls}">
-      <div class="top">
-        <div><div class="sym">${top.base}</div><div class="sub">成交额第${cache.list.indexOf(top)+1}名 / 本次范围前${range}名（榜单共${cache.list.length}）</div></div>
-        <div class="dir ${isNone?'none':top.dir}">${pctTxt}<br><span class="sub">${top.score}分</span></div>
-      </div>
+    <div class="card">
+      <div class="top"><div><div class="sym">${top.base}</div><div class="sub">成交额第${cache.list.indexOf(top)+1}名 / 前${range}（共${cache.list.length}）</div></div>
+        <div class="dir ${cls}">${pctTxt}<br><span class="sub">${top.score}分</span></div></div>
       <div class="grid">
         <div>现价(实时)</div><b>${px(top.realLast,top.base)}</b>
-        <div>24h成交额</div><b>$${fmt(top.realUsd||top.usd)}</b>
-        <div>24h涨跌</div><b>${pct(top.realChgPct??top.chgPct)}</b>
+        <div>24h成交额</div><b>$${fmt(top.realUsd||top.volCcy24h)}</b>
         <div>EMA20/50/200</div><b>${px(top.e20,top.base)} / ${px(top.e50,top.base)} / ${px(top.e200,top.base)}</b>
         <div>MACD/RSI/ADX</div><b>${top.dif.toFixed(2)} / ${top.rsi.toFixed(0)} / ${top.adx.toFixed(0)}</b>
         <div>量比/影线</div><b>${top.volR.toFixed(1)} / 上${top.upSh.toFixed(2)}下${top.dnSh.toFixed(2)}</b>
-        <div>参考失效位</div><b style="color:${top.dir==='down'?'var(--up)':'var(--down)'}">${top.dir==='down'?'站回':'跌破'} ${px(failPrice,top.base)}</b>
+        <div>失效位</div><b style="color:${top.dir==='down'?'var(--up)':'var(--down)'}">${top.dir==='down'?'站回':'跌破'} ${px(failPrice,top.base)}</b>
       </div>
       <div class="toggle" onclick="this.nextElementSibling.classList.toggle('hidden')">📋 展开推理 ▼</div>
-      <div class="reason hidden">${top.reasons.map(r=>`<div class="${r.includes('⚠')?'warn':''}">· ${r}</div>`).join('')}</div>
-      <div class="top10">TOP10评分: ${top10}</div>
-      <div class="sub" style="margin-top:10px">组合五(EMA25+MACD20+ADX20+RSI15+量10+影线10)。范围前${range}，完成${scored.length}只，最高${top.score}分。${isNone?'<br>⚠ 分数<55，最优解是不做。':top.score>=70?'<br>🔥强信号。':'<br>弱信号，小仓或观望。'}</div>
+      <div class="reason hidden">${top.reasons.map(r=>`<div>${r}</div>`).join('')}</div>
+      <div class="top10">TOP10: ${top10}</div>
+      <div class="sub" style="margin-top:10px">组合五 · 最高${top.score}分 · ${isNone?'⚠ <55不做':top.score>=70?'🔥强信号':'弱信号小仓'}</div>
     </div>`;
   $('status').innerText=`完成 · 前${range} · 最高${top.score}分 · ${new Date().toLocaleTimeString()}`;
 }
 
-$('btnList').onclick=async()=>{const b=$('btnList');b.disabled=true;$('status').innerText='抓取中...';try{await fetchList();}catch(e){$('status').innerText='⚠️ 失败:'+e.message;}b.disabled=false;};
+$('btnList').onclick=async()=>{const b=$('btnList');b.disabled=true;try{await fetchList();}catch(e){$('status').innerText='⚠️ '+e.message;}b.disabled=false;};
 $('btnRec').onclick=async()=>{const b=$('btnRec');b.disabled=true;await recommend();b.disabled=false;};
-$('btnClear').onclick=()=>{localStorage.removeItem('okx_top100');$('status').innerText='缓存已清';};
-(function(){const c=loadList();$('status').innerText=c?`榜单缓存：${c.date}（${c.list.length}只）${c.date!==bjDate()?' · 需重抓':''} · 推荐将轻量刷新`:'无缓存，先抓榜';})();
+$('btnClear').onclick=()=>{localStorage.removeItem('okx_top100');$('status').innerText='缓存已清，请重新抓取';};
+(function(){const c=loadList();$('status').innerText=c?`缓存：${c.date}（${c.list.length}只）${c.date!==bjDate()?' · 需重抓':''} · 推荐将轻量刷新`:'无缓存，先点【抓取】';})();
 </script>
 </body>
 </html>
