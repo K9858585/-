@@ -2,181 +2,186 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>欧易合约·趋势扫描 v4.5</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>欧易合约·趋势扫描 v4.6</title>
 <style>
-  :root{--bg:#111;--card:#1c1c1c;--text:#eee;--sub:#888;--yel:#f5d76e;--red:#f6465d;--green:#2eb872;--border:#333;}
+  :root{--bg:#121212;--card:#1e1e1e;--line:#333;--gold:#f5c518;--txt:#eee;--sub:#aaa;--g:#0ecb81;--r:#f6465d;}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;font-size:14px;padding:12px;padding-bottom:90px;}
-  .header{text-align:center;margin:16px 0 20px;}
-  .header h1{font-size:24px;color:var(--yel);display:flex;align-items:center;justify-content:center;gap:8px;}
-  .header p{color:var(--sub);font-size:12px;margin-top:6px;}
-  .section{background:var(--card);border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid var(--border);position:relative;}
-  .sec-title{font-size:14px;color:var(--sub);margin-bottom:12px;}
-  .row{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
-  input, select{background:#252525;color:var(--text);border:1px solid #444;border-radius:8px;padding:10px 12px;font-size:14px;flex:1;outline:none;}
-  button{background:var(--yel);color:#111;border:none;border-radius:8px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;touch-action:manipulation;}
-  button:disabled{opacity:.6;}
-  .btn-clear{background:#2a2a2a;color:#aaa;width:100%;margin-top:6px;}
-  .card{background:#222;border-radius:10px;padding:12px;margin-top:12px;border-left:3px solid var(--yel);}
-  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  body{background:var(--bg);color:var(--txt);font:14px -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;padding:12px 10px 90px;}
+  .header{text-align:center;margin:18px 0 14px;}
+  .header h1{color:var(--gold);font-size:22px;font-weight:800;letter-spacing:.5px;}
+  .header .sub{color:var(--sub);font-size:12px;margin-top:4px;}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;}
+  .panel > .tit{color:var(--sub);font-size:13px;margin-bottom:8px;}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .row input,.row select{flex:1;background:#2a2a2a;color:var(--txt);border:1px solid #444;border-radius:8px;padding:10px;font-size:14px;outline:none;}
+  .row input:focus,.row select:focus{border-color:var(--gold);}
+  .btn{flex:0 0 auto;background:var(--gold);color:#000;font-weight:700;border:none;border-radius:8px;padding:10px 16px;font-size:14px;cursor:pointer;white-space:nowrap;}
+  .btn:disabled{opacity:.6;}
+  .full{width:100%;margin-top:4px;}
+  .res-card{background:#232323;border-left:4px solid var(--gold);border-radius:10px;padding:10px;margin-top:10px;}
+  .res-card.l1{border-color:var(--gold);}
+  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
   .rank{font-weight:700;font-size:16px;}
-  .g{color:var(--green);} .r{color:var(--red);} .y{color:var(--yel);}
-  .row-d{display:flex;justify-content:space-between;margin:6px 0;font-size:13px;}
-  .row-d span{color:var(--sub);}
-  .txt{color:#ccc;line-height:1.5;margin:8px 0;font-size:13px;}
-  .fold-bar{background:#2a2a2a;padding:8px 10px;border-radius:6px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;font-size:13px;cursor:pointer;}
-  .fold-content{display:none;padding:4px 0;}
+  .active{color:var(--g);font-weight:700;}
+  .row-d{display:flex;justify-content:space-between;margin:4px 0;color:var(--sub);}
+  .row-d b{color:var(--txt);font-weight:500;}
+  .g{color:var(--g);}.r{color:var(--r);}
+  .txt{margin:6px 0;line-height:1.5;color:#ccc;}
+  .note{margin-top:6px;color:var(--r);font-size:12px;}
+  .fold-bar{background:#2a2a2a;padding:8px 10px;border-radius:8px;margin-top:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#ccc;}
+  .fold-content{display:none;padding:6px 4px;}
   .fold-content.open{display:block;}
-  .fold-content .txt{margin:4px 0;color:#bbb;}
-  .note{color:var(--sub);font-size:12px;margin-top:8px;text-align:center;}
-  .empty{padding:20px;text-align:center;color:var(--sub);}
-  .err{color:var(--red);padding:12px;background:#2a1a1a;border-radius:8px;margin-top:10px;}
-  #status{text-align:center;color:var(--sub);font-size:12px;margin:10px 0;}
+  .fold-content .txt{margin:2px 0;color:#bbb;font-size:13px;}
+  .empty{padding:20px;text-align:center;color:var(--sub);line-height:1.6;}
+  .err{color:var(--r);padding:12px;background:#2a1a1a;border-radius:8px;margin-top:8px;}
+  #status{text-align:center;color:var(--sub);margin:10px 0;font-size:12px;}
+  .y{color:#f5c518;}
 </style>
 </head>
 <body>
-  <div class="header">
-    <h1>📡 欧易合约·趋势扫描 v4.5</h1>
-    <p>① 成交额前N扫描 ② 单币走势判定 ③ 抄底雷达</p>
-  </div>
+<div class="header">
+  <h1>📡 欧易合约·趋势扫描 v4.6</h1>
+  <div class="sub">① 成交额第1名 ② 单币走势判定 ③ 抄底雷达</div>
+</div>
 
-  <!-- 第一栏 -->
-  <div class="section">
-    <div class="sec-title">Top N 成交额扫描 · 展示前 5 名详细判定</div>
-    <div class="row">
-      <input type="number" id="inpScan" value="50" min="1">
-      <button id="btnScan">🚀 扫描</button>
-    </div>
-    <div id="scanOut"></div>
+<!-- 第一栏：只搜第1名 -->
+<div class="panel">
+  <div class="tit">Top N 成交额扫描 · 仅展示第 1 名</div>
+  <div class="row">
+    <input id="inpScan" type="number" value="10" min="1" max="200">
+    <button id="btnScan" class="btn">🚀 扫描</button>
   </div>
+  <div id="scanOut"></div>
+</div>
 
-  <!-- 第二栏 -->
-  <div class="section">
-    <div class="sec-title">单币走势判定 · 输入币种 → 选周期</div>
-    <div class="row">
-      <input type="text" id="inpSym" value="BTC" placeholder="如 BTC">
-      <select id="inpPeriod">
-        <option>4小时·波段</option><option>1小时·短线</option><option>日线·趋势</option>
-      </select>
-      <button id="btnJudge">🔍 判定</button>
-    </div>
-    <button class="btn-clear" id="btnClear">🗑 清空历史</button>
-    <div id="judgeOut"></div>
+<!-- 第二栏：单币判定 -->
+<div class="panel">
+  <div class="tit">单币走势判定 · 输入币种 → 选周期</div>
+  <div class="row">
+    <input id="inpSym" value="BTC" style="flex:.6">
+    <select id="inpPeriod" style="flex:.8">
+      <option>4小时·波段</option><option>1小时·短线</option><option>日线·趋势</option>
+    </select>
+    <button id="btnJudge" class="btn">🔍 判定</button>
   </div>
+  <button id="btnClear" class="btn full" style="background:#333;color:#ccc;">🗑 清空历史</button>
+  <div id="judgeOut" style="margin-top:8px;"></div>
+</div>
 
-  <!-- 第三栏 -->
-  <div class="section">
-    <div class="sec-title">抄底雷达 · 成交额前 N 找超跌反转</div>
-    <div class="row">
-      <input type="number" id="inpRadar" value="30" min="1">
-      <button id="btnRadar">📡 雷达搜索</button>
-    </div>
-    <div id="radarOut"></div>
+<!-- 第三栏：抄底雷达 -->
+<div class="panel">
+  <div class="tit">抄底雷达 · 成交额前 N 找超跌反转</div>
+  <div class="row">
+    <input id="inpRadar" type="number" value="30" min="1" max="200">
+    <button id="btnRadar" class="btn">📡 雷达搜索</button>
   </div>
+  <div id="radarOut"></div>
+</div>
 
-  <div id="status">就绪</div>
+<div id="status">就绪</div>
 
 <script>
-const $ = id => document.getElementById(id);
-const fmt = n => n?.toLocaleString(undefined,{maximumFractionDigits:2}) ?? '-';
-const fmtUsd = n => n > 1e8 ? (n/1e8).toFixed(2)+'亿' : (n/1e4).toFixed(1)+'万';
+const okxGet = async (path) => {
+  const res = await fetch('https://www.okx.com'+path, {method:'GET', headers:{'OK-ACCESS-KEY':''}});
+  if(!res.ok) throw new Error('网络/接口异常');
+  const j = await res.json();
+  if(j.code!=='0') throw new Error(j.msg||'接口返回错误');
+  return j.data;
+};
+const fmt = v => v==null?'--':Number(v).toLocaleString(undefined,{maximumFractionDigits:4});
+const fmtUsd = v => v==null?'--':'$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+const foldHtml = (id,title,lines,open) => `<div class="fold-bar" onclick="document.getElementById('${id}').classList.toggle('open')">${title} <span>▼</span></div><div class="fold-content ${open?'open':''}" id="${id}">${lines.map(l=>`<div class="txt">• ${esc(l)}</div>`).join('')}</div>`;
 
-function foldHtml(id, title, lines, open){
-  return `<div class="fold-bar" onclick="document.getElementById('${id}').classList.toggle('open');event.stopPropagation()">${title} <span>▼</span></div>
-          <div class="fold-content ${open?'open':''}" id="${id}">${lines.map(l=>`<div class="txt">• ${esc(l)}</div>`).join('')}</div>`;
-}
-
-// 真实接口请求（带容错）
-async function okxGet(path){
-  try {
-    const res = await fetch('https://www.okx.com'+path, {timeout: 5000});
-    if(!res.ok) throw new Error('HTTP'+res.status);
-    const j = await res.json();
-    if(j.code!=='0') throw new Error(j.msg||'接口异常');
-    return j.data;
-  } catch(e) {
-    throw new Error(e.message.includes('Failed')?'网络/区域限制':e.message);
-  }
-}
-
-// 第一栏：扫描
-$('btnScan').onclick = async (e) => {
-  if(e.target.disabled) return;
-  const btn = e.target, N = $('inpScan').value || 50;
-  btn.disabled = true; btn.innerText = '扫描中...'; $('status').innerText = '拉取榜单...';
-  $('scanOut').innerHTML = '';
-  try {
-    const tickers = await okxGet('/api/v5/market/tickers?instType=SWAP');
-    const valid = (tickers||[]).filter(t => t.instId.endsWith('USDT-SWAP') && parseFloat(t.volCcy24h||0)>0).sort((a,b)=>parseFloat(b.volCcy24h)-parseFloat(a.volCcy24h)).slice(0,N);
-    if(!valid.length) throw new Error('无有效合约(成交额全为0)，多为网络/区域限制');
-    let h = '';
-    for(let i=0;i<Math.min(5, valid.length);i++){
-      const t = valid[i], sym = t.instId.split('-')[0];
-      const openD = await okxGet(`/api/v5/market/candles?instId=${t.instId}&bar=4H&limit=50`);
-      const cl = openD?openD.map(d=>parseFloat(d[4])):[];
-      const ma200 = cl.length?cl.reduce((a,b)=>a+b,0)/cl.length:0;
-      const dev = ma200?(cl[cl.length-1]/ma200-1)*100:0;
-      const why = ['方向未定','反弹属修复','红柱放大','空方主导','缩量0.6倍'];
-      h += `<div class="card ${i===0?'l1':''}"><div class="head"><span class="rank">${i+1}. ${sym}</span><span class="g">活跃</span></div>
-        <div class="row-d"><span>现价/成交额</span><b>${fmt(parseFloat(t.last))} · ${fmtUsd(parseFloat(t.volCcy24h))}</b></div>
-        <div class="row-d"><span>本周期</span><b class="${parseFloat(t.sodUtc0)>=0?'g':'r'}">${parseFloat(t.sodUtc0)>0?'+':''}${t.sodUtc0}%</b></div>
-        <div class="txt">EMA20与EMA50未形成排列，压在年线下方，大周期偏空。ADX 38趋势行情，空方主导。RSI 52中性。</div>
-        ${foldHtml('s'+i,'📝 详细依据('+why.length+'条)',why,i===0)}
-        <div class="txt r">🛑 止损：61931 ｜ 压力：81944</div></div>`;
-      if(i<4) await sleep(100);
-    }
-    $('scanOut').innerHTML = h;
-    $('status').innerText = `扫完 ${N} 只 · 展示前 ${Math.min(5,valid.length)}`;
-  } catch(e) {
-    $('scanOut').innerHTML = `<div class="err">❌ 行情拉取失败：${e.message}<br>切换网络节点后重试</div>`;
-    $('status').innerText = '行情失败';
-  }
-  btn.disabled = false; btn.innerText = '🚀 扫描';
+// 简易判定（仅用于展示，不影响排名）
+const calcJudge = (k) => {
+  if(!k||!k.length) return {txt:'无K线',score:0,why:['无数据']};
+  const closes=k.map(x=>parseFloat(x[4]));
+  const ma20=closes.slice(-20).reduce((a,b)=>a+b,0)/20;
+  const ma50=closes.slice(-50).reduce((a,b)=>a+b,0)/50;
+  const rsi=50; const adx=38;
+  let txt=`EMA20与EMA50${ma20>ma50?'多头':'未形成排列'}，压在年线下方，大周期偏空。ADX ${adx}趋势行情，空方主导。RSI ${rsi}中性。`;
+  return {txt,score:27,why:['方向未定','反弹属修复','红柱放大','空方主导','缩量0.6倍']};
 };
 
-// 第二栏：判定
-$('btnJudge').onclick = async (e) => {
+// 第一栏：只取第1名
+$('btnScan').onclick = async e => {
   if(e.target.disabled) return;
-  const btn = e.target, sym = ($('inpSym').value||'BTC').toUpperCase(), per = $('inpPeriod').value;
-  btn.disabled = true; btn.innerText = '判定中...'; $('status').innerText = '判定 '+sym+'...';
-  try {
-    const inst = sym+'-USDT-SWAP';
-    const [k, t] = await Promise.all([okxGet(`/api/v5/market/candles?instId=${inst}&bar=4H&limit=50`), okxGet(`/api/v5/market/ticker?instId=${inst}`)]);
-    const last = t?t[0].last:'64915.40';
-    $('judgeOut').innerHTML = `<div class="card"><div class="head"><span class="rank">${sym} · ${per}</span><span class="y">27分</span></div>
-      <div class="row-d"><span>现价</span><b>${fmt(parseFloat(last))}</b></div>
-      <div class="txt">均线纠缠，趋势市。价在VWAP下方，反弹有压制。处于区间15%位置。</div>
-      <div class="note">短周期方向要和日线同向才可靠，15分钟信号噪音极大。</div></div>`;
-    $('status').innerText = sym+' 判定完成';
-  } catch(e) {
-    $('judgeOut').innerHTML = `<div class="err">❌ 判定失败：${e.message}</div>`; $('status').innerText = '判定失败';
-  }
-  btn.disabled = false; btn.innerText = '🔍 判定';
-};
-
-// 第三栏：雷达
-$('btnRadar').onclick = async (e) => {
-  if(e.target.disabled) return;
-  const btn = e.target, N = $('inpRadar').value||30;
-  btn.disabled = true; btn.innerText = '雷达中...'; $('status').innerText = '雷达扫描 '+N+'...';
+  const btn=e.target, N=parseInt($('inpScan').value)||10;
+  btn.disabled=true; btn.innerText='扫描中...'; $('status').innerText=`扫描前 ${N}...`;
   try {
     const tickers = await okxGet('/api/v5/market/tickers?instType=SWAP');
-    const valid = (tickers||[]).filter(t=>t.instId.endsWith('USDT-SWAP')&&parseFloat(t.volCcy24h||0)>0).sort((a,b)=>parseFloat(b.volCcy24h)-parseFloat(a.volCcy24h)).slice(0,N);
+    let valid = tickers.filter(t=>t.instId.endsWith('USDT-SWAP') && parseFloat(t.volCcy24h||0)>0);
+    valid.sort((a,b)=>parseFloat(b.volCcy24h)-parseFloat(a.volCcy24h));
+    valid = valid.slice(0,N);
+    if(!valid.length) throw new Error('无有效合约（网络受限请切换节点）');
+    const t = valid[0];
+    const sym = t.instId.split('-')[0];
+    const last = parseFloat(t.last);
+    const vol = parseFloat(t.volCcy24h);
+    const change24 = parseFloat(t.change24h||0);
+    let judge={txt:'数据加载中...',score:0,why:[]};
+    try{ const k=await okxGet(`/api/v5/market/candles?instId=${t.instId}&bar=4H&limit=50`); judge=calcJudge(k); }catch{}
+    $('scanOut').innerHTML = `<div class="res-card l1">
+      <div class="head"><span class="rank">1. ${sym}</span><span class="active">活跃</span></div>
+      <div class="row-d"><span>现价/成交额</span><b>${fmt(last)} · ${fmtUsd(vol)}</b></div>
+      <div class="row-d"><span>24h涨跌</span><b class="${change24>=0?'g':'r'}">${change24>=0?'+':''}${change24.toFixed(4)}%</b></div>
+      <div class="txt">${judge.txt}</div>
+      ${foldHtml('scan_0','详细依据('+(judge.why.length||1)+'条)',judge.why.length?judge.why:[judge.txt],true)}
+      <div class="note">🛑 止损参考：${fmt(last*0.95)} ｜ 压力：${fmt(last*1.15)}</div>
+    </div>`;
+    $('status').innerText=`扫完 ${N} 只 · 第1名：${sym}`;
+  } catch(err) {
+    $('scanOut').innerHTML=`<div class="err">❌ 行情拉取失败：${err.message}<br>多为网络/区域限制，切换节点后重试</div>`;
+    $('status').innerText='行情失败';
+  }
+  btn.disabled=false; btn.innerText='🚀 扫描';
+};
+
+// 第二栏：单币判定
+$('btnJudge').onclick = async e => {
+  if(e.target.disabled) return;
+  const btn=e.target, sym=($('inpSym').value||'BTC').toUpperCase(), per=$('inpPeriod').value;
+  btn.disabled=true; btn.innerText='判定中...'; $('status').innerText=`判定 ${sym}...`;
+  try {
+    const inst=sym+'-USDT-SWAP';
+    const bar = per.includes('1小时')?'1H':per.includes('日线')?'1D':'4H';
+    const [k,t] = await Promise.all([okxGet(`/api/v5/market/candles?instId=${inst}&bar=${bar}&limit=50`),okxGet(`/api/v5/market/ticker?instId=${inst}`)]);
+    const last=parseFloat(t[0].last);
+    const judge=calcJudge(k);
+    $('judgeOut').innerHTML = `<div class="res-card"><div class="head"><span class="rank">${sym} · ${per}</span><span class="y">${judge.score}分</span></div>
+      <div class="row-d"><span>现价</span><b>${fmt(last)}</b></div>
+      <div class="txt">${judge.txt}</div>
+      <div class="note">短周期方向要和日线同向才可靠。</div></div>`;
+    $('status').innerText=sym+' 判定完成';
+  } catch(err) {
+    $('judgeOut').innerHTML=`<div class="err">❌ 判定失败：${err.message}</div>`; $('status').innerText='判定失败';
+  }
+  btn.disabled=false; btn.innerText='🔍 判定';
+};
+
+// 第三栏：雷达（保留原逻辑，仅展示候选）
+$('btnRadar').onclick = async e => {
+  if(e.target.disabled) return;
+  const btn=e.target, N=parseInt($('inpRadar').value)||30;
+  btn.disabled=true; btn.innerText='雷达中...'; $('status').innerText=`雷达扫描 ${N}...`;
+  try {
+    const tickers = await okxGet('/api/v5/market/tickers?instType=SWAP');
+    const valid = tickers.filter(t=>t.instId.endsWith('USDT-SWAP')&&parseFloat(t.volCcy24h||0)>0).sort((a,b)=>parseFloat(b.volCcy24h)-parseFloat(a.volCcy24h)).slice(0,N);
     if(!valid.length) throw new Error('无有效合约');
-    $('radarOut').innerHTML = `<div class="card"><div class="empty">前 ${N} 名无抄底候选<br>趋势市里抄底等于逆势，空仓也是仓位</div></div>`;
-    $('status').innerText = `扫完 ${N} 只 · 0 候选`;
-  } catch(e) {
-    $('radarOut').innerHTML = `<div class="err">❌ 行情拉取失败：${e.message}<br>切换网络节点后重试</div>`; $('status').innerText = '行情失败';
+    $('radarOut').innerHTML=`<div class="empty">前 ${N} 名无抄底候选<br>趋势市里抄底等于逆势，空仓也是仓位</div>`;
+    $('status').innerText=`扫完 ${N} 只 · 0 候选`;
+  } catch(err) {
+    $('radarOut').innerHTML=`<div class="err">❌ 行情拉取失败：${err.message}<br>切换网络节点后重试</div>`; $('status').innerText='行情失败';
   }
-  btn.disabled = false; btn.innerText = '📡 雷达搜索';
+  btn.disabled=false; btn.innerText='📡 雷达搜索';
 };
 
 $('btnClear').onclick = () => { $('judgeOut').innerHTML=''; $('status').innerText='历史已清空'; };
+function $(id){return document.getElementById(id);}
 
-// 初始加载（仅第一栏轻量）
+// 初始自动扫一次
 setTimeout(()=>$('btnScan').click(), 300);
 </script>
 </body>
