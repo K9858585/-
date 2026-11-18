@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约扫描｜极端单边瀑布 + 双容差调节 (v290)</title>
+<title>欧易合约扫描｜专属死盯100池 (v292)</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -13,7 +13,6 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .btn{display:block;width:100%;padding:13px;margin:8px 0;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.2s}
 .btn:active{opacity:0.7}
 .b1{background:#ff9f0a;color:#000}.b2{background:#238636;color:#fff}.b3{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
-.b4{background:#da3633;color:#fff;}
 .row{display:flex;align-items:center;margin:9px 0;gap:8px;flex-wrap:wrap}
 .row label{color:#8b949e;font-size:13px;min-width:120px}
 .row input,.row select{flex:1;min-width:110px;padding:9px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#c9d1d9;font-size:14px}
@@ -34,12 +33,11 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </head>
 <body>
 <div class="warn">
-⚠️ 本扫描器专抓极端单边瀑布/火箭行情。<br>窗口一决定“大方向”，窗口二负责“精准狙击”，库存锁定，杜绝频繁全市场刷接口。
+⚠️ 本版本已锁定为你提供的 100 个专属币种（无视全市场排名）。<br>请在窗口一抓取数据后，去窗口二进行微观狙击。
 </div>
 <div class="win">
-  <h2>窗口一 · 极端单边池（含日线影线容差）</h2>
-  <button class="btn b1" id="f1">📥 扫描全市场并刷新库存</button>
-  <button class="btn b3" id="f2c">🗑 清空本地缓存</button>
+  <h2>窗口一 · 专属固定池 (含日线容差)</h2>
+  <button class="btn b1" id="f1">📥 抓取专属100池数据</button>
   <div class="row">
     <label>日线影线容忍幅度(%)</label>
     <input type="number" id="dailyWickTol" value="1.0" step="0.1" min="0" max="5">
@@ -49,7 +47,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
   <div id="out1"></div>
 </div>
 <div class="win win2">
-  <h2>窗口二 · 15F 顺势扣扳机（含极值容差）</h2>
+  <h2>窗口二 · 15F 顺势扣扳机</h2>
   <div class="row">
     <label>扫描目标池</label>
     <select id="poolSource">
@@ -68,9 +66,23 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </div>
 
 <script>
+// 你提供的 100 个带后缀的精确合约代码
+const FIXED_COINS = [
+  "BTCUSDT", "ETHUSDT", "SOXLUSDT", "SNDKUSDT", "ZECUSDT", "SOLUSDT", "NVDAUSDT", "XAUUSDT", "ANTUSDT", "MMTUSDT",
+  "MUUSDT", "XRPUSDT", "SKHYNIXUSDT", "SOXSUSDT", "HYPEUSDT", "PIEVERSEUSDT", "BREVUSDT", "XAGUSDT", "KORUUSDT", "DOGEUSDT",
+  "PEPEUSDT", "SPCXUSDT", "NEARUSDT", "PIPPINUSDT", "SNXXUSDT", "CLUSDT", "PUMPUSDT", "SKHYUSDT", "MSTRUSDT", "UNIUSDT",
+  "QQQUSDT", "LITUSDT", "AKEUSDT", "WLDUSDT", "AMDUSDT", "AAOIUSDT", "ENAUSDT", "FILUSDT", "SUIUSDT", "INTCUSDT",
+  "ZHONGJIUSDT", "NBISUSDT", "BNBUSDT", "CRCLUSDT", "TRUMPUSDT", "PENGUUSDT", "ADAUSDT", "AAVEUSDT", "TQQQUSDT", "LINKUSDT",
+  "GOOGLUSDT", "UNITREEUSDT", "MRVLUSDT", "BZUSDT", "LTCUSDT", "HUMAUSDT", "INJUSDT", "STRKUSDT", "LITEUSDT", "BCHUSDT",
+  "AVAXUSDT", "ASTERUSDT", "TSLAUSDT", "IRYSUSDT", "CRWVUSDT", "DRAMUSDT", "TAOUSDT", "ZROUSDT", "ARBUSDT", "SAMSUNGUSDT",
+  "ZILUSDT", "UPUSDT", "ZHIPUUSDT", "VVVUSDT", "BTWUSDT", "AAPLUSDT", "XPLUSDT", "ONDOUSDT", "TRXUSDT", "OKBUSDT",
+  "TSMUSDT", "NESUSDT", "AXTIUSDT", "NIGHTUSDT", "SPYUSDT", "UVXYUSDT", "MUUUSDT", "DGAIUSDT", "GRAMUSDT", "XLMUSDT",
+  "ICPUSDT", "SQQQUSDT", "CXMTUSDT", "BEUSDT", "SOPHUSDT", "PROSUSDT", "EWYUSDT", "USELESSUSDT", "ZKPUSDT", "OPUSDT"
+];
+
 const PROXIES = ["", "https://api.codetabs.com/v1/proxy?quest=", "https://corsproxy.io/?"];
-const K_LONG_POOL='okx_longpool_v17';
-const K_SHORT_POOL='okx_shortpool_v17';
+const K_LONG_POOL='okx_longpool_v19';
+const K_SHORT_POOL='okx_shortpool_v19';
 let longPool=[], shortPool=[];
 const $=i=>document.getElementById(i);
 const st=(id,h,c)=>{const e=$(id);e.innerHTML=h;e.style.color=c==='e'?'#f85149':c==='o'?'#3fb950':c==='w'?'#ffbf47':'#8b949e'};
@@ -112,7 +124,6 @@ const ema = (arr, n) => {
 
 function parseK(d){
   const o=[],h=[],l=[],c=[];
-  // 严格剔除未收盘K线
   const closedData = d.filter(x => x[8] === '1');
   const data=[...closedData].reverse();
   for(const x of data){
@@ -123,7 +134,7 @@ function parseK(d){
   return{o,h,l,c};
 }
 
-// ================= 窗口一核心引擎 (带日线影线容差) =================
+// ================= 窗口一核心引擎 =================
 function dailyCheck(kData, wickTolPct){
   const {h,l,c}=kData;
   const i=c.length - 1;
@@ -153,25 +164,20 @@ function dailyCheck(kData, wickTolPct){
     if(E20[j]>E20[j-1]) up20++; else dn20++;
   }
 
-  // 做多条件 + 影线容差
   if(isRocket && up5>=2 && up20>=2) {
     let wickBreach = false;
     for(let j=i-2; j<=i; j++){
-      // 如果盘中最低价跌破了 EMA5
       if(l[j] < E5[j]) {
         const breachPct = (E5[j] - l[j]) / E5[j];
-        // 如果跌破幅度超过了设定容差，则淘汰
         if(breachPct > wickTol) wickBreach = true;
       }
     }
     if(!wickBreach) return{kind:'long',last,e5,e20,change5d};
   }
   
-  // 做空条件 + 影线容差
   if(isWaterfall && dn5>=2 && dn20>=2) {
     let wickBreach = false;
     for(let j=i-2; j<=i; j++){
-      // 如果盘中最高价突破了 EMA5
       if(h[j] > E5[j]) {
         const breachPct = (h[j] - E5[j]) / E5[j];
         if(breachPct > wickTol) wickBreach = true;
@@ -185,28 +191,33 @@ function dailyCheck(kData, wickTolPct){
 
 async function runFullScan(){
   const wickInput = num($('dailyWickTol').value);
-  st('st1','<span class="sp"></span>拉取全市场真实成交额榜单...');
+  st('st1','<span class="sp"></span>获取固定池实时行情...');
+  
   const tickRes=await okx('/api/v5/market/tickers?instType=SWAP');
   if(tickRes.err){ st('st1','❌'+tickRes.err,'e'); return; }
   
-  let rawList = tickRes.data
-    .filter(x=>x.instId.endsWith('-USDT-SWAP'))
-    .map(x=>({
-      instId:x.instId,
-      base:x.instId.split('-')[0],
-      last:num(x.last),
-      volCcy24h:num(x.volCcy24h)
-    }))
-    .filter(x=>x.volCcy24h > 500000)
-    .sort((a,b)=>b.volCcy24h-a.volCcy24h)
-    .slice(0,100);
+  // 拼接成欧易格式 -USDT-SWAP
+  const targetInstIds = FIXED_COINS.map(c => c.replace('USDT', '-USDT-SWAP'));
+  
+  let rawList = [];
+  tickRes.data.forEach(x => {
+    if(targetInstIds.includes(x.instId)) {
+      rawList.push({
+        instId: x.instId,
+        base: x.instId.split('-')[0],
+        last: num(x.last),
+        volCcy24h: num(x.volCcy24h) * num(x.last) // 换算成真实USDT成交额
+      });
+    }
+  });
 
-  if(rawList.length===0){ st('st1','❌无币种','e'); return; }
+  if(rawList.length===0){ st('st1','❌获取不到行情，可能代理失效','e'); return; }
+  
   longPool=[]; shortPool=[];
   const rejectList=[];
   const total=rawList.length;
   
-  st('st1',`<span class="sp"></span>开始捕捉单边趋势 (1/${total})...`);
+  st('st1',`<span class="sp"></span>开始处理专属池 (共${total}个)...`);
 
   for(let i=0;i<rawList.length;i++){
     const item=rawList[i];
@@ -232,7 +243,7 @@ async function runFullScan(){
   localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
   localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
   
-  st('st1',`✅刷新完成｜多头${longPool.length}，空头${shortPool.length}，淘汰${rejectList.length}`,'o');
+  st('st1',`✅固定池扫描完成｜多头${longPool.length}，空头${shortPool.length}，淘汰${rejectList.length}`,'o');
   renderPool(rejectList);
 }
 
@@ -255,12 +266,12 @@ function renderPool(rej=[]){
   }else html+=`<div class="empty">🌊 瀑布池为空</div>`;
 
   if(rej&&rej.length>0){
-    html+=`<div class="card sub">淘汰列表(最多展示前25)<br>${rej.slice(0,25).join('<br>')}</div>`;
+    html+=`<div class="card sub">淘汰列表(最多展示前50)<br>${rej.slice(0,50).join('<br>')}</div>`;
   }
   $('out1').innerHTML=html;
 }
 
-// ================= 窗口二核心引擎 (带15m极值容差) =================
+// ================= 窗口二核心引擎 =================
 $('f2').onclick=async()=>{
   const poolSource=$('poolSource').value;
   const usePool = poolSource==="longPool"?longPool:shortPool;
@@ -284,12 +295,11 @@ $('f2').onclick=async()=>{
     
     const {c, l, h} = kp;
     const idx = c.length - 1;
-    const last = c[idx]; // 已收盘的最新15m收盘价
+    const last = c[idx]; 
     
     const e5_15m = ema(c, 5)[idx];
     const e20_15m = ema(c, 20)[idx];
     
-    // 找过去 10 根 (不包括当前这根) 的极值
     const recent10 = [];
     for(let j = idx-10; j < idx; j++) {
         recent10.push({h: h[j], l: l[j]});
@@ -301,8 +311,6 @@ $('f2').onclick=async()=>{
     let stop = 0, tp = 0;
 
     if(it.kind === 'long'){
-      // 多头进场：15m 必须收阳线，且不能破 EMA20
-      // 且当前这根收盘价，离前 10 根最低点的距离，在容差范围内
       const distToMin = (last - minL_10) / minL_10;
       if(last > e20_15m && c[idx] > c[idx-1] && distToMin <= extTolPct) {
         isValidEntry = true;
@@ -310,7 +318,6 @@ $('f2').onclick=async()=>{
         tp = last + (last - stop) * 3; 
       }
     } else {
-      // 空头进场：15m 必须收阴线，且不能破 EMA20
       const distToMax = (maxH_10 - last) / maxH_10;
       if(last < e20_15m && c[idx] < c[idx-1] && distToMax <= extTolPct) {
         isValidEntry = true;
@@ -349,13 +356,6 @@ $('f2').onclick=async()=>{
 };
 
 $('f1').onclick=runFullScan;
-$('f2c').onclick=()=>{
-  localStorage.removeItem(K_LONG_POOL);
-  localStorage.removeItem(K_SHORT_POOL);
-  longPool=[]; shortPool=[];
-  $('out1').innerHTML='';$('out2').innerHTML='';
-  st('st1','✅缓存已清空','w');
-};
 </script>
 </body>
 </html>
