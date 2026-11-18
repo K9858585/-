@@ -25,8 +25,10 @@
   .reason{ margin-top:6px; font-size:12px; color:var(--txt); background:#0b0f14; padding:8px; border-radius:6px; }
   .hidden{ display:none; }
   .warn{ color:var(--down); }
-  .row{ display:flex; gap:8px; align-items:center; margin:6px 0; }
+  .row{ display:flex; gap:8px; align-items:center; margin:6px 0; flex-wrap:wrap; }
   input{ background:#0b0f14; border:1px solid var(--line); color:var(--txt); padding:8px; border-radius:6px; width:60px; }
+  select{ background:#0b0f14; border:1px solid var(--line); color:var(--txt); padding:8px; border-radius:6px; width:110px; font-size:14px; }
+  select option{ background:#11171f; }
   #status{ font-size:12px; color:var(--acc); margin-top:6px; }
   .progress{ height:4px; background:var(--line); border-radius:2px; overflow:hidden; margin-top:6px; }
   .bar{ height:100%; background:var(--acc); width:0; transition:.3s; }
@@ -41,7 +43,13 @@
     <span>推荐范围：前</span><input id="rangeIn" type="number" min="1" max="100" placeholder="100"><span>名（留空=100）</span>
   </div>
   <div class="row">
-    <span>K线周期：</span><input id="barIn" value="1D" style="width:80px"><span>(1D/4H/1H)</span>
+    <span>K线周期：</span>
+    <select id="barIn">
+      <option value="1D" selected>日线 (1D)</option>
+      <option value="4H">4小时 (4H)</option>
+      <option value="1H">1小时 (1H)</option>
+      <option value="15m">15分钟 (15m)</option>
+    </select>
   </div>
   <div id="status">加载中...</div>
   <div class="progress"><div class="bar" id="prog"></div></div>
@@ -51,94 +59,141 @@
 <script>
 const API='https://www.okx.com';
 const CONC=6;
-const EMA=(a,p)=>{let e=a[0];for(let i=1;i<a.length;i++)e=e*(1-p)+a[i]*p;return e;};
-const EMA_S=(arr,n)=>EMA(arr,2/(n+1));
-const MACD=(c,f=12,s=26,g=9)=>{const e1=EMA_S(c,f),e2=EMA_S(c,s),d=e1-e2,m=EMA_S([d],g);return{dif:e1-e2,dea:m,bar:(d-m)*2};};
-const RSI=(c,n=14)=>{let g=0,b=0;for(let i=1;i<c.length;i++){const x=c[i]-c[i-1];if(x>0)g+=x;else b-=x;}return 100-(100/(1+(g/b||0)));}; // 简化版，实际用Wilder
-const ADX=(h,l,c,n=14)=>{let tr=[],dmP=[],dmM=[];for(let i=1;i<c.length;i++){tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));dmP.push(h[i]-h[i-1]>l[i-1]-l[i]&&h[i]>h[i-1]?h[i]-h[i-1]:0);dmM.push(l[i-1]-l[i]>h[i]-h[i-1]&&l[i]<l[i-1]?l[i-1]-l[i]:0);}let atr=tr.slice(0,n).reduce((a,b)=>a+b,0)/n,p=dmP.slice(0,n).reduce((a,b)=>a+b,0)/atr,m=dmM.slice(0,n).reduce((a,b)=>a+b,0)/atr,dx=Math.abs(p-m)/(p+m)*100;return{dx,adx:dx,p,m};}; // 简化
+const TIMEOUT=8000;
+
+function $(id){return document.getElementById(id);}
+
+const EMA_S=(arr,n)=>{let e=arr[0];const p=2/(n+1);for(let i=1;i<arr.length;i++)e=e*(1-p)+arr[i]*p;return e;};
+const MACD=(c,f=12,s=26,g=9)=>{const e1=EMA_S(c,f),e2=EMA_S(c,s);let d=e1-e2,m=d;for(let i=1;i<c.length;i++){const nd=e1-e2;m=m*(1-2/(g+1))+nd*2/(g+1);d=nd;}return{dif:e1-e2,dea:m,bar:(e1-e2-m)*2};};
+const RSI=(c,n=14)=>{let g=0,b=0;for(let i=1;i<c.length;i++){const x=c[i]-c[i-1];if(x>0)g+=x;else b-=x;}if(g+b===0)return 50;return 100-(100/(1+(g/(b||1))));};
+const ADX=(h,l,c,n=14)=>{let tr=[],dmP=[],dmM=[];for(let i=1;i<c.length;i++){tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-c[i-1]),Math.abs(l[i]-c[i-1])));dmP.push(h[i]-h[i-1]>l[i-1]-l[i]&&h[i]>h[i-1]?h[i]-h[i-1]:0);dmM.push(l[i-1]-l[i]>h[i]-h[i-1]&&l[i]<l[i-1]?l[i-1]-l[i]:0);}let atr=tr.slice(0,n).reduce((a,b)=>a+b,0)/n,p=dmP.slice(0,n).reduce((a,b)=>a+b,0)/atr,m=dmM.slice(0,n).reduce((a,b)=>a+b,0)/atr;const dx=Math.abs(p-m)/(p+m)*100;return{dx,adx:dx,p,m};};
 const fmt=n=>n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':n.toFixed(0);
 const pct=x=>(x>=0?'+':'')+(x*100).toFixed(2)+'%';
 const px=(p,s)=>p<1?p.toFixed(6):p<100?p.toFixed(4):p.toFixed(2);
 
-async function req(path){const r=await fetch(API+path);const j=await r.json();if(j.code!=='0')throw new Error(j.msg||'API错');return j.data;}
-async function limit(map,arr,fn){const res=[];let i=0;async function next(){while(i<arr.length){const k=arr[i++];await fn(k);}return;}const ps=Array(Math.min(CONC,arr.length)).fill(0).map(next);await Promise.all(ps);}
+async function fetchWithTimeout(url, ms=TIMEOUT){
+  const controller=new AbortController();
+  const id=setTimeout(()=>controller.abort(),ms);
+  try{
+    const r=await fetch(url,{signal:controller.signal});
+    clearTimeout(id);
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const j=await r.json();
+    if(j.code!=='0')throw new Error(j.msg||'API错');
+    return j.data;
+  }catch(e){
+    clearTimeout(id);
+    if(e.name==='AbortError')throw new Error('请求超时');
+    throw e;
+  }
+}
+
+async function limit(map,arr,fn){
+  const res=[];let i=0;
+  async function next(){while(i<arr.length){const k=arr[i++];try{await fn(k);}catch(e){}}}return;
+  const ps=Array(Math.min(CONC,arr.length)).fill(0).map(next);
+  await Promise.all(ps);
+}
+
 function bjDate(){const d=new Date();return d.toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai'});}
 
-// 榜单缓存
 function loadList(){try{return JSON.parse(localStorage.getItem('okx_top100'));}catch{return null;}}
 function saveList(list,date){localStorage.setItem('okx_top100',JSON.stringify({list,date}));}
 
-// 抓取全量榜单（每日一次）
 async function fetchList(){
-  $('#status').innerText='拉取永续列表...';
-  const insts=await req('/api/v5/public/instruments?instType=SWAP&state=live');
+  $('status').innerText='拉取永续列表...';
+  const insts=await fetchWithTimeout('/api/v5/public/instruments?instType=SWAP&state=live');
   const swaps=insts.filter(x=>x.settleCcy==='USDT'&&x.instId.endsWith('-USDT-SWAP'));
-  $('#status').innerText=`${swaps.length}个永续，拉实时价...`;
-  const tickers=await req('/api/v5/market/tickers?instType=SWAP');
+  $('status').innerText=`${swaps.length}个永续，拉实时价...`;
+  const tickers=await fetchWithTimeout('/api/v5/market/tickers?instType=SWAP');
   const map=new Map(tickers.map(t=>[t.instId,{last:+t.last,vol24h:+t.vol24h,chgPct24h:+t.chgPct24h}]));
   let arr=swaps.map(s=>{const t=map.get(s.instId);if(!t)return null;const base=s.instId.split('-')[0],usd=t.last*t.vol24h;return{instId:s.instId,base,last:t.last,vol24h:t.vol24h,usd,chgPct:t.chgPct24h};}).filter(Boolean).sort((a,b)=>b.usd-a.usd);
-  // 同币去重
   const seen=new Set(),uniq=[];
   for(const x of arr){if(seen.has(x.base))continue;seen.add(x.base);uniq.push(x);if(uniq.length>=100)break;}
   saveList(uniq,bjDate());
-  $('#status').innerText=`已存${uniq.length}只 · ${bjDate()}`;
+  $('status').innerText=`已存${uniq.length}只 · ${bjDate()}`;
   return uniq;
 }
 
-// 轻量刷新：只拉ticker更新实时价/成交额/涨跌，不重抓全量
 async function lightRefresh(list){
-  const tickers=await req('/api/v5/market/tickers?instType=SWAP');
+  $('status').innerText='轻量刷新实时价...';
+  const tickers=await fetchWithTimeout('/api/v5/market/tickers?instType=SWAP');
   const map=new Map(tickers.map(t=>[t.instId,{last:+t.last,vol24h:+t.vol24h,chgPct24h:+t.chgPct24h}]));
   list.forEach(x=>{const t=map.get(x.instId);if(t){x.realLast=t.last;x.realVol24h=t.vol24h;x.realUsd=t.last*t.vol24h;x.realChgPct=t.chgPct24h;}});
   return list;
 }
 
-// 评分：组合五（满分100）
-async function score(inst,bar='1D'){
-  const k=await req(`/api/v5/market/candles?instId=${inst.instId}&bar=${bar}&limit=150`);
+async function score(inst,bar){
+  const k=await fetchWithTimeout(`/api/v5/market/candles?instId=${inst.instId}&bar=${bar}&limit=150`);
   const c=k.map(x=>+x[4]).reverse(),h=k.map(x=>+x[2]).reverse(),l=k.map(x=>+x[3]).reverse(),v=k.map(x=>+x[5]).reverse();
   const real=inst.realLast||c[c.length-1];
   const e20=EMA_S(c,20),e50=EMA_S(c,50),e200=EMA_S(c,200);
   const macd=MACD(c),rsi=RSI(c),adx=ADX(h,l,c);
-  const volAvg=v.slice(-20).reduce((a,b)=>a+b,0)/20,volR=inst.realVol24h?inst.realVol24h/volAvg:v[v.length-1]/volAvg;
-  // 影线
+  const volAvg=v.slice(-20).reduce((a,b)=>a+b,0)/20;
+  const volR=inst.realVol24h?inst.realVol24h/volAvg:v[v.length-1]/volAvg;
   const lastC=c[c.length-1],lastH=h[h.length-1],lastL=l[l.length-1];
-  const body=Math.abs(real-lastC),rng=lastH-lastL||1,upSh=(lastH-Math.max(real,lastC))/rng,dnSh=(Math.min(real,lastC)-lastL)/rng;
+  const body=Math.abs(real-lastC),rng=lastH-lastL||1;
+  const upSh=(lastH-Math.max(real,lastC))/rng,dnSh=(Math.min(real,lastC)-lastL)/rng;
   let score=0,reasons=[],dir='none';
-  // EMA 25
-  let emaS=0;if(e20>e50&&e50>e200)emaS=25,reasons.push('EMA多头排列+25');else if(e20<e50&&e50<e200)emaS=-25,reasons.push('EMA空头排列-25');else if(real>e20&&e20>e50)emaS=15,reasons.push('价>EMA20>50 +15');else if(real<e20&&e20<e50)emaS=-15,reasons.push('价<EMA20<50 -15');else emaS=0;score+=emaS;
-  // MACD 20
-  let mS=0;if(macd.dif>macd.dea&&macd.bar>0)mS=20,reasons.push('MACD零轴上金叉+20');else if(macd.dif<macd.dea&&macd.bar<0)mS=-20,reasons.push('MACD零轴下死叉-20');else if(macd.dif>macd.dea)mS=10,reasons.push('MACD金叉未确认+10');else mS=-10,reasons.push('MACD偏弱-10');score+=mS;
-  // ADX 20
-  let aS=0;if(adx.adx>25&&adx.p>adx.m)aS=20,reasons.push(`ADX${adx.adx.toFixed(0)}多头趋势+20`);else if(adx.adx>25&&adx.m>adx.p)aS=-20,reasons.push(`ADX${adx.adx.toFixed(0)}空头趋势-20`);else if(adx.adx<20)aS=-5,reasons.push('ADX<20震荡-5');score+=aS;
-  // RSI 15
-  let rS=0;if(rsi>60&&rsi<80)rS=15,reasons.push(`RSI${rsi.toFixed(0)}偏强+15`);else if(rsi<40&&rsi>20)rS=-15,reasons.push(`RSI${rsi.toFixed(0)}偏弱-15`);else if(rsi>=80)rS=-5,reasons.push('RSI超买-5');else if(rsi<=20)rS=5,reasons.push('RSI超卖+5(反转)');else rS=0;score+=rS;
-  // 量比 10
-  let vS=0;if(volR>1.5&&emaS>0)vS=10,reasons.push(`量比${volR.toFixed(1)}放大+10`);else if(volR>1.2)vS=5,reasons.push(`量比${volR.toFixed(1)}+5`);else if(volR<0.8)vS=-5,reasons.push('缩量-5');score+=vS;
-  // 影线/位置 10
-  let shS=0;if(upSh>0.6&&emaS<0)shS=10,reasons.push('长上影+空头=反转+10');else if(dnSh>0.6&&emaS>0)shS=10,reasons.push('长下影+多头=支撑+10');else if(upSh>0.5)shS=-5,reasons.push('上影偏长-5');else if(dnSh>0.5)shS=-5,reasons.push('下影偏长-5');score+=shS;
-  if(score>=70)dir=emaS>0?'up':'down',reasons.unshift(`🔥强方向 ${score}分`);else if(score>=55)dir=emaS>0?'up':'down',reasons.unshift(`弱方向 ${score}分`);else dir='none',reasons.unshift(`无方向 ${score}分(<55)`);
-  return{...inst,score,e20,e50,e200,macd:dif=macd.dif,dea=macd.dea,bar:macd.bar,rsi,adx:adx.adx,p:adx.p,m:adx.m,volR,upSh,dnSh,realLast:real,dir,reasons,bar};
+  let emaS=0;
+  if(e20>e50&&e50>e200)emaS=25,reasons.push('EMA多头排列+25');
+  else if(e20<e50&&e50<e200)emaS=-25,reasons.push('EMA空头排列-25');
+  else if(real>e20&&e20>e50)emaS=15,reasons.push('价>EMA20>50 +15');
+  else if(real<e20&&e20<e50)emaS=-15,reasons.push('价<EMA20<50 -15');
+  score+=emaS;
+  let mS=0;
+  if(macd.dif>macd.dea&&macd.bar>0)mS=20,reasons.push('MACD零轴上金叉+20');
+  else if(macd.dif<macd.dea&&macd.bar<0)mS=-20,reasons.push('MACD零轴下死叉-20');
+  else if(macd.dif>macd.dea)mS=10,reasons.push('MACD金叉未确认+10');
+  else mS=-10,reasons.push('MACD偏弱-10');
+  score+=mS;
+  let aS=0;
+  if(adx.adx>25&&adx.p>adx.m)aS=20,reasons.push(`ADX${adx.adx.toFixed(0)}多头趋势+20`);
+  else if(adx.adx>25&&adx.m>adx.p)aS=-20,reasons.push(`ADX${adx.adx.toFixed(0)}空头趋势-20`);
+  else if(adx.adx<20)aS=-5,reasons.push('ADX<20震荡-5');
+  score+=aS;
+  let rS=0;
+  if(rsi>60&&rsi<80)rS=15,reasons.push(`RSI${rsi.toFixed(0)}偏强+15`);
+  else if(rsi<40&&rsi>20)rS=-15,reasons.push(`RSI${rsi.toFixed(0)}偏弱-15`);
+  else if(rsi>=80)rS=-5,reasons.push('RSI超买-5');
+  else if(rsi<=20)rS=5,reasons.push('RSI超卖+5(反转)');
+  score+=rS;
+  let vS=0;
+  if(volR>1.5&&emaS>0)vS=10,reasons.push(`量比${volR.toFixed(1)}放大+10`);
+  else if(volR>1.2)vS=5,reasons.push(`量比${volR.toFixed(1)}+5`);
+  else if(volR<0.8)vS=-5,reasons.push('缩量-5');
+  score+=vS;
+  let shS=0;
+  if(upSh>0.6&&emaS<0)shS=10,reasons.push('长上影+空头=反转+10');
+  else if(dnSh>0.6&&emaS>0)shS=10,reasons.push('长下影+多头=支撑+10');
+  else if(upSh>0.5)shS=-5,reasons.push('上影偏长-5');
+  else if(dnSh>0.5)shS=-5,reasons.push('下影偏长-5');
+  score+=shS;
+  if(score>=70)dir=emaS>0?'up':'down',reasons.unshift(`🔥强方向 ${score}分`);
+  else if(score>=55)dir=emaS>0?'up':'down',reasons.unshift(`弱方向 ${score}分`);
+  else dir='none',reasons.unshift(`无方向 ${score}分(<55)`);
+  return{...inst,score,e20,e50,e200,dif:macd.dif,dea:macd.dea,bar:macd.bar,rsi,adx:adx.adx,p:adx.p,m:adx.m,volR,upSh,dnSh,realLast:real,dir,reasons};
 }
 
 async function recommend(){
-  let cache=loadList();if(!cache){$('#status').innerText='先抓榜';return;}
-  let range=parseInt($('#rangeIn').value)||100;if(range<1||range>100)range=100;
-  const bar=$('#barIn').value||'1D';
-  $('#status').innerText=`轻量刷新实时价(${cache.list.length}只)...`;
-  await lightRefresh(cache.list);
-  saveList(cache.list,bjDate()); // 更新实时价到缓存
+  let cache=loadList();
+  if(!cache){$('status').innerText='⚠️ 无缓存，请先点"抓取今日成交额前100"';return;}
+  let range=parseInt($('rangeIn').value)||100;if(range<1||range>100)range=100;
+  const bar=$('barIn').value;
+  $('status').innerText=`轻量刷新实时价(${cache.list.length}只)...`;
+  try{await lightRefresh(cache.list);saveList(cache.list,bjDate());}catch(e){$('status').innerText='⚠️ 轻量刷新失败:'+e.message;return;}
   const pool=cache.list.slice(0,range);
-  $('#status').innerText=`评分中(组合五) 前${range}名 · ${bar}...`;
-  $('#prog').style.width='0%';
+  $('status').innerText=`评分中(组合五) 前${range}名 · ${bar}...`;
+  $('prog').style.width='0%';
   const scored=[];let i=0;
   await limit(null,pool,async inst=>{
     try{const s=await score(inst,bar);scored.push(s);}catch(e){}
-    i++;$('#prog').style.width=(i/pool.length*100)+'%';
-    $('#status').innerText=`已评 ${i}/${pool.length} · 轻量刷新+组合五`;
+    i++;$('prog').style.width=(i/pool.length*100)+'%';
+    $('status').innerText=`已评 ${i}/${pool.length} · ${bar}`;
   });
+  if(scored.length===0){$('status').innerText='⚠️ 评分全部失败，可能API被拦';return;}
   scored.sort((a,b)=>b.score-a.score);
-  const top=scored[0];if(!top)return;
+  const top=scored[0];
   const top10=scored.slice(0,10).map((x,j)=>`${j+1}.${x.base}(${x.score})`).join(' ');
   const isNone=top.score<55;
   const cls=top.dir==='up'?'up':top.dir==='down'?'down':'';
@@ -155,7 +210,7 @@ async function recommend(){
         <div>24h成交额</div><b>$${fmt(top.realUsd||top.usd)}</b>
         <div>24h涨跌</div><b>${pct(top.realChgPct??top.chgPct)}</b>
         <div>EMA20/50/200</div><b>${px(top.e20,top.base)} / ${px(top.e50,top.base)} / ${px(top.e200,top.base)}</b>
-        <div>MACD/RSI/ADX</div><b>${top.bar.toFixed(2)} / ${top.rsi.toFixed(0)} / ${top.adx.toFixed(0)}</b>
+        <div>MACD/RSI/ADX</div><b>${top.dif.toFixed(2)} / ${top.rsi.toFixed(0)} / ${top.adx.toFixed(0)}</b>
         <div>量比/影线</div><b>${top.volR.toFixed(1)} / 上${top.upSh.toFixed(2)}下${top.dnSh.toFixed(2)}</b>
         <div>参考失效位</div><b style="color:${top.dir==='down'?'var(--up)':'var(--down)'}">${top.dir==='down'?'站回':'跌破'} ${px(failPrice,top.base)}</b>
       </div>
@@ -164,13 +219,13 @@ async function recommend(){
       <div class="top10">TOP10评分: ${top10}</div>
       <div class="sub" style="margin-top:10px">组合五(EMA25+MACD20+ADX20+RSI15+量10+影线10)。范围前${range}，完成${scored.length}只，最高${top.score}分。${isNone?'<br>⚠ 分数<55，最优解是不做。':top.score>=70?'<br>🔥强信号。':'<br>弱信号，小仓或观望。'}</div>
     </div>`;
-  $('#status').innerText=`完成 · 前${range} · 最高${top.score}分 · ${new Date().toLocaleTimeString()}`;
+  $('status').innerText=`完成 · 前${range} · 最高${top.score}分 · ${new Date().toLocaleTimeString()}`;
 }
 
-$('#btnList').onclick=async()=>{const b=$('#btnList');b.disabled=true;try{await fetchList();}catch(e){$('#status').innerText='失败:'+e.message;}b.disabled=false;};
-$('#btnRec').onclick=async()=>{const b=$('#btnRec');b.disabled=true;await recommend();b.disabled=false;};
-$('#btnClear').onclick=()=>{localStorage.removeItem('okx_top100');$('#status').innerText='缓存已清';};
-(function(){const c=loadList();$('#status').innerText=c?`榜单缓存：${c.date}（${c.list.length}只）${c.date!==bjDate()?' · 需重抓':''} · 推荐将轻量刷新`:'无缓存，先抓榜';})();
+$('btnList').onclick=async()=>{const b=$('btnList');b.disabled=true;$('status').innerText='抓取中...';try{await fetchList();}catch(e){$('status').innerText='⚠️ 失败:'+e.message;}b.disabled=false;};
+$('btnRec').onclick=async()=>{const b=$('btnRec');b.disabled=true;await recommend();b.disabled=false;};
+$('btnClear').onclick=()=>{localStorage.removeItem('okx_top100');$('status').innerText='缓存已清';};
+(function(){const c=loadList();$('status').innerText=c?`榜单缓存：${c.date}（${c.list.length}只）${c.date!==bjDate()?' · 需重抓':''} · 推荐将轻量刷新`:'无缓存，先抓榜';})();
 </script>
 </body>
 </html>
