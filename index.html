@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约扫描｜修复版 无自动旧缓存</title>
+<title>欧易合约扫描｜极速稳定版</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
 h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .win{background:#11161d;border:1px solid #30363d;border-radius:14px;padding:14px;margin-bottom:16px}
 .win2{border-color:#2f6f3e}
-.btn{display:block;width:100%;padding:13px;margin:8px 0;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
-.btn:active{transform:scale(0.98)}
+.btn{display:block;width:100%;padding:13px;margin:8px 0;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:opacity 0.2s}
+.btn:active{opacity:0.7}
 .b1{background:#ff9f0a;color:#000}.b2{background:#238636;color:#fff}.b3{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
 .b4{background:#da3633;color:#fff;}
 .row{display:flex;align-items:center;margin:9px 0;gap:8px;flex-wrap:wrap}
@@ -26,4 +26,362 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .sub{color:#8b949e;font-size:12px;line-height:1.7}
 .tag{display:inline-block;padding:1px 7px;border-radius:5px;font-size:11px;border:1px solid #2f6f3e;color:#3fb950;margin-left:6px}
 .tagShort{border-color:#da3633;color:#f85149;margin-left:6px;}
-.sp{display:inline-block;width:13
+.sp{display:inline-block;width:13px;height:13px;border:2px solid #30363d;border-top-color:#ff9f0a;border-radius:50%;animation:r .8s linear infinite;margin-right:6px;vertical-align:-2px}
+@keyframes r{to{transform:rotate(360deg)}}
+.warn{background:#2d1a00;border:1px solid #8b6914;color:#ffbf47;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.6;margin:8px 0}
+.empty{color:#8b949e;font-size:13px;padding:10px;text-align:center;border:1px dashed #30363d;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="warn">
+⚠️ 提示：建议下载本 HTML 到电脑本地双击打开，直连官方 API 速度最快。<br>如果在网页端打开，系统会自动尝试代理。
+</div>
+<div class="win">
+  <h2>窗口一 · 日线多空分离池</h2>
+  <button class="btn b1" id="f1">📥 重新抓取前100（获取日线趋势）</button>
+  <button class="btn b3" id="refreshVol">💹 刷新价格（不重跑K线）</button>
+  <button class="btn b3" id="f2c">🗑 清空本地全部缓存</button>
+  <div class="row">
+    <label>日线影线回踩EMA5容差%</label>
+    <input type="number" id="ema5WickTol" value="1.2" step="0.1" min="0" max="5">
+  </div>
+  <div class="st" id="st1">就绪，点击上方按钮开始</div>
+  <div id="out1"></div>
+</div>
+<div class="win win2">
+  <h2>窗口二 · 15F 精选</h2>
+  <div class="row">
+    <label>数据源池</label>
+    <select id="poolSource">
+      <option value="longPool">🟢 使用日线多头池</option>
+      <option value="shortPool">🔴 使用日线空头池</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>扫描模式</label>
+    <select id="scanMode">
+      <option value="long">🔵 扫描做多（回踩低位）</option>
+      <option value="short">🔴 扫描做空（反弹高位）</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>收盘偏离极值容差%</label>
+    <input type="number" id="closeTol" value="0.8" step="0.1" min="0" max="5">
+  </div>
+  <div class="row">
+    <label>15F影线刺破极值容差%</label>
+    <input type="number" id="extremeWickTol" value="1.5" step="0.1" min="0" max="8">
+  </div>
+  <button class="btn b2" id="f2">🎯 执行15分钟K线扫描</button>
+  <div class="st" id="st2">等待窗口一生成币种池</div>
+  <div id="out2"></div>
+</div>
+
+<script>
+// 代理列表（按顺序尝试）
+const PROXIES = [
+  "", // 1. 尝试直连
+  "https://api.codetabs.com/v1/proxy?quest=", // 2. 备用代理
+  "https://corsproxy.io/?", // 3. 备用代理
+  "https://api.allorigins.win/raw?url=" // 4. 备用代理
+];
+
+const K_LONG_POOL='okx_longpool_v13';
+const K_SHORT_POOL='okx_shortpool_v13';
+let longPool=[], shortPool=[];
+const G={MIN_BARS:25,DEV_MAX:0.20,JUMP_MAX:0.30,TREND_BARS:3};
+const $=i=>document.getElementById(i);
+const st=(id,h,c)=>{const e=$(id);e.innerHTML=h;e.style.color=c==='e'?'#f85149':c==='o'?'#3fb950':c==='w'?'#ffbf47':'#8b949e'};
+const pc=v=>(v*100).toFixed(2)+'%';
+const volFormat=v=>v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(0)+'M':(v/1e3).toFixed(0)+'K';
+const px=p=>p>=1000?p.toFixed(0):p>=100?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const num=x=>parseFloat(x)||0;
+
+// 核心请求函数，带超时和代理切换
+async function okx(path, retries=3){
+  const targetUrl = 'https://www.okx.com' + path;
+  
+  for(let i=0; i<=retries; i++){
+    // 每次重试换一个代理
+    const proxy = PROXIES[i % PROXIES.length];
+    const fetchUrl = proxy ? proxy + encodeURIComponent(targetUrl) : targetUrl;
+    
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000); // 8秒超时熔断
+
+    try{
+      const r = await fetch(fetchUrl, { signal: ctrl.signal });
+      clearTimeout(timer);
+      
+      if(r.status === 429 || r.status >= 500) continue;
+      if(!r.ok) continue;
+      
+      const j = await r.json();
+      if(j.code !== '0') return {err:`API:${j.msg}`};
+      return {data:j.data};
+    }catch(e){
+      clearTimeout(timer);
+      if(i === retries) return {err:`网络超时/失败，请本地打开HTML`};
+      await sleep(500); // 切换代理前等半秒
+    }
+  }
+}
+
+const ema = (arr, n) => {
+  const k = 2 / (n + 1);
+  const res = [arr[0]];
+  for(let i = 1; i < arr.length; i++) {
+    res.push(arr[i] * k + res[i - 1] * (1 - k));
+  }
+  return res;
+};
+
+function parseK(d){
+  const o=[],h=[],l=[],c=[];
+  const data=[...d].reverse();
+  for(const x of data){
+    const co=num(x[1]),hi=num(x[2]),lo=num(x[3]),cl=num(x[4]);
+    if(!isFinite(co)||!isFinite(hi)||!isFinite(lo)||!isFinite(cl)) return{err:'K线字段异常'};
+    o.push(co);h.push(hi);l.push(lo);c.push(cl);
+  }
+  return{o,h,l,c};
+}
+
+function dailyCheck(kData,wickTolPct){
+  const {h,l,c}=kData;
+  const i=c.length - 1;
+  const E5=ema(c,5),E20=ema(c,20);
+  const last=c[i],e5=E5[i],e20=E20[i];
+  const low=l[i];
+  const high=h[i];
+  const wickTol=wickTolPct/100;
+  
+  if(!isFinite(last)||!isFinite(e5)||!isFinite(e20)) return{err:'EMA计算异常'};
+  
+  const bias=(last-e20)/e20;
+  if(Math.abs(bias)>G.DEV_MAX) return{err:`乖离过大 ${pc(bias)}`};
+  
+  for(let j=Math.max(0,c.length-8);j<=i;j++){
+    if((h[j]-l[j])/c[j-1]>G.JUMP_MAX) return{err:'单日振幅过大'};
+  }
+  
+  let up5=0,dn5=0,up20=0,dn20=0;
+  for(let j=i;j>i-G.TREND_BARS&&j>=1;j--){
+    if(E5[j]>E5[j-1]) up5++;
+    if(E5[j]<E5[j-1]) dn5++;
+    if(E20[j]>E20[j-1]) up20++;
+    if(E20[j]<E20[j-1]) dn20++;
+  }
+  
+  const upTrend = up5===G.TREND_BARS && up20===G.TREND_BARS;
+  const downTrend = dn5===G.TREND_BARS && dn20===G.TREND_BARS;
+  
+  if(upTrend && last>e5 && last>e20){
+    const wickRate=(e5-low)/e5;
+    if(low<e5 && wickRate>wickTol) return{err:`下影破EMA5超限`};
+    return{kind:'long',last,e5,e20,bias,wickRate:low<e5?wickRate:0};
+  }
+  
+  if(downTrend && last<e5 && last<e20){
+    const wickRate=(high-e5)/e5;
+    if(high>e5 && wickRate>wickTol) return{err:`上影破EMA5超限`};
+    return{kind:'short',last,e5,e20,bias,wickRate:high>e5?wickRate:0};
+  }
+  
+  return{err:'不满足趋势'};
+}
+
+async function refreshVolumeOnly(){
+  st('st1','<span class="sp"></span>正在拉取最新行情价格...');
+  const r=await okx('/api/v5/market/tickers?instType=SWAP');
+  if(r.err){ st('st1','❌'+r.err,'e'); return; }
+  
+  const map={};
+  r.data.filter(x=>x.instId.endsWith('-USDT-SWAP')).forEach(x=>{
+    map[x.instId]={last:num(x.last),vol24h:num(x.vol24h)};
+  });
+  
+  let cnt=0;
+  longPool.forEach(it=>{
+    const m=map[it.instId];
+    if(m){ it.last=m.last; it.vol24h=m.vol24h; cnt++; }
+  });
+  shortPool.forEach(it=>{
+    const m=map[it.instId];
+    if(m){ it.last=m.last; it.vol24h=m.vol24h; cnt++; }
+  });
+  
+  longPool.sort((a,b)=>b.vol24h-a.vol24h);
+  shortPool.sort((a,b)=>b.vol24h-a.vol24h);
+  localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
+  localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
+  
+  st('st1',`✅价格刷新完成，更新${cnt}个币种`,'o');
+  renderPool();
+}
+
+async function runFullScan(){
+  st('st1','<span class="sp"></span>拉取全部永续合约列表...');
+  const tickRes=await okx('/api/v5/market/tickers?instType=SWAP');
+  if(tickRes.err){ st('st1','❌'+tickRes.err,'e'); return; }
+  
+  let rawList = tickRes.data
+    .filter(x=>x.instId.endsWith('-USDT-SWAP'))
+    .map(x=>({
+      instId:x.instId,
+      base:x.instId.split('-')[0],
+      last:num(x.last),
+      vol24h:num(x.vol24h)
+    }))
+    .filter(x=>x.vol24h>0)
+    .sort((a,b)=>b.vol24h-a.vol24h)
+    .slice(0,100);
+
+  if(rawList.length===0){ st('st1','❌过滤后没有币种','e'); return; }
+  longPool=[]; shortPool=[];
+  const rejectList=[];
+  const wickInput = num($('ema5WickTol').value);
+  const total=rawList.length;
+  
+  st('st1',`<span class="sp"></span>开始抓取日线K线 (1/100)...`);
+
+  for(let i=0;i<rawList.length;i++){
+    const item=rawList[i];
+    st('st1',`<span class="sp"></span>处理 ${i+1}/${total} ｜ ${item.base}`);
+    const kr=await okx(`/api/v5/market/candles?instId=${item.instId}&bar=1D&limit=40`);
+    
+    if(kr.err){ rejectList.push(`${item.base}:${kr.err}`); await sleep(200); continue; }
+    if(!kr.data||kr.data.length<G.MIN_BARS){ rejectList.push(`${item.base}:K线不足`); await sleep(200); continue; }
+    
+    const kParsed=parseK(kr.data);
+    if(kParsed.err){ rejectList.push(`${item.base}:${kParsed.err}`); await sleep(200); continue; }
+    
+    const checkRes = dailyCheck(kParsed,wickInput);
+    if(checkRes.err){ rejectList.push(`${item.base}:${checkRes.err}`); }
+    else if(checkRes.kind==='long'){ longPool.push({...item,...checkRes}); }
+    else if(checkRes.kind==='short'){ shortPool.push({...item,...checkRes}); }
+    
+    await sleep(200);
+  }
+  
+  longPool.sort((a,b)=>b.vol24h-a.vol24h);
+  shortPool.sort((a,b)=>b.vol24h-a.vol24h);
+  localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
+  localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
+  
+  st('st1',`✅完成｜多头${longPool.length}，空头${shortPool.length}，过滤${rejectList.length}`,'o');
+  renderPool(rejectList);
+}
+
+function renderPool(rej=[]){
+  let html='';
+  if(longPool.length>0){
+    html+=`<div class="card"><div style="color:#3fb950;font-weight:bold">🟢多头池（前100）</div>`;
+    longPool.forEach(x=>{
+      html+=`<div style="margin-top:6px"><b class="L">${x.base}</b> <span class="tag">多头</span> <span class="sub">#vol:${volFormat(x.vol24h)} 乖离${pc(x.bias)}</span></div>`;
+    });
+    html+=`</div>`;
+  }else html+=`<div class="empty">🟢多头池为空</div>`;
+
+  if(shortPool.length>0){
+    html+=`<div class="card"><div style="color:#f85149;font-weight:bold">🔴空头池（前100）</div>`;
+    shortPool.forEach(x=>{
+      html+=`<div style="margin-top:6px"><b class="S">${x.base}</b> <span class="tagShort">空头</span> <span class="sub">#vol:${volFormat(x.vol24h)} 乖离${pc(x.bias)}</span></div>`;
+    });
+    html+=`</div>`;
+  }else html+=`<div class="empty">🔴空头池为空</div>`;
+
+  if(rej&&rej.length>0){
+    html+=`<div class="card sub">过滤列表(最多展示前25)<br>${rej.slice(0,25).join('<br>')}</div>`;
+  }
+  $('out1').innerHTML=html;
+}
+
+$('f2').onclick=async()=>{
+  const poolSource=$('poolSource').value;
+  const scanMode=$('scanMode').value;
+  const usePool = poolSource==="longPool"?longPool:shortPool;
+  if(usePool.length===0){ st('st2','⚠️币种池为空，请先点抓取','e'); return; }
+  
+  const closeTol = num($('closeTol').value)/100;
+  const extTol = num($('extremeWickTol').value)/100;
+  const hits=[],miss=[];
+  st('st2',`<span class="sp"></span>开始15分钟K扫描，共${usePool.length}个...`);
+  $('out2').innerHTML='';
+  
+  for(let i=0;i<usePool.length;i++){
+    const it=usePool[i];
+    st('st2',`<span class="sp"></span>扫描 ${i+1}/${usePool.length}｜${it.base}`);
+    const kr=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=11`);
+    
+    if(kr.err){ miss.push(`${it.base}:${kr.err}`); await sleep(200); continue; }
+    if(!kr.data||kr.data.length<11){ miss.push(`${it.base}:K线不足`); await sleep(200); continue; }
+    
+    const kp=parseK(kr.data);
+    if(kp.err){ miss.push(`${it.base}:${kp.err}`); await sleep(200); continue; }
+    
+    const {c,l,h}=kp;
+    const idx=c.length - 1;
+    const L = idx - 9;
+    let minL=Infinity,maxH=-Infinity;
+    
+    for(let j=L;j<=idx;j++){ minL=Math.min(minL,l[j]); maxH=Math.max(maxH,h[j]); }
+    
+    const last=c[idx], prev=c[idx-1];
+    const drift=Math.abs(last-it.last)/it.last;
+    if(drift>0.10){ miss.push(`${it.base}:价格漂移${pc(drift)}`); await sleep(200); continue; }
+    
+    let stop,tp,risk,gap,touch;
+    if(scanMode==='long'){
+      const wickDr = (minL - Math.min(...l.slice(L,idx+1)))/minL;
+      if(wickDr>extTol){ miss.push(`${it.base}:下影刺破超限`); await sleep(200); continue; }
+      gap=(last-minL)/minL;
+      if(last > minL*(1+closeTol)){ miss.push(`${it.base}:收盘过高`); await sleep(200); continue; }
+      stop=minL; risk=(last-stop)/last; tp=last+(last-stop)*1.5;
+      touch = prev <= it.e5*1.003;
+    }else{
+      const wickUp=(Math.max(...h.slice(L,idx+1)) - maxH)/maxH;
+      if(wickUp>extTol){ miss.push(`${it.base}:上影刺破超限`); await sleep(200); continue; }
+      gap=(maxH-last)/maxH;
+      if(last < maxH*(1-closeTol)){ miss.push(`${it.base}:收盘过低`); await sleep(200); continue; }
+      stop=maxH; risk=(stop-last)/last; tp=last-(stop-last)*1.5;
+      touch = prev >= it.e5*0.997;
+    }
+    hits.push({...it,scanMode,last,minL,maxH,prev,stop,tp,risk,gap,touch});
+    await sleep(200);
+  }
+  
+  hits.sort((a,b)=>b.vol24h-a.vol24h);
+  let html='';
+  if(hits.length>0){
+    hits.forEach(x=>{
+      const cls = x.scanMode==='long' ? 'L' : 'S';
+      html+=`<div class="card"><div class="t ${cls}">${x.base}</div>
+      <div class="info">现价${px(x.last)}｜止损${px(x.stop)}｜止盈${px(x.tp)}｜风险${pc(x.risk)}</div></div>`;
+    });
+  }else html+=`<div class="empty">无符合条件结果</div>`;
+  if(miss.length>0) html+=`<div class="card sub">过滤：${miss.slice(0,25).join('<br>')}</div>`;
+  
+  $('out2').innerHTML=html;
+  st('st2',`✅15分钟扫描结束，命中${hits.length}个`,'o');
+};
+
+$('f1').onclick=runFullScan;
+$('refreshVol').onclick=refreshVolumeOnly;
+$('f2c').onclick=()=>{
+  localStorage.removeItem(K_LONG_POOL);
+  localStorage.removeItem(K_SHORT_POOL);
+  longPool=[]; shortPool=[];
+  $('out1').innerHTML='';$('out2').innerHTML='';
+  st('st1','✅缓存全部已清空','w');
+  st('st2','等待窗口一生成币种池');
+};
+
+(function init(){
+  longPool=[];shortPool=[];
+  $('out1').innerHTML='<div class="empty">尚未抓取数据，请点击【重新抓取前100】</div>';
+})();
+</script>
+</body>
+</html>
