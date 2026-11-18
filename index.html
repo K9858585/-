@@ -33,7 +33,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </head>
 <body>
 <div class="warn">
-⚠️ 本版本采用“前一根极值反转”逻辑：做空前一根必须是近10根最高点，当前确认收阴才进场。
+⚠️ 信号K=当前已收盘最后一根K；移除确认K、移除EMA20过滤。
 </div>
 <div class="win">
   <h2>窗口一 · 专属固定池 (含日线容差)</h2>
@@ -57,13 +57,12 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
   <div class="row">
     <label>极值容差(%)</label>
     <input type="number" id="extremeTol" value="1.5" step="0.1" min="0" max="10">
-    <span class="sub" style="font-size:11px">前一根K线距离极值的误差允许范围</span>
+    <span class="sub" style="font-size:11px">K线距离极值的误差允许范围</span>
   </div>
   <button class="btn b2" id="f2">🎯 扫描当前池（不刷新日线）</button>
   <div class="st" id="st2">等待窗口一生成币种池</div>
   <div id="out2"></div>
 </div>
-
 <script>
 const FIXED_COINS = [
   "BTCUSDT", "ETHUSDT", "SOXLUSDT", "SNDKUSDT", "ZECUSDT", "SOLUSDT", "NVDAUSDT", "XAUUSDT", "ANTUSDT", "MMTUSDT",
@@ -77,7 +76,6 @@ const FIXED_COINS = [
   "TSMUSDT", "NESUSDT", "AXTIUSDT", "NIGHTUSDT", "SPYUSDT", "UVXYUSDT", "MUUUSDT", "DGAIUSDT", "GRAMUSDT", "XLMUSDT",
   "ICPUSDT", "SQQQUSDT", "CXMTUSDT", "BEUSDT", "SOPHUSDT", "PROSUSDT", "EWYUSDT", "USELESSUSDT", "ZKPUSDT", "OPUSDT"
 ];
-
 const PROXIES = ["", "https://api.codetabs.com/v1/proxy?quest=", "https://corsproxy.io/?"];
 const K_LONG_POOL='okx_longpool_v20';
 const K_SHORT_POOL='okx_shortpool_v20';
@@ -89,7 +87,6 @@ const volFormat=v=>v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(2)+'M':(
 const px=p=>p>=1000?p.toFixed(0):p>=100?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed(6);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const num=x=>parseFloat(x)||0;
-
 async function okx(path, retries=2){
   const targetUrl = 'https://www.okx.com' + path;
   for(let i=0; i<=retries; i++){
@@ -112,14 +109,12 @@ async function okx(path, retries=2){
     }
   }
 }
-
 const ema = (arr, n) => {
   const k = 2 / (n + 1);
   const res = [arr[0]];
   for(let i = 1; i < arr.length; i++) { res.push(arr[i] * k + res[i - 1] * (1 - k)); }
   return res;
 };
-
 function parseK(d){
   const o=[],h=[],l=[],c=[];
   const closedData = d.filter(x => x[8] === '1');
@@ -131,36 +126,31 @@ function parseK(d){
   }
   return{o,h,l,c};
 }
-
 function dailyCheck(kData, wickTolPct){
   const {h,l,c}=kData;
   const i=c.length - 1;
   const E5=ema(c,5),E20=ema(c,20);
   const last=c[i],e5=E5[i],e20=E20[i];
-  
+
   if(!isFinite(last)||!isFinite(e5)||!isFinite(e20)) return{err:'EMA异常'};
-  
+
   const divergence = Math.abs(e5 - e20) / e20;
   if(divergence < 0.015) return{err:'均线粘合'};
-  
+
   const change5d = Math.abs(last - c[i-5]) / c[i-5];
   if(change5d < 0.07) return{err:'无爆发力'};
-
   const wickTol = wickTolPct / 100;
-
   let isRocket = true;
   let isWaterfall = true;
   for(let j=i-2; j<=i; j++){
     if(c[j] <= E5[j] || c[j] <= E20[j]) isRocket = false;
     if(c[j] >= E5[j] || c[j] >= E20[j]) isWaterfall = false;
   }
-
   let up5=0, dn5=0, up20=0, dn20=0;
   for(let j=i;j>i-3&&j>=1;j--){
     if(E5[j]>E5[j-1]) up5++; else dn5++;
     if(E20[j]>E20[j-1]) up20++; else dn20++;
   }
-
   if(isRocket && up5>=2 && up20>=2) {
     let wickBreach = false;
     for(let j=i-2; j<=i; j++){
@@ -171,7 +161,7 @@ function dailyCheck(kData, wickTolPct){
     }
     if(!wickBreach) return{kind:'long',last,e5,e20,change5d};
   }
-  
+
   if(isWaterfall && dn5>=2 && dn20>=2) {
     let wickBreach = false;
     for(let j=i-2; j<=i; j++){
@@ -182,19 +172,18 @@ function dailyCheck(kData, wickTolPct){
     }
     if(!wickBreach) return{kind:'short',last,e5,e20,change5d};
   }
-  
+
   return{err:'非单边极值'};
 }
-
 async function runFullScan(){
   const wickInput = num($('dailyWickTol').value);
   st('st1','<span class="sp"></span>获取固定池实时行情...');
-  
+
   const tickRes=await okx('/api/v5/market/tickers?instType=SWAP');
   if(tickRes.err){ st('st1','❌'+tickRes.err,'e'); return; }
-  
+
   const targetInstIds = FIXED_COINS.map(c => c.replace('USDT', '-USDT-SWAP'));
-  
+
   let rawList = [];
   tickRes.data.forEach(x => {
     if(targetInstIds.includes(x.instId)) {
@@ -206,43 +195,40 @@ async function runFullScan(){
       });
     }
   });
-
   if(rawList.length===0){ st('st1','❌获取不到行情，可能代理失效','e'); return; }
-  
+
   longPool=[]; shortPool=[];
   const rejectList=[];
   const total=rawList.length;
-  
-  st('st1',`<span class="sp"></span>开始处理专属池 (共${total}个)...`);
 
+  st('st1',`<span class="sp"></span>开始处理专属池 (共${total}个)...`);
   for(let i=0;i<rawList.length;i++){
     const item=rawList[i];
     st('st1',`<span class="sp"></span>处理 ${i+1}/${total} ｜ ${item.base}`);
     const kr=await okx(`/api/v5/market/candles?instId=${item.instId}&bar=1D&limit=40`);
-    
+
     if(kr.err){ rejectList.push(`${item.base}:${kr.err}`); await sleep(200); continue; }
     if(!kr.data||kr.data.length<25){ rejectList.push(`${item.base}:K线不足`); await sleep(200); continue; }
-    
+
     const kParsed=parseK(kr.data);
     if(kParsed.err){ rejectList.push(`${item.base}:${kParsed.err}`); await sleep(200); continue; }
-    
+
     const checkRes = dailyCheck(kParsed, wickInput);
     if(checkRes.err){ rejectList.push(`${item.base}:${checkRes.err}`); }
     else if(checkRes.kind==='long'){ longPool.push({...item,...checkRes}); }
     else if(checkRes.kind==='short'){ shortPool.push({...item,...checkRes}); }
-    
+
     await sleep(200);
   }
-  
+
   longPool.sort((a,b)=>b.volCcy24h-a.volCcy24h);
   shortPool.sort((a,b)=>b.volCcy24h-a.volCcy24h);
   localStorage.setItem(K_LONG_POOL,JSON.stringify(longPool));
   localStorage.setItem(K_SHORT_POOL,JSON.stringify(shortPool));
-  
+
   st('st1',`✅固定池扫描完成｜多头${longPool.length}，空头${shortPool.length}，淘汰${rejectList.length}`,'o');
   renderPool(rejectList);
 }
-
 function renderPool(rej=[]){
   let html='';
   if(longPool.length>0){
@@ -252,7 +238,6 @@ function renderPool(rej=[]){
     });
     html+=`</div>`;
   }else html+=`<div class="empty">🚀 火箭池为空</div>`;
-
   if(shortPool.length>0){
     html+=`<div class="card"><div style="color:#f85149;font-weight:bold">🌊 极端空头（瀑布）</div>`;
     shortPool.forEach(x=>{
@@ -260,91 +245,111 @@ function renderPool(rej=[]){
     });
     html+=`</div>`;
   }else html+=`<div class="empty">🌊 瀑布池为空</div>`;
-
   if(rej&&rej.length>0){
     html+=`<div class="card sub">淘汰列表(最多展示前50)<br>${rej.slice(0,50).join('<br>')}</div>`;
   }
   $('out1').innerHTML=html;
 }
-
-// ================= 窗口二核心引擎 (极致极值反转版) =================
+// ================= 窗口二核心引擎｜无确认K，信号K=最后已收盘K，无EMA20过滤 =================
 $('f2').onclick=async()=>{
   const poolSource=$('poolSource').value;
   const usePool = poolSource==="longPool"?longPool:shortPool;
   if(usePool.length===0){ st('st2','⚠️池子为空，请先在窗口一点击扫描','e'); return; }
-  
+
   const extTolPct = num($('extremeTol').value) / 100;
   const hits=[],miss=[];
   st('st2',`<span class="sp"></span>开始15分钟极值反转扫描...`);
   $('out2').innerHTML='';
-  
+
   for(let i=0;i<usePool.length;i++){
     const it=usePool[i];
     st('st2',`<span class="sp"></span>扫描 ${i+1}/${usePool.length}｜${it.base}`);
     const kr=await okx(`/api/v5/market/candles?instId=${it.instId}&bar=15m&limit=20`);
-    
+
     if(kr.err){ miss.push(`${it.base}:${kr.err}`); await sleep(200); continue; }
     if(!kr.data||kr.data.length<15){ miss.push(`${it.base}:K线不足`); await sleep(200); continue; }
-    
+
     const kp=parseK(kr.data);
     if(kp.err){ miss.push(`${it.base}:${kp.err}`); await sleep(200); continue; }
-    
+
     const {c, o, l, h} = kp;
-    // idx 是当前已经走完的最后一根（确认K线）
-    // idx-1 是反转极值的那一根（信号K线）
+    // idx：信号K = 当前已经收盘的最后一根K，不再使用确认K
     const idx = c.length - 1;
-    const last = c[idx]; 
-    const prevK = { o: o[idx-1], c: c[idx-1], h: h[idx-1], l: l[idx-1] };
-    
+    const sigK = { o: o[idx], c: c[idx], h: h[idx], l: l[idx] };
+
     const e20_15m = ema(c, 20)[idx];
-    
-    // 找过去 10 根 (不含信号K线) 的极值
-    const recent10 = [];
-    for(let j = idx-11; j < idx-1; j++) {
-        if(j >= 0) recent10.push({h: h[j], l: l[j]});
-    }
-    const maxH_10 = Math.max(...recent10.map(k => k.h));
-    const minL_10 = Math.min(...recent10.map(k => k.l));
 
     let isValidEntry = false;
     let stop = 0, tp = 0;
 
     if(it.kind === 'long'){
-      // 做多：信号K线必须是阴线，且它的最低点必须是近10根最低
-      const isPrevRed = prevK.c < prevK.o;
-      const distToMin = (prevK.l - minL_10) / minL_10;
-      // 确认K线必须收阳，且不破 EMA20
-      const isConfirmGreen = last > prevK.c; // 或者 last > o[idx]
-      
-      if(isPrevRed && distToMin <= extTolPct && isConfirmGreen && last > e20_15m) {
+      // 做多：信号K为大阴线；取信号K之前10根K，只收集阴线低点，阳线排除，无确认K
+      const isSigBigRed = (sigK.o - sigK.c) / sigK.o > 0.015;
+      const redLowList = [];
+      for(let j = idx-11; j < idx; j++) {
+          if(j >= 0){
+              const kO = o[j];
+              const kC = c[j];
+              if(kC < kO){
+                redLowList.push(l[j]);
+              }
+          }
+      }
+      let sigIsRedLowest = true;
+      if(redLowList.length > 0){
+          const minRedL = Math.min(...redLowList);
+          const dist = (minRedL - sigK.l) / minRedL;
+          sigIsRedLowest = dist <= extTolPct;
+      }
+      if(redLowList.length === 0){
+          sigIsRedLowest = false;
+      }
+
+      if(isSigBigRed && sigIsRedLowest) {
         isValidEntry = true;
-        // 止损设在刚才那根反转K线（信号线）的最低点
-        stop = prevK.l * 0.998; 
-        tp = last + (last - stop) * 3; 
+        stop = sigK.l * 0.998;
+        const entry = sigK.c;
+        tp = entry + (entry - stop) * 3;
       }
     } else {
-      // 做空：信号K线必须是阳线，且它的最高点必须是近10根最高
-      const isPrevGreen = prevK.c > prevK.o;
-      const distToMax = (maxH_10 - prevK.h) / maxH_10;
-      // 确认K线必须收阴
-      const isConfirmRed = last < prevK.c;
-      
-      if(isPrevGreen && distToMax <= extTolPct && isConfirmRed && last < e20_15m) {
+      // 做空：信号K为大阳线；取信号K之前10根K，只收集阳线高点，阴线排除，无确认K
+      const isSigBigGreen = (sigK.c - sigK.o) / sigK.o > 0.015;
+      const greenHighList = [];
+      for(let j = idx-11; j < idx; j++) {
+          if(j >= 0){
+              const kO = o[j];
+              const kC = c[j];
+              if(kC > kO){
+                greenHighList.push(h[j]);
+              }
+          }
+      }
+      let sigIsGreenHighest = true;
+      if(greenHighList.length > 0){
+          const maxGreenH = Math.max(...greenHighList);
+          const dist = (maxGreenH - sigK.h) / maxGreenH;
+          sigIsGreenHighest = dist <= extTolPct;
+      }
+      if(greenHighList.length === 0){
+          sigIsGreenHighest = false;
+      }
+
+      if(isSigBigGreen && sigIsGreenHighest) {
         isValidEntry = true;
-        // 止损设在刚才那根反转K线（信号线）的最高点
-        stop = prevK.h * 1.002; 
-        tp = last - (stop - last) * 3; 
+        stop = sigK.h * 1.002;
+        const entry = sigK.c;
+        tp = entry - (stop - entry) * 3;
       }
     }
 
     if(isValidEntry){
-      hits.push({...it, entry: last, stop, tp, risk: Math.abs(last-stop)/last});
+      hits.push({...it, entry: sigK.c, stop, tp, risk: Math.abs(sigK.c-stop)/sigK.c});
     } else {
       miss.push(`${it.base}:未达极值反转条件`);
     }
     await sleep(200);
   }
-  
+
   let html='';
   if(hits.length>0){
     hits.forEach(x=>{
@@ -359,13 +364,12 @@ $('f2').onclick=async()=>{
       </div></div>`;
     });
   }else html+=`<div class="empty">无符合15m极值反转进场条件</div>`;
-  
+
   if(miss.length>0) html+=`<div class="card sub">过滤原因：${miss.slice(0,25).join('<br>')}</div>`;
-  
+
   $('out2').innerHTML=html;
   st('st2',`✅扫描结束，命中${hits.length}个进场点`,'o');
 };
-
 $('f1').onclick=runFullScan;
 </script>
 </body>
