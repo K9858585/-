@@ -48,38 +48,19 @@ h1{text-align:center;font-size:18px;color:#f0b90b;margin-bottom:4px}
 </div>
 
 <script>
-const PROXIES = [
-  u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-  u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  u => `https://thingproxy.freeboard.io/fetch/${u}`,
-];
-let proxyIdx = 0;
-
+/* ===== 裸连，不绕代理 ===== */
 async function pfetch(url, timeout = 12000) {
-  let lastErr = '';
-  for (let i = 0; i < PROXIES.length; i++) {
-    const pi = (proxyIdx + i) % PROXIES.length;
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeout);
-    try {
-      const res = await fetch(PROXIES[pi](url), { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const txt = await res.text();
-      try {
-        const parsed = JSON.parse(txt);
-        proxyIdx = pi;
-        return parsed;
-      } catch(e) {
-        throw new Error('JSON解析失败');
-      }
-    } catch (e) {
-      clearTimeout(t);
-      lastErr = e.message;
-      continue;
-    }
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch(e) {
+    clearTimeout(t);
+    throw e;
   }
-  throw new Error(`所有代理不可用(${lastErr})`);
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -133,7 +114,7 @@ async function scan() {
     const tickUrl = 'https://www.okx.com/api/v5/market/tickers?instType=SWAP';
     let j;
     try { j = await pfetch(tickUrl, 15000); } catch(e) {
-      out.innerHTML = `<div class="box"><div class="empty">❌ 代理全部不可用<br><span style="font-size:11px">${e.message}<br>请稍后重试</span></div></div>`;
+      out.innerHTML = `<div class="box"><div class="empty">❌ 连接失败<br><span style="font-size:11px">${e.message}<br>你的网络环境直连 OKX 被拦了<br>需要走 Cloudflare Worker 代理</span></div></div>`;
       btn.disabled = false; btn.innerText = '🚀 扫描'; return;
     }
     if (!j || j.code !== '0') { out.innerHTML = '<div class="box"><div class="empty">接口返回异常</div></div>'; btn.disabled = false; btn.innerText = '🚀 扫描'; return; }
@@ -270,3 +251,4 @@ async function scan() {
 </script>
 </body>
 </html>
+
