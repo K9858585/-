@@ -1,348 +1,46 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易多币种深度研判终端 (v300)</title>
-<style>
-*{box-sizing:border-box}
-body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
-h2{font-size:16px;margin:0 0 10px;color:#627eea;letter-spacing:.5px;display:flex;align-items:center;gap:8px}
-.win{background:#11161d;border:1px solid #30363d;border-radius:14px;padding:14px;margin-bottom:16px}
-.btn{display:block;width:100%;padding:14px;margin:8px 0;border-radius:10px;border:none;font-size:16px;font-weight:600;cursor:pointer;transition:opacity 0.2s}
-.btn:active{opacity:0.7}
-.b1{background:#627eea;color:#fff; box-shadow:0 4px 15px rgba(98,126,234,0.4)}
-.st{margin:10px 0;padding:10px 12px;background:#161b22;border-radius:8px;font-size:13px;text-align:center}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px;margin:8px 0; cursor:pointer; transition:all 0.2s;}
-.card.active{border-color:#627eea; box-shadow:0 0 10px rgba(98,126,234,0.3); transform:translateY(-2px);}
-.title{font-size:14px;font-weight:bold;color:#8b949e;margin-bottom:8px;display:flex;justify-content:space-between}
-.L{color:#3fb950}.S{color:#f85149}.N{color:#ff9f0a}
-.info-row{display:flex;justify-content:space-between;font-size:13px;margin:6px 0;border-bottom:1px dashed #30363d;padding-bottom:4px}
-.info-row:last-child{border-bottom:none}
-.val{font-weight:bold;color:#fff}
-.big-val{font-size:20px;font-weight:900;color:#627eea}
-.box-long{background:#0d2818; border:1px solid #2f6f3e; border-radius:10px; padding:14px; margin-top:10px;}
-.box-short{background:#2b0d0d; border:1px solid #da3633; border-radius:10px; padding:14px; margin-top:10px;}
-.sp{display:inline-block;width:14px;height:14px;border:2px solid #30363d;border-top-color:#627eea;border-radius:50%;animation:r .8s linear infinite;vertical-align:-2px;margin-right:6px}
-@keyframes r{to{transform:rotate(360deg)}}
-.input-row{display:flex;gap:10px;margin-bottom:10px}
-.input-row input{flex:1;padding:12px;background:#161b22;border:1px solid #30363d;border-radius:8px;color:#fff;font-size:15px;font-weight:bold;text-transform:uppercase}
-.input-row input:focus{outline:none; border-color:#627eea;}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>彩票胆码统计（娱乐版）</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <main class="container">
+    <h1>彩票胆码统计（娱乐版）</h1>
+    <p class="warn">⚠️ 本工具仅做历史数据统计，彩票开奖随机，不构成投注建议。</p>
 
-<div class="win">
-  <h2><img src="https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png" width="20" height="20" style="border-radius:50%" id="coin-icon"> 多币种深度研判终端</h2>
-  <div class="input-row">
-    <input type="text" id="coin-input" value="ETH" placeholder="输入币种 (如: BTC, SOL, PEPE)" autocomplete="off">
-  </div>
-  <button class="btn b1" id="f1">🔍 执行分析 (刷新数据)</button>
-  <div class="st" id="st1">等待启动...</div>
-</div>
+    <section class="controls">
+      <label>
+        彩票类型：
+        <select id="type">
+          <option value="ssq">双色球</option>
+          <option value="dlt">大乐透</option>
+        </select>
+      </label>
+      <label>
+        参考期数：
+        <select id="count">
+          <option value="30">最近 30 期</option>
+          <option value="50" selected>最近 50 期</option>
+          <option value="100">最近 100 期</option>
+        </select>
+      </label>
+      <button id="run">开始统计</button>
+    </section>
 
-<div id="result-area" style="display:none;">
-  <div class="win">
-    <div class="title"><span id="disp-coin">ETH</span> 实时价格 (USDT)</div>
-    <div class="big-val" id="eth-price">--</div>
-    <div class="sub" id="eth-change" style="font-size:12px; margin-top:4px;">--</div>
-  </div>
+    <section id="status" class="status"></section>
 
-  <div class="win">
-    <div class="title">点击切换周期查看详细策略</div>
-    <div class="grid" id="tf-grid">
-      <div class="card active" id="card-15m" onclick="switchTF('15m')">
-        <div class="title">15分钟 (极短线)</div>
-        <div id="tf-15m" style="font-size:16px;font-weight:bold;">--</div>
-      </div>
-      <div class="card" id="card-1h" onclick="switchTF('1h')">
-        <div class="title">1小时 (日内)</div>
-        <div id="tf-1h" style="font-size:16px;font-weight:bold;">--</div>
-      </div>
-      <div class="card" id="card-4h" onclick="switchTF('4h')">
-        <div class="title">4小时 (波段)</div>
-        <div id="tf-4h" style="font-size:16px;font-weight:bold;">--</div>
-      </div>
-      <div class="card" id="card-1d" onclick="switchTF('1d')">
-        <div class="title">日线 (宏观)</div>
-        <div id="tf-1d" style="font-size:16px;font-weight:bold;">--</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 动态详情区 -->
-  <div class="win" id="detail-area" style="display:none;">
-    <div class="title" id="detail-title">-- 详细分析 --</div>
-    <div class="info-row"><span id="lbl-ema">EMA20 (生命线)</span><span class="val" id="val-ema">--</span></div>
-    <div class="info-row"><span id="lbl-rsi">RSI(14)</span><span class="val" id="val-rsi">--</span></div>
-    <div class="info-row"><span id="lbl-macd">MACD 动能</span><span class="val" id="val-macd">--</span></div>
-    <div class="info-row"><span id="lbl-atr">ATR (真实波幅)</span><span class="val" id="val-atr">--</span></div>
-  </div>
-
-  <!-- 行动指令区 -->
-  <div class="win" id="trade-box" style="display:none;">
-    <div class="title">🎯 绝对执行指令</div>
-    <div id="trade-content"></div>
-  </div>
-</div>
-
-<script>
-const PROXIES = ["", "https://api.codetabs.com/v1/proxy?quest=", "https://corsproxy.io/?"];
-const $=i=>document.getElementById(i);
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-let globalData = null;
-let currentTF = '15m';
-
-// 公共 CORS 代理请求函数
-async function okx(path, retries=2){
-  const targetUrl = 'https://www.okx.com' + path;
-  for(let i=0; i<=retries; i++){
-    const proxy = PROXIES[i % PROXIES.length];
-    const fetchUrl = proxy ? proxy + encodeURIComponent(targetUrl) : targetUrl;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
-    try{
-      const r = await fetch(fetchUrl, { signal: ctrl.signal });
-      clearTimeout(timer);
-      if(r.status === 429 || r.status >= 500) continue;
-      if(!r.ok) continue;
-      const j = await r.json();
-      if(j.code !== '0') return {err:`API:${j.msg}`};
-      return {data:j.data};
-    }catch(e){
-      clearTimeout(timer);
-      if(i === retries) return {err:`网络失败`};
-      await sleep(300);
-    }
-  }
-}
-
-// 核心数学指标计算
-const ema = (arr, n) => {
-  const k = 2 / (n + 1);
-  const res = [arr[0]];
-  for(let i = 1; i < arr.length; i++) { res.push(arr[i] * k + res[i - 1] * (1 - k)); }
-  return res;
-};
-const calcRSI = (closes, period = 14) => {
-  if (closes.length <= period) return 50;
-  let gains = 0, losses = 0;
-  for (let i = 1; i <= period; i++) {
-      const diff = closes[i] - closes[i - 1];
-      if (diff >= 0) gains += diff; else losses -= diff;
-  }
-  let avgGain = gains / period, avgLoss = losses / period;
-  for (let i = period + 1; i < closes.length; i++) {
-      const diff = closes[i] - closes[i - 1];
-      let gain = diff > 0 ? diff : 0, loss = diff < 0 ? -diff : 0;
-      avgGain = (avgGain * (period - 1) + gain) / period;
-      avgLoss = (avgLoss * (period - 1) + loss) / period;
-  }
-  if (avgLoss === 0) return 100;
-  return 100 - (100 / (1 + (avgGain / avgLoss)));
-};
-const calcMACD = (closes) => {
-  const ema12 = ema(closes, 12);
-  const ema26 = ema(closes, 26);
-  const diff = ema12.map((v, i) => v - ema26[i]);
-  const dea = ema(diff, 9);
-  return { diff: diff[diff.length-1], dea: dea[dea.length-1], hist: (diff[diff.length-1] - dea[dea.length-1]) * 2 };
-};
-const calcATR = (h, l, c, period = 14) => {
-  let trs = [];
-  for (let i = 1; i < c.length; i++) {
-      const tr = Math.max(h[i] - l[i], Math.abs(h[i] - c[i - 1]), Math.abs(l[i] - c[i - 1]));
-      trs.push(tr);
-  }
-  let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  for (let i = period; i < trs.length; i++) { atr = (atr * (period - 1) + trs[i]) / period; }
-  return atr;
-};
-
-// 解析K线 (剔除未收盘)
-function parseK(d){
-  const o=[],h=[],l=[],c=[];
-  const closedData = d.filter(x => x[8] === '1');
-  const data=[...closedData].reverse();
-  for(const x of data){
-    o.push(parseFloat(x[1])); h.push(parseFloat(x[2])); l.push(parseFloat(x[3])); c.push(parseFloat(x[4]));
-  }
-  return{o,h,l,c};
-}
-
-// 主分析函数
-async function analyzeCoin(){
-  let inputCoin = $('coin-input').value.trim().toUpperCase();
-  if(!inputCoin) { alert('请输入币种名称'); return; }
-  
-  // 智能拼接欧易后缀
-  const instId = inputCoin.endsWith('USDT') ? `${inputCoin}-SWAP` : `${inputCoin}-USDT-SWAP`;
-
-  $('st1').innerHTML = `<span class="sp"></span>拉取 ${inputCoin} 多周期数据并极速研判...`;
-  $('result-area').style.display = 'none';
-
-  try {
-    // 1. 获取实时行情验证代码是否有效
-    const tickRes = await okx(`/api/v5/market/ticker?instId=${instId}`);
-    if(tickRes.err || !tickRes.data || tickRes.data.length === 0) throw new Error("找不到该币种");
-    
-    const tick = tickRes.data[0];
-    const lastPrice = parseFloat(tick.last);
-
-    // 2. 并行拉取 4 个周期数据
-    const [k15m, k1h, k4h, k1d] = await Promise.all([
-      okx(`/api/v5/market/candles?instId=${instId}&bar=15m&limit=50`),
-      okx(`/api/v5/market/candles?instId=${instId}&bar=1H&limit=50`),
-      okx(`/api/v5/market/candles?instId=${instId}&bar=4H&limit=50`),
-      okx(`/api/v5/market/candles?instId=${instId}&bar=1D&limit=50`)
-    ]);
-
-    const d15m = parseK(k15m.data);
-    const d1h = parseK(k1h.data);
-    const d4h = parseK(k4h.data);
-    const d1d = parseK(k1d.data);
-
-    const calcTFD = (d) => {
-        const ema20 = ema(d.c, 20)[d.c.length - 1];
-        const rsi = calcRSI(d.c);
-        const macd = calcMACD(d.c);
-        const atr = calcATR(d.h, d.l, d.c);
-        return { ema20, rsi, macd, atr };
-    };
-
-    globalData = {
-      price: lastPrice,
-      coin: inputCoin,
-      '15m': calcTFD(d15m),
-      '1h': calcTFD(d1h),
-      '4h': calcTFD(d4h),
-      '1d': calcTFD(d1d)
-    };
-
-    // 3. 渲染 UI
-    $('disp-coin').innerText = inputCoin;
-    $('eth-price').innerText = `$${lastPrice.toFixed(lastPrice < 1 ? 6 : 2)}`;
-    
-    const chg = ((lastPrice - parseFloat(tick.open24h)) / parseFloat(tick.open24h)) * 100;
-    $('eth-change').innerHTML = `24h涨跌: <span style="color:${chg>=0?'#3fb950':'#f85149'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`;
-
-    ['15m', '1h', '4h', '1d'].forEach(tf => {
-        const dat = globalData[tf];
-        const isBull = lastPrice > dat.ema20 && dat.macd.hist > 0;
-        const isBear = lastPrice < dat.ema20 && dat.macd.hist < 0;
-        const color = isBull ? '#3fb950' : isBear ? '#f85149' : '#ff9f0a';
-        const txt = isBull ? '多头排列' : isBear ? '空头压制' : '震荡整理';
-        $(`tf-${tf}`).innerHTML = `<span style="color:${color}">${txt}</span>`;
-    });
-
-    $('st1').innerText = `✅ ${inputCoin} 研判完成，点击上方卡片查看详细点位`;
-    $('st1').style.color = '#3fb950';
-    $('result-area').style.display = 'block';
-
-    switchTF('15m'); // 默认选中 15m
-
-  } catch (e) {
-    $('st1').innerText = `❌ 获取 ${inputCoin} 数据失败，请检查币种名称或网络。`;
-    $('st1').style.color = '#f85149';
-  }
-}
-
-// 切换周期渲染
-window.switchTF = function(tf) {
-  if(!globalData) return;
-  currentTF = tf;
-  const dat = globalData[tf];
-  const price = globalData.price;
-  const isLowPrice = price < 1; // 低价币格式化处理
-  
-  const formatP = (val) => isLowPrice ? val.toFixed(6) : val.toFixed(2);
-
-  // UI 高亮
-  ['15m', '1h', '4h', '1d'].forEach(t => {
-      if(t === tf) $(`card-${t}`).classList.add('active');
-      else $(`card-${t}`).classList.remove('active');
-  });
-
-  $('detail-area').style.display = 'block';
-  $('detail-title').innerText = `[${tf.toUpperCase()}] 周期指标详情`;
-  
-  $('val-ema').innerText = `$${formatP(dat.ema20)}`;
-  $('val-ema').style.color = price > dat.ema20 ? '#3fb950' : '#f85149';
-
-  $('val-rsi').innerText = `${dat.rsi.toFixed(1)}`;
-  $('val-rsi').style.color = dat.rsi > 70 ? '#f85149' : dat.rsi < 30 ? '#3fb950' : '#fff';
-
-  const macdStr = dat.macd.hist > 0 ? '多头放量' : '空头放量';
-  $('val-macd').innerText = `${macdStr} (${dat.macd.hist.toFixed(isLowPrice ? 6 : 2)})`;
-  $('val-macd').style.color = dat.macd.hist > 0 ? '#3fb950' : '#f85149';
-
-  $('val-atr').innerText = `$${formatP(dat.atr)}`;
-
-  // 生成绝对指令
-  $('trade-box').style.display = 'block';
-  let html = '';
-  
-  const isLong = price > dat.ema20 && dat.macd.hist > 0;
-  const isShort = price < dat.ema20 && dat.macd.hist < 0;
-
-  if (isLong) {
-      const stopLoss = price - (dat.atr * 1.5);
-      const risk = price - stopLoss;
-      html = `
-        <div class="box-long">
-          <div style="font-size:16px; font-weight:bold; color:#3fb950; margin-bottom:10px;">🚀 [${tf.toUpperCase()}] 绝对指令：做多 (LONG)</div>
-          <div class="info-row"><span>建议进场</span><span class="val">${formatP(price)}</span></div>
-          <div class="info-row"><span>强制防守</span><span class="val S">${formatP(stopLoss)} (风险: ${((risk/price)*100).toFixed(2)}%)</span></div>
-          <div class="info-row"><span>第一止盈 (1:2)</span><span class="val L">${formatP(price + risk*2)}</span></div>
-          <div class="info-row"><span>第二止盈 (1:3)</span><span class="val L">${formatP(price + risk*3)}</span></div>
-        </div>
-      `;
-  } else if (isShort) {
-      const stopLoss = price + (dat.atr * 1.5);
-      const risk = stopLoss - price;
-      html = `
-        <div class="box-short">
-          <div style="font-size:16px; font-weight:bold; color:#f85149; margin-bottom:10px;">🌊 [${tf.toUpperCase()}] 绝对指令：做空 (SHORT)</div>
-          <div class="info-row"><span>建议进场</span><span class="val">${formatP(price)}</span></div>
-          <div class="info-row"><span>强制防守</span><span class="val L">${formatP(stopLoss)} (风险: ${((risk/price)*100).toFixed(2)}%)</span></div>
-          <div class="info-row"><span>第一止盈 (1:2)</span><span class="val S">${formatP(price - risk*2)}</span></div>
-          <div class="info-row"><span>第二止盈 (1:3)</span><span class="val S">${formatP(price - risk*3)}</span></div>
-        </div>
-      `;
-  } else {
-      if(price > dat.ema20) {
-          const stopLoss = dat.ema20 - (dat.atr * 0.5);
-          html = `
-            <div class="box-long" style="opacity:0.85">
-              <div style="font-size:15px; font-weight:bold; color:#3fb950; margin-bottom:10px;">⚖️ [${tf.toUpperCase()}] 震荡偏多：均线低吸</div>
-              <div class="info-row"><span>建议挂单</span><span class="val">${formatP(dat.ema20)} (回踩EMA20)</span></div>
-              <div class="info-row"><span>破位止损</span><span class="val S">${formatP(stopLoss)}</span></div>
-              <div class="info-row"><span>上方目标</span><span class="val L">${formatP(price + dat.atr * 2)}</span></div>
-            </div>
-          `;
-      } else {
-          const stopLoss = dat.ema20 + (dat.atr * 0.5);
-          html = `
-            <div class="box-short" style="opacity:0.85">
-              <div style="font-size:15px; font-weight:bold; color:#f85149; margin-bottom:10px;">⚖️ [${tf.toUpperCase()}] 震荡偏空：均线高空</div>
-              <div class="info-row"><span>建议挂单</span><span class="val">${formatP(dat.ema20)} (反抽EMA20)</span></div>
-              <div class="info-row"><span>破位止损</span><span class="val L">${formatP(stopLoss)}</span></div>
-              <div class="info-row"><span>下方目标</span><span class="val S">${formatP(price - dat.atr * 2)}</span></div>
-            </div>
-          `;
-      }
-  }
-  $('trade-content').innerHTML = html;
-};
-
-$('f1').onclick = analyzeCoin;
-
-// 支持回车搜索
-$('coin-input').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') analyzeCoin();
-});
-
-</script>
+    <section id="result" class="result hidden">
+      <h2>统计结果</h2>
+      <div id="danma" class="danma"></div>
+      <h3>红球/前区出现频次</h3>
+      <div id="freq" class="freq"></div>
+      <h3>最近开奖（部分）</h3>
+      <div id="recent" class="recent"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
 </body>
 </html>
