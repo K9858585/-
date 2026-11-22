@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约扫描｜5m极强顺势收线 (根数打分v297)</title>
+<title>欧易合约扫描｜平滑极强趋势 (v298)</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -31,7 +31,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 </head>
 <body>
 <div class="warn">
-⚠️ 根数打分机制：刚好连续10根合格为最高分（爆发力最强），根数越多分数递减。
+⚠️ 已开启“剔除大阳/大阴妖币”过滤：过去 10 根内实体涨跌幅不得超 2%，要求极致平滑。
 </div>
 <div class="win">
   <h2>实时监控中</h2>
@@ -82,10 +82,10 @@ function playAlert(){
   
   let isBlink = false;
   const blinkTimer = setInterval(() => {
-    document.title = isBlink ? '🚨发现进场信号！' : '欧易合约扫描｜5m极强顺势收线';
+    document.title = isBlink ? '🚨发现进场信号！' : '欧易合约扫描｜平滑极强趋势';
     isBlink = !isBlink;
   }, 500);
-  setTimeout(() => { clearInterval(blinkTimer); document.title = '欧易合约扫描｜5m极强顺势收线'; }, 5000);
+  setTimeout(() => { clearInterval(blinkTimer); document.title = '欧易合约扫描｜平滑极强趋势'; }, 5000);
 }
 
 async function okx(path, retries=1){
@@ -94,7 +94,7 @@ async function okx(path, retries=1){
     const proxy = PROXIES[i % PROXIES.length];
     const fetchUrl = proxy ? proxy + encodeURIComponent(targetUrl) : targetUrl;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const timer = setTimeout(() => ctrl.abort(), 5000); // 极致超时控制，加快失败切换
     try{
       const r = await fetch(fetchUrl, { signal: ctrl.signal });
       clearTimeout(timer);
@@ -119,7 +119,6 @@ const ema = (arr, n) => {
 
 function parseK(d){
   const o=[],h=[],l=[],c=[];
-  // 必须剔除未收盘的 K 线
   const closedData = d.filter(x => x[8] === '1'); 
   const data=[...closedData].reverse();
   for(const x of data){
@@ -131,13 +130,13 @@ function parseK(d){
 }
 
 async function run5mScan() {
-  st('st2','<span class="sp"></span>高速扫描 5m 形态中...');
+  st('st2','<span class="sp"></span>极速扫描中...');
   const out = $('out2');
   out.innerHTML = '';
 
-  // 获取最新的币种 K 线（拉取 35 根，确保足够计算 20EMA 以及寻找连续 K 线）
   const targetInstIds = FIXED_COINS.map(c => c.replace('USDT', '-USDT-SWAP'));
   
+  // 极速并发请求
   const promises = targetInstIds.map(async (instId) => {
     const kr = await okx(`/api/v5/market/candles?instId=${instId}&bar=5m&limit=35`);
     if (kr.err || !kr.data || kr.data.length < 30) return { err: true, instId };
@@ -152,26 +151,32 @@ async function run5mScan() {
     
     const e20_5m = ema(c, 20);
     
-    // 计数连续合格的 K 线根数（从前一根开始往前数，不含最后一根确认线）
     let longCount = 0;
     let shortCount = 0;
+    let hasBigCandle = false; // 是否出现大阴大阳
 
-    // 从倒数第二根开始，一直往前找，最多找 15 根
-    for (let j = idx - 1; j >= idx - 15 && j >= 0; j--) {
-        // 做多：收盘价和最低点都在均线之上
+    // 检查最近 10 根（含最后一根）的形态
+    for (let j = idx; j >= idx - 10 && j >= 0; j--) {
+        // 计算实体涨跌幅（开盘到收盘的百分比）
+        const bodyPct = Math.abs(c[j] - o[j]) / o[j];
+        // 如果单根实体振幅超过 2%，视为大K线，标记为不合格
+        if(bodyPct > 0.02) {
+            hasBigCandle = true;
+            break;
+        }
+
+        // 做多：收在均线上，下影线不破均线
         if(c[j] > e20_5m[j] && l[j] > e20_5m[j]) {
             longCount++;
         } else {
-            break; // 一旦中断，停止计数
+            longCount = -999; // 做多形态破坏
         }
-    }
 
-    for (let j = idx - 1; j >= idx - 15 && j >= 0; j--) {
-        // 做空：收盘价和最高点都在均线之下
+        // 做空：收在均线下，上影线不破均线
         if(c[j] < e20_5m[j] && h[j] < e20_5m[j]) {
             shortCount++;
         } else {
-            break;
+            shortCount = -999;
         }
     }
 
@@ -180,22 +185,25 @@ async function run5mScan() {
     let continuousBars = 0;
     let score = 0;
 
-    // 做多：连续合格 >= 10 根，且最后一根必须是阴线（上车）
-    if(longCount >= 10 && lastC < lastO) {
-        hitKind = 'long';
-        continuousBars = longCount;
-        stop = l[idx] * 0.998; 
-        tp = lastC + (lastC - stop) * 3; 
-    } 
-    // 做空：连续合格 >= 10 根，且最后一根必须是阳线（反抽诱多）
-    else if(shortCount >= 10 && lastC > lastO) {
-        hitKind = 'short';
-        continuousBars = shortCount;
-        stop = h[idx] * 1.002;
-        tp = lastC - (stop - lastC) * 3;
+    // 如果出现大K线，直接淘汰
+    if(!hasBigCandle) {
+        // 做多：连续合格 >= 10 根
+        if(longCount >= 10) {
+            hitKind = 'long';
+            continuousBars = longCount;
+            stop = l[idx] * 0.998; 
+            tp = lastC + (lastC - stop) * 3; 
+        } 
+        // 做空：连续合格 >= 10 根
+        else if(shortCount >= 10) {
+            hitKind = 'short';
+            continuousBars = shortCount;
+            stop = h[idx] * 1.002;
+            tp = lastC - (stop - lastC) * 3;
+        }
     }
 
-    // 【核心打分机制】：刚好 10 根给 100 分，每多 1 根扣 10 分（说明动能可能衰竭）
+    // 打分机制：刚好 10 根给 100 分
     if(hitKind) {
         score = Math.max(10, 100 - (continuousBars - 10) * 10);
         return {
@@ -210,15 +218,15 @@ async function run5mScan() {
   const results = await Promise.all(promises);
   let hits = results.filter(r => !r.err && r.hit);
   
-  // 按得分从高到低排序（根数越少、刚满10根的排在前面）
+  // 按得分从高到低排序
   hits.sort((a, b) => b.score - a.score);
   
   if(hits.length > 0){
     let html = '';
     hits.forEach(x=>{
       const cls = x.hitKind === 'long' ? 'L' : 'S';
-      const dir = x.hitKind === 'long' ? '做多🚀(收阴上车)' : '做空🌊(收阳上车)';
-      const sColor = x.score >= 80 ? '#3fb950' : '#ff9f0a'; // 80分以上用绿色高亮
+      const dir = x.hitKind === 'long' ? '极强做多🚀' : '极强做空🌊';
+      const sColor = x.score >= 80 ? '#3fb950' : '#ff9f0a'; 
       
       html+=`<div class="card">
         <div class="t ${cls}">
@@ -235,19 +243,17 @@ async function run5mScan() {
     });
     out.innerHTML = html;
     st('st2',`✅扫描结束，命中 ${hits.length} 个目标`, 'o');
-    playAlert(); // 触发声音和标题闪烁
+    playAlert();
   } else {
-    out.innerHTML = `<div class="empty">无符合极强形态的币种 (要求连续10根以上极强，最后1根反向)</div>`;
+    out.innerHTML = `<div class="empty">无符合极强形态的币种 (已过滤大K线，要求连续10根以上极强)</div>`;
     st('st2',`本轮未发现目标`, 'n');
   }
 }
 
-// 定时机制（对准欧易收线时间：每5分钟的第2秒）
 let countdownTimer = null;
 function scheduleNextScan() {
   const now = new Date();
   const ms = now.getTime();
-  // 计算下一个 5 分钟边界，并加上 2 秒延迟
   const next5m = Math.ceil(ms / (5 * 60 * 1000)) * (5 * 60 * 1000) + 2000; 
   
   if(countdownTimer) clearInterval(countdownTimer);
@@ -260,8 +266,8 @@ function scheduleNextScan() {
     
     if (left <= 0) {
       clearInterval(countdownTimer);
-      run5mScan(); // 执行扫描
-      scheduleNextScan(); // 递归设置下一个定时器
+      run5mScan(); 
+      scheduleNextScan(); 
     }
   }, 1000);
 }
