@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>欧易合约扫描｜5m极强顺势收线 (v296)</title>
+<title>欧易合约扫描｜5m极强顺势收线 (根数打分v297)</title>
 <style>
 *{box-sizing:border-box}
 body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;margin:0;padding:14px;max-width:680px;margin:0 auto}
@@ -16,7 +16,7 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .st{margin:10px 0;padding:10px 12px;background:#161b22;border-radius:8px;font-size:13px;line-height:1.6;word-break:break-all; min-height:42px; display:flex; justify-content:space-between; align-items:center;}
 .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:11px;margin:8px 0; animation: pop 0.3s ease-out;}
 @keyframes pop { 0%{transform:scale(0.95);opacity:0} 100%{transform:scale(1);opacity:1} }
-.t{font-size:17px;font-weight:700}
+.t{font-size:17px;font-weight:700; display:flex; justify-content:space-between;}
 .L{color:#3fb950}.S{color:#f85149}.N{color:#8b949e}.Y{color:#ff9f0a}
 .info{font-size:13px;line-height:1.75;margin-top:5px}
 .info b{color:#fff}
@@ -26,11 +26,12 @@ h2{font-size:15px;margin:0 0 10px;color:#ff9f0a;letter-spacing:.5px}
 .warn{background:#2d1a00;border:1px solid #8b6914;color:#ffbf47;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.6;margin:8px 0}
 .empty{color:#8b949e;font-size:13px;padding:10px;text-align:center;border:1px dashed #30363d;border-radius:10px}
 .countdown{font-size:14px; font-weight:bold; color:#79c0ff;}
+.badge{font-size:12px; padding:2px 6px; border-radius:4px; background:#2a2e39; color:#ff9f0a;}
 </style>
 </head>
 <body>
 <div class="warn">
-⚠️ 页面打开后请勿关闭。系统将自动在欧易 5m K线收线后 2 秒执行扫描，并发出声音提醒。<br>多头趋势必须收阴回踩才提示，空头必须收阳反抽才提示。
+⚠️ 根数打分机制：刚好连续10根合格为最高分（爆发力最强），根数越多分数递减。
 </div>
 <div class="win">
   <h2>实时监控中</h2>
@@ -64,7 +65,6 @@ const px=p=>p>=1000?p.toFixed(0):p>=100?p.toFixed(2):p>=1?p.toFixed(4):p.toFixed
 const num=x=>parseFloat(x)||0;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-// 声音提醒函数
 function playAlert(){
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -73,14 +73,13 @@ function playAlert(){
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime); // 高频滴滴声
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
     gain.gain.setValueAtTime(1, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
     osc.start();
     osc.stop(ctx.currentTime + 0.5);
   } catch (e) { console.log('浏览器阻止了声音'); }
   
-  // 标题闪烁
   let isBlink = false;
   const blinkTimer = setInterval(() => {
     document.title = isBlink ? '🚨发现进场信号！' : '欧易合约扫描｜5m极强顺势收线';
@@ -120,7 +119,8 @@ const ema = (arr, n) => {
 
 function parseK(d){
   const o=[],h=[],l=[],c=[];
-  const closedData = d.filter(x => x[8] === '1'); // 绝对只拿已收盘的
+  // 必须剔除未收盘的 K 线
+  const closedData = d.filter(x => x[8] === '1'); 
   const data=[...closedData].reverse();
   for(const x of data){
     const co=num(x[1]),hi=num(x[2]),lo=num(x[3]),cl=num(x[4]);
@@ -135,11 +135,12 @@ async function run5mScan() {
   const out = $('out2');
   out.innerHTML = '';
 
+  // 获取最新的币种 K 线（拉取 35 根，确保足够计算 20EMA 以及寻找连续 K 线）
   const targetInstIds = FIXED_COINS.map(c => c.replace('USDT', '-USDT-SWAP'));
   
   const promises = targetInstIds.map(async (instId) => {
-    const kr = await okx(`/api/v5/market/candles?instId=${instId}&bar=5m&limit=30`);
-    if (kr.err || !kr.data || kr.data.length < 25) return { err: true, instId };
+    const kr = await okx(`/api/v5/market/candles?instId=${instId}&bar=5m&limit=35`);
+    if (kr.err || !kr.data || kr.data.length < 30) return { err: true, instId };
     
     const kp = parseK(kr.data);
     if (kp.err) return { err: true, instId };
@@ -151,65 +152,92 @@ async function run5mScan() {
     
     const e20_5m = ema(c, 20);
     
-    let isValidLong = true;
-    let isValidShort = true;
+    // 计数连续合格的 K 线根数（从前一根开始往前数，不含最后一根确认线）
+    let longCount = 0;
+    let shortCount = 0;
 
-    // 检查过去 10 根（不含最后一根，我们要保证前 10 根是极度强势的）
-    for(let j = idx - 10; j < idx; j++) {
-        // 多头：收盘在均线上，下影线不破均线
-        if(c[j] <= e20_5m[j] || l[j] <= e20_5m[j]) isValidLong = false;
-        // 空头：收盘在均线下，上影线不破均线
-        if(c[j] >= e20_5m[j] || h[j] >= e20_5m[j]) isValidShort = false;
+    // 从倒数第二根开始，一直往前找，最多找 15 根
+    for (let j = idx - 1; j >= idx - 15 && j >= 0; j--) {
+        // 做多：收盘价和最低点都在均线之上
+        if(c[j] > e20_5m[j] && l[j] > e20_5m[j]) {
+            longCount++;
+        } else {
+            break; // 一旦中断，停止计数
+        }
+    }
+
+    for (let j = idx - 1; j >= idx - 15 && j >= 0; j--) {
+        // 做空：收盘价和最高点都在均线之下
+        if(c[j] < e20_5m[j] && h[j] < e20_5m[j]) {
+            shortCount++;
+        } else {
+            break;
+        }
     }
 
     let hitKind = null;
     let stop = 0, tp = 0;
+    let continuousBars = 0;
+    let score = 0;
 
-    // 核心改动：在极强形态下，最后一根必须是反向的（上车线）
-    // 做多：最后一根必须收阴
-    if(isValidLong && lastC < lastO) {
+    // 做多：连续合格 >= 10 根，且最后一根必须是阴线（上车）
+    if(longCount >= 10 && lastC < lastO) {
         hitKind = 'long';
+        continuousBars = longCount;
         stop = l[idx] * 0.998; 
         tp = lastC + (lastC - stop) * 3; 
     } 
-    // 做空：最后一根必须收阳
-    else if(isValidShort && lastC > lastO) {
+    // 做空：连续合格 >= 10 根，且最后一根必须是阳线（反抽诱多）
+    else if(shortCount >= 10 && lastC > lastO) {
         hitKind = 'short';
+        continuousBars = shortCount;
         stop = h[idx] * 1.002;
         tp = lastC - (stop - lastC) * 3;
     }
 
-    if(hitKind){
-      return {
-        err: false, hit: true, instId, base: instId.split('-')[0],
-        hitKind, entry: lastC, stop, tp, risk: Math.abs(lastC - stop) / lastC
-      };
+    // 【核心打分机制】：刚好 10 根给 100 分，每多 1 根扣 10 分（说明动能可能衰竭）
+    if(hitKind) {
+        score = Math.max(10, 100 - (continuousBars - 10) * 10);
+        return {
+            err: false, hit: true, instId, base: instId.split('-')[0],
+            hitKind, continuousBars, score, entry: lastC, stop, tp, risk: Math.abs(lastC - stop) / lastC
+        };
     } else {
-      return { err: false, hit: false, instId };
+        return { err: false, hit: false, instId };
     }
   });
 
   const results = await Promise.all(promises);
-  const hits = results.filter(r => !r.err && r.hit);
+  let hits = results.filter(r => !r.err && r.hit);
+  
+  // 按得分从高到低排序（根数越少、刚满10根的排在前面）
+  hits.sort((a, b) => b.score - a.score);
   
   if(hits.length > 0){
     let html = '';
     hits.forEach(x=>{
       const cls = x.hitKind === 'long' ? 'L' : 'S';
       const dir = x.hitKind === 'long' ? '做多🚀(收阴上车)' : '做空🌊(收阳上车)';
-      html+=`<div class="card"><div class="t ${cls}">${x.base} <span style="font-size:14px">${dir}</span></div>
-      <div class="info">
-        <b>进场:</b> ${px(x.entry)}<br>
-        <b>防守:</b> ${px(x.stop)}<br>
-        <b>止盈:</b> ${px(x.tp)}<br>
-        <span class="Y">风险空间: ${pc(x.risk)}</span>
-      </div></div>`;
+      const sColor = x.score >= 80 ? '#3fb950' : '#ff9f0a'; // 80分以上用绿色高亮
+      
+      html+=`<div class="card">
+        <div class="t ${cls}">
+            <span>${x.base} <span style="font-size:14px">${dir}</span></span>
+            <span class="badge" style="color:${sColor}; border:1px solid ${sColor}">连续${x.continuousBars}根 [${x.score}分]</span>
+        </div>
+        <div class="info">
+            <b>进场:</b> ${px(x.entry)}<br>
+            <b>防守:</b> ${px(x.stop)}<br>
+            <b>止盈:</b> ${px(x.tp)}<br>
+            <span class="Y">风险空间: ${pc(x.risk)}</span>
+        </div>
+      </div>`;
     });
     out.innerHTML = html;
     st('st2',`✅扫描结束，命中 ${hits.length} 个目标`, 'o');
     playAlert(); // 触发声音和标题闪烁
   } else {
-    out.innerHTML = `<div class="empty">无符合极强形态的币种 (要求前10根极强，最后1根反向)</div>`;
+    out.innerHTML = `<div class="empty">无符合极强形态的币种 (要求连续10根以上极强，最后1根反向)</div>`;
     st('st2',`本轮未发现目标`, 'n');
   }
 }
